@@ -4,7 +4,7 @@ import { resolve } from "node:path";
 import Fastify, { type FastifyInstance } from "fastify";
 import fastifyStatic from "@fastify/static";
 import { SANDBOX_SDK_URL, type AppConfig } from "../config.ts";
-import { CheckoutError, type CheckoutService } from "../checkout-service.ts";
+import { CHECKOUT_KEY, CheckoutError, type CheckoutService } from "../checkout-service.ts";
 
 const CORRELATION = /^[A-Za-z0-9._-]{8,64}$/;
 
@@ -29,7 +29,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   });
 
   app.setErrorHandler((err, req, reply) => {
-    if (err instanceof CheckoutError) return reply.status(err.httpStatus).send({ error: err.code, message: err.message, correlationId: req.id });
+    if (err instanceof CheckoutError) return reply.status(err.httpStatus).send({ error: err.code, message: err.message, ...(err.details ? { details: err.details } : {}), correlationId: req.id });
     const status = (err as { statusCode?: number }).statusCode;
     if (status && status >= 400 && status < 500) return reply.status(status).send({ error: "bad_request", correlationId: req.id });
     req.log.error({ errName: (err as Error).name, errMsg: (err as Error).message }, "unhandled error");
@@ -42,9 +42,13 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   app.get("/api/paypal/browser-config", async () => ({ clientId: deps.config.paypal.clientId, environment: "sandbox", sdkUrl: SANDBOX_SDK_URL }));
 
   // The request body is deliberately ignored: amount, currency and items are server-owned.
+  // `x-checkout-key` (browser-generated, durable until the checkout ends) makes retries resume
+  // the same checkout instead of starting a second payment.
   app.post("/api/orders", async (req) => {
-    const o = await deps.checkout.createOrder(req.id);
-    return { id: o.orderId, orderId: o.orderId, status: o.status, amount: o.amount };
+    const key = req.headers["x-checkout-key"];
+    if (typeof key !== "string" || !CHECKOUT_KEY.test(key)) throw new CheckoutError("invalid_checkout_key", "x-checkout-key header (16-128 chars [A-Za-z0-9_-]) is required", 400);
+    const o = await deps.checkout.createOrder(req.id, { checkoutKey: key });
+    return { id: o.orderId, orderId: o.orderId, status: o.status, amount: o.amount, reused: o.reused };
   });
 
   app.post<{ Params: { orderId: string } }>("/api/orders/:orderId/capture", async (req) => deps.checkout.capture(req.params.orderId, req.id));

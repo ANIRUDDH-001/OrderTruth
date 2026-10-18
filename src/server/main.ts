@@ -1,5 +1,6 @@
 import { createRuntime } from "../runtime.ts";
 import { buildApp } from "./app.ts";
+import { startServer } from "./start.ts";
 import { ConfigError } from "../config.ts";
 
 try {
@@ -12,7 +13,8 @@ try {
   };
   process.on("SIGINT", close);
   process.on("SIGTERM", close);
-  await app.listen({ host: "127.0.0.1", port: rt.config.port });
+  // Readback-only crash recovery runs before the port opens, then every minute.
+  await startServer({ app, checkout: rt.checkout, log: rt.log, host: "127.0.0.1", port: rt.config.port, reconcileIntervalMs: 60_000 });
 } catch (err) {
   if (err instanceof ConfigError) {
     console.error(`Configuration error (keys: ${err.keys.join(", ")}): ${err.message}`);

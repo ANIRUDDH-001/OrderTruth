@@ -30,12 +30,49 @@ function log(kind: "info" | "ok" | "error", msg: string) {
   statusEl.textContent = msg;
 }
 
+class ApiError extends Error {
+  constructor(message: string, readonly code: string | undefined) {
+    super(message);
+  }
+}
+
 async function api<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(path, { ...init, headers: { "Content-Type": "application/json" } });
+  const res = await fetch(path, { ...init, headers: { "Content-Type": "application/json", ...(init?.headers as Record<string, string> | undefined) } });
   const body = (await res.json().catch(() => ({}))) as T & { error?: string; message?: string; correlationId?: string };
-  if (!res.ok) throw new Error(`${path} -> HTTP ${res.status} ${body.error ?? ""} ${body.message ?? ""} corr=${body.correlationId ?? res.headers.get("x-correlation-id") ?? "?"}`);
+  if (!res.ok) throw new ApiError(`${path} -> HTTP ${res.status} ${body.error ?? ""} ${body.message ?? ""} corr=${body.correlationId ?? res.headers.get("x-correlation-id") ?? "?"}`, body.error);
   return body;
 }
+
+// Durable checkout key (Gate 1A, F2): kept until this checkout reaches a final state so a retry
+// or reload resumes the same checkout instead of starting a second payment. Storage may be
+// unavailable (private mode); then it lives for this page only.
+const KEY_NAME = "ordertruth.checkoutKey";
+let memoryKey: string | null = null;
+function checkoutKey(): string {
+  try {
+    const k = localStorage.getItem(KEY_NAME);
+    if (k) return k;
+  } catch {
+    /* storage unavailable */
+  }
+  const k = memoryKey ?? `ck_${crypto.randomUUID().replace(/-/g, "")}`;
+  memoryKey = k;
+  try {
+    localStorage.setItem(KEY_NAME, k);
+  } catch {
+    /* storage unavailable */
+  }
+  return k;
+}
+function endCheckout() {
+  memoryKey = null;
+  try {
+    localStorage.removeItem(KEY_NAME);
+  } catch {
+    /* storage unavailable */
+  }
+}
+const DO_NOT_PAY_AGAIN = new Set(["outcome_unknown", "capture_outcome_pending", "capture_in_progress", "checkout_in_progress"]);
 
 function loadSdk(src: string): Promise<void> {
   return new Promise((resolve, reject) => {
@@ -50,9 +87,23 @@ function loadSdk(src: string): Promise<void> {
 
 async function createOrder(): Promise<{ orderId: string }> {
   // No amount is sent: the server owns price and currency.
-  const o = await api<{ orderId: string; status: string }>("/api/orders", { method: "POST", body: "{}" });
-  log("info", `order created ${o.orderId} (${o.status}); waiting for buyer approval in PayPal window`);
-  return { orderId: o.orderId };
+  try {
+    const o = await api<{ orderId: string; status: string; reused?: boolean }>("/api/orders", { method: "POST", body: "{}", headers: { "x-checkout-key": checkoutKey() } });
+    log("info", `order ${o.reused ? "resumed" : "created"} ${o.orderId} (${o.status}); waiting for buyer approval in PayPal window`);
+    return { orderId: o.orderId };
+  } catch (e) {
+    const code = e instanceof ApiError ? e.code : undefined;
+    if (code === "checkout_already_paid") {
+      endCheckout();
+      log("ok", "This checkout is already paid. Nothing more to pay. Clicking again starts a NEW purchase.");
+    } else if (code === "checkout_closed") {
+      endCheckout();
+      log("error", "This checkout is closed. Clicking again starts a new checkout.");
+    } else if (code && DO_NOT_PAY_AGAIN.has(code)) {
+      log("error", "A payment for this checkout is in progress or not yet confirmed. Do NOT pay again; check status later.");
+    }
+    throw e;
+  }
 }
 
 async function main() {
@@ -76,9 +127,12 @@ async function main() {
           { method: "POST", body: "{}" },
         );
         const kind = r.state === "captured" ? "ok" : "error";
+        if (r.state === "captured" || r.state === "denied" || r.state === "mismatch") endCheckout();
         log(kind, `verdict=${r.state} capture=${r.captureId ?? "-"} status=${r.captureStatus ?? "-"} amount=${r.amount ? `${r.amount.currency} ${r.amount.value}` : "-"} (${r.reasons.join("; ")})`);
       } catch (e) {
-        log("error", `capture request failed: ${(e as Error).message}. Do NOT retry blindly; run readback.`);
+        const code = e instanceof ApiError ? e.code : undefined;
+        if (code && DO_NOT_PAY_AGAIN.has(code)) log("error", `The payment may have completed. Do NOT pay again; the outcome is confirmed by PayPal readback. (${(e as Error).message})`);
+        else log("error", `capture request failed: ${(e as Error).message}. Do NOT retry blindly; run readback.`);
       }
     },
     onCancel(d) {
