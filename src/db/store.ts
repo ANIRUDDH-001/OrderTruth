@@ -76,6 +76,93 @@ const MIGRATIONS: string[] = [
    CREATE TRIGGER payment_attempts_state_guard BEFORE UPDATE OF state ON payment_attempts
      WHEN OLD.state <> NEW.state AND NOT EXISTS (SELECT 1 FROM attempt_transitions WHERE from_state = OLD.state AND to_state = NEW.state)
      BEGIN SELECT RAISE(ABORT, 'illegal attempt state transition'); END;`,
+  // Gate 1B: webhook inbox. A delivery row is written for every request before any decision; only
+  // a PayPal-verified delivery may create an event row, so the event id (the dedup key) can never be
+  // claimed by unverified input. States are guarded by a static transition table, and every state
+  // change is copied into an append-only audit table by triggers (no code path can skip it).
+  // Additive only. Raw bodies are never stored: a SHA-256 plus an allowlisted summary.
+  `CREATE TABLE webhook_deliveries (
+     seq INTEGER PRIMARY KEY AUTOINCREMENT,
+     state TEXT NOT NULL,
+     claimed_event_id TEXT,
+     claimed_event_type TEXT,
+     transmission_id TEXT,
+     transmission_time TEXT,
+     body_sha256 TEXT NOT NULL,
+     body_bytes INTEGER NOT NULL,
+     reason TEXT,
+     correlation_id TEXT NOT NULL,
+     verify_ms INTEGER,
+     verify_debug_id TEXT,
+     received_at_ms INTEGER NOT NULL,
+     created_at TEXT NOT NULL,
+     updated_at TEXT NOT NULL
+   );
+   CREATE INDEX webhook_deliveries_claimed_event ON webhook_deliveries(claimed_event_id);
+   CREATE INDEX webhook_deliveries_state ON webhook_deliveries(state, received_at_ms);
+   CREATE TABLE webhook_events (
+     event_id TEXT PRIMARY KEY,
+     event_type TEXT NOT NULL,
+     resource_type TEXT,
+     event_create_time TEXT,
+     first_delivery_seq INTEGER NOT NULL UNIQUE REFERENCES webhook_deliveries(seq),
+     deliveries INTEGER NOT NULL DEFAULT 1,
+     state TEXT NOT NULL,
+     order_id TEXT,
+     attempt_id TEXT REFERENCES payment_attempts(id),
+     process_attempts INTEGER NOT NULL DEFAULT 0,
+     next_attempt_at_ms INTEGER NOT NULL DEFAULT 0,
+     lease_until_ms INTEGER,
+     outcome TEXT,
+     summary_json TEXT NOT NULL,
+     created_at TEXT NOT NULL,
+     updated_at TEXT NOT NULL
+   );
+   CREATE INDEX webhook_events_due ON webhook_events(state, next_attempt_at_ms);
+   CREATE TABLE webhook_transitions (subject TEXT NOT NULL, from_state TEXT NOT NULL, to_state TEXT NOT NULL, PRIMARY KEY (subject, from_state, to_state)) WITHOUT ROWID;
+   INSERT INTO webhook_transitions (subject, from_state, to_state) VALUES
+     ('delivery','received_unverified','verified'), ('delivery','received_unverified','duplicate'),
+     ('delivery','received_unverified','rejected'), ('delivery','received_unverified','retryable_failure'),
+     ('delivery','received_unverified','abandoned'),
+     ('event','verified_pending','processing'), ('event','retryable_failure','processing'),
+     ('event','processing','processed'), ('event','processing','foreign'), ('event','processing','ignored'),
+     ('event','processing','disagreed'), ('event','processing','retryable_failure'), ('event','processing','failed');
+   CREATE TRIGGER webhook_transitions_static_i BEFORE INSERT ON webhook_transitions BEGIN SELECT RAISE(ABORT, 'webhook_transitions is static'); END;
+   CREATE TRIGGER webhook_transitions_static_u BEFORE UPDATE ON webhook_transitions BEGIN SELECT RAISE(ABORT, 'webhook_transitions is static'); END;
+   CREATE TRIGGER webhook_transitions_static_d BEFORE DELETE ON webhook_transitions BEGIN SELECT RAISE(ABORT, 'webhook_transitions is static'); END;
+   CREATE TABLE webhook_audit (
+     seq INTEGER PRIMARY KEY AUTOINCREMENT,
+     subject TEXT NOT NULL,
+     subject_id TEXT NOT NULL,
+     from_state TEXT,
+     to_state TEXT NOT NULL,
+     reason TEXT,
+     at TEXT NOT NULL
+   );
+   CREATE TRIGGER webhook_audit_no_update BEFORE UPDATE ON webhook_audit BEGIN SELECT RAISE(ABORT, 'webhook_audit is append-only'); END;
+   CREATE TRIGGER webhook_audit_no_delete BEFORE DELETE ON webhook_audit BEGIN SELECT RAISE(ABORT, 'webhook_audit is append-only'); END;
+   CREATE TRIGGER webhook_deliveries_no_delete BEFORE DELETE ON webhook_deliveries BEGIN SELECT RAISE(ABORT, 'webhook deliveries are append-only'); END;
+   CREATE TRIGGER webhook_events_no_delete BEFORE DELETE ON webhook_events BEGIN SELECT RAISE(ABORT, 'webhook events are append-only'); END;
+   CREATE TRIGGER webhook_deliveries_initial BEFORE INSERT ON webhook_deliveries WHEN NEW.state <> 'received_unverified'
+     BEGIN SELECT RAISE(ABORT, 'illegal webhook delivery state: deliveries start as received_unverified'); END;
+   CREATE TRIGGER webhook_deliveries_guard BEFORE UPDATE OF state ON webhook_deliveries
+     WHEN OLD.state <> NEW.state AND NOT EXISTS (SELECT 1 FROM webhook_transitions WHERE subject = 'delivery' AND from_state = OLD.state AND to_state = NEW.state)
+     BEGIN SELECT RAISE(ABORT, 'illegal webhook delivery state transition'); END;
+   CREATE TRIGGER webhook_events_initial BEFORE INSERT ON webhook_events
+     WHEN NEW.state <> 'verified_pending'
+       OR NOT EXISTS (SELECT 1 FROM webhook_deliveries d WHERE d.seq = NEW.first_delivery_seq AND d.state = 'verified' AND d.claimed_event_id = NEW.event_id)
+     BEGIN SELECT RAISE(ABORT, 'webhook event requires a PayPal-verified delivery of the same event id'); END;
+   CREATE TRIGGER webhook_events_guard BEFORE UPDATE OF state ON webhook_events
+     WHEN OLD.state <> NEW.state AND NOT EXISTS (SELECT 1 FROM webhook_transitions WHERE subject = 'event' AND from_state = OLD.state AND to_state = NEW.state)
+     BEGIN SELECT RAISE(ABORT, 'illegal webhook event state transition'); END;
+   CREATE TRIGGER webhook_deliveries_audit_i AFTER INSERT ON webhook_deliveries
+     BEGIN INSERT INTO webhook_audit (subject, subject_id, from_state, to_state, reason, at) VALUES ('delivery', NEW.seq, NULL, NEW.state, NEW.reason, NEW.updated_at); END;
+   CREATE TRIGGER webhook_deliveries_audit_u AFTER UPDATE OF state ON webhook_deliveries WHEN OLD.state <> NEW.state
+     BEGIN INSERT INTO webhook_audit (subject, subject_id, from_state, to_state, reason, at) VALUES ('delivery', NEW.seq, OLD.state, NEW.state, NEW.reason, NEW.updated_at); END;
+   CREATE TRIGGER webhook_events_audit_i AFTER INSERT ON webhook_events
+     BEGIN INSERT INTO webhook_audit (subject, subject_id, from_state, to_state, reason, at) VALUES ('event', NEW.event_id, NULL, NEW.state, 'delivery ' || NEW.first_delivery_seq, NEW.updated_at); END;
+   CREATE TRIGGER webhook_events_audit_u AFTER UPDATE OF state ON webhook_events WHEN OLD.state <> NEW.state
+     BEGIN INSERT INTO webhook_audit (subject, subject_id, from_state, to_state, reason, at) VALUES ('event', NEW.event_id, OLD.state, NEW.state, NEW.outcome, NEW.updated_at); END;`,
 ];
 
 export type IntentRow = { id: string; sku: string; currency: "USD"; amount_minor: number; correlation_id: string; checkout_key: string | null; created_at: string };
@@ -109,7 +196,7 @@ const PATCHABLE = new Set<string>([
 ]);
 export type EvidenceInput = {
   attemptId: string | null;
-  evidenceClass: "PAYPAL_API_READBACK" | "PAYPAL_API_RESPONSE" | "MERCHANT_DB_OBSERVED" | "CONTROLLED_FAULT_INJECTION" | "AI_HYPOTHESIS";
+  evidenceClass: "PAYPAL_API_READBACK" | "PAYPAL_API_RESPONSE" | "PAYPAL_VERIFIED_WEBHOOK" | "MERCHANT_DB_OBSERVED" | "CONTROLLED_FAULT_INJECTION" | "AI_HYPOTHESIS";
   operation: string;
   httpStatus: number | null;
   debugId: string | null;

@@ -490,13 +490,39 @@ export class CheckoutService {
   async readback(orderId: string, correlationId: string): Promise<CheckoutResult> {
     const a = this.#requireAttempt(orderId);
     const { verdict, raw } = await this.#readbackAndVerify(a, correlationId, "readback");
-    const cur = this.store.getAttempt(a.id)!;
+    this.#applyReadback(a.id, verdict, raw);
+    return this.#result(this.store.getAttempt(a.id)!, verdict.reasons);
+  }
+
+  /**
+   * Webhook-triggered readback. The GET is authoritative; the webhook only says "look now". The
+   * result is applied only if `accept(raw)` returns null, i.e. the caller's claims (from a
+   * PayPal-verified event) agree with what PayPal returns; otherwise nothing local changes and the
+   * reason is returned. Read-only towards PayPal: never captures.
+   */
+  async readbackIf(orderId: string, correlationId: string, accept: (raw: OrderReadback) => string | null): Promise<{ applied: boolean; reason: string | null; result: CheckoutResult }> {
+    const a = this.#requireAttempt(orderId);
+    const { verdict, raw } = await this.#readbackAndVerify(a, correlationId, "webhook_readback");
+    const reason = accept(raw);
+    if (reason === null) this.#applyReadback(a.id, verdict, raw);
+    return { applied: reason === null, reason, result: this.#result(this.store.getAttempt(a.id)!, verdict.reasons) };
+  }
+
+  /** Same rules as the manual readback: a capture record settles the verdict; otherwise only status / approval. */
+  #applyReadback(attemptId: string, verdict: CaptureVerdict, raw: OrderReadback) {
+    const cur = this.store.getAttempt(attemptId)!;
     if (raw.purchase_units?.[0]?.payments?.captures?.length) this.#applyVerdict(cur, verdict, raw);
     else {
-      this.store.updateAttempt(a.id, { provider_order_status: raw.status ?? null });
-      if (raw.status === "APPROVED" && cur.state === "awaiting_buyer_approval") this.store.transition(a.id, "approved", {}, "awaiting_buyer_approval");
+      this.store.updateAttempt(attemptId, { provider_order_status: raw.status ?? null });
+      if (raw.status === "APPROVED" && cur.state === "awaiting_buyer_approval") this.store.transition(attemptId, "approved", {}, "awaiting_buyer_approval");
     }
-    return this.#result(this.store.getAttempt(a.id)!, verdict.reasons);
+  }
+
+  /** Read-only lookup for webhook correlation: is this PayPal order one of ours? */
+  ownsOrder(orderId: string): { attemptId: string; intentId: string } | null {
+    if (!ORDER_ID.test(orderId)) return null;
+    const a = this.store.getAttemptByOrderId(orderId);
+    return a ? { attemptId: a.id, intentId: a.intent_id } : null;
   }
 
   status(orderId: string): CheckoutResult {

@@ -89,7 +89,7 @@ export class PayPalClient {
   async #request<T>(
     method: "GET" | "POST",
     path: string,
-    opts: { meta: CallMeta; body?: unknown; requestId?: string; auth?: "basic" | "bearer"; form?: string },
+    opts: { meta: CallMeta; body?: unknown; rawJson?: string; requestId?: string; auth?: "basic" | "bearer"; form?: string; timeoutMs?: number },
   ): Promise<PayPalCall<T>> {
     const url = SANDBOX_API_BASE + path; // host is a constant; only the path varies
     const headers: Record<string, string> = { Accept: "application/json" };
@@ -102,6 +102,10 @@ export class PayPalClient {
     if (opts.form !== undefined) {
       headers["Content-Type"] = "application/x-www-form-urlencoded";
       payload = opts.form;
+    } else if (opts.rawJson !== undefined) {
+      // Pre-serialized JSON (webhook postback embeds the event bytes exactly as received).
+      headers["Content-Type"] = "application/json";
+      payload = opts.rawJson;
     } else if (opts.body !== undefined) {
       headers["Content-Type"] = "application/json";
       headers.Prefer = "return=representation";
@@ -116,7 +120,7 @@ export class PayPalClient {
         method,
         headers,
         ...(payload !== undefined ? { body: payload } : {}),
-        signal: AbortSignal.timeout(this.#timeoutMs),
+        signal: AbortSignal.timeout(opts.timeoutMs ?? this.#timeoutMs),
       });
     } catch (err) {
       const durationMs = Math.round(performance.now() - started);
@@ -189,6 +193,15 @@ export class PayPalClient {
 
   captureOrder(orderId: string, requestId: string, meta: CallMeta) {
     return this.#request<unknown>("POST", `/v2/checkout/orders/${encodeURIComponent(orderId)}/capture`, { meta, body: {}, requestId });
+  }
+
+  /**
+   * Postback signature verification (Webhooks v1). `postbackJson` must already embed the event
+   * exactly as received. PayPal checks the signature and certificate; OrderTruth never downloads a
+   * certificate. Returns `verification_status` (SUCCESS | FAILURE) as sent by PayPal.
+   */
+  verifyWebhookSignature(postbackJson: string, meta: CallMeta, timeoutMs: number) {
+    return this.#request<{ verification_status?: unknown }>("POST", "/v1/notifications/verify-webhook-signature", { meta, rawJson: postbackJson, timeoutMs });
   }
 
   getOrder(orderId: string, meta: CallMeta) {
