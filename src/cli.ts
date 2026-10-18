@@ -1,0 +1,71 @@
+import { randomUUID } from "node:crypto";
+import { ConfigError } from "./config.ts";
+import { CheckoutError } from "./checkout-service.ts";
+import { PayPalError } from "./paypal/client.ts";
+import { createRuntime } from "./runtime.ts";
+
+/**
+ * Gate 0 operator CLI. Prints only non-sensitive metadata. Usage:
+ *   pnpm cli oauth-check
+ *   pnpm cli create [--redirect]     # --redirect: Sandbox approval-URL fallback
+ *   pnpm cli status <orderId>        # local DB only
+ *   pnpm cli readback <orderId>      # GET from PayPal, no writes to PayPal
+ *   pnpm cli capture <orderId>       # requires buyer approval (order status APPROVED)
+ *   pnpm cli db-check                # list persisted attempts (restart proof)
+ */
+const [cmd, arg, ...rest] = process.argv.slice(2);
+const corr = `cli_${randomUUID()}`;
+const out = (o: unknown) => console.log(JSON.stringify(o, null, 2));
+
+try {
+  const rt = createRuntime();
+  try {
+    switch (cmd) {
+      case "oauth-check":
+        out({ step: "AUTH", correlationId: corr, ...(await rt.paypal.checkAuth({ correlationId: corr })) });
+        break;
+      case "create": {
+        const redirect = arg === "--redirect" || rest.includes("--redirect");
+        const base = `http://localhost:${rt.config.port}`;
+        const r = await rt.checkout.createOrder(corr, redirect ? { returnUrl: `${base}/return`, cancelUrl: `${base}/cancel` } : undefined);
+        out({ step: "CREATE", correlationId: corr, ...r, evidenceFiles: rt.checkout.evidenceFiles });
+        break;
+      }
+      case "status":
+        out(rt.checkout.status(arg ?? ""));
+        break;
+      case "readback":
+        out({ step: "READBACK", correlationId: corr, ...(await rt.checkout.readback(arg ?? "", corr)) });
+        break;
+      case "capture":
+        out({ step: "CAPTURE+READBACK", correlationId: corr, ...(await rt.checkout.capture(arg ?? "", corr)) });
+        break;
+      case "db-check":
+        out({
+          pid: process.pid,
+          databasePath: rt.config.databasePath,
+          attempts: rt.store.listAttempts().map((a) => ({ id: a.id, orderId: a.paypal_order_id, state: a.state, captureId: a.capture_id, captureStatus: a.capture_status, captured_minor: a.captured_minor, updated_at: a.updated_at, evidenceCount: rt.store.listEvidence(a.id).length })),
+        });
+        break;
+      default:
+        console.error("usage: pnpm cli <oauth-check|create [--redirect]|status <id>|readback <id>|capture <id>|db-check>");
+        process.exitCode = 64;
+    }
+  } finally {
+    rt.store.close();
+  }
+} catch (err) {
+  if (err instanceof ConfigError) {
+    console.error(`Configuration error (keys: ${err.keys.join(", ")})`);
+    process.exitCode = 2;
+  } else if (err instanceof PayPalError) {
+    out({ error: "paypal", kind: err.kind, httpStatus: err.httpStatus, debugId: err.debugId, issues: err.issues, outcomeUnknown: err.outcomeUnknown, correlationId: corr });
+    process.exitCode = 3;
+  } else if (err instanceof CheckoutError) {
+    out({ error: err.code, message: err.message, correlationId: corr });
+    process.exitCode = 4;
+  } else {
+    console.error((err as Error).name, (err as Error).message);
+    process.exitCode = 1;
+  }
+}
