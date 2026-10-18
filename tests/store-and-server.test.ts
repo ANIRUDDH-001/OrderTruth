@@ -8,7 +8,7 @@ import { CheckoutService } from "../src/checkout-service.ts";
 import { PayPalClient } from "../src/paypal/client.ts";
 import { buildApp } from "../src/server/app.ts";
 import { loadConfig } from "../src/config.ts";
-import { FakePayPal, silentLogger, testPaypalConfig } from "./fake-paypal.ts";
+import { FakePayPal, newCheckoutKey, silentLogger, testPaypalConfig } from "./fake-paypal.ts";
 
 const dir = mkdtempSync(join(tmpdir(), "ordertruth-test-"));
 afterAll(() => rmSync(dir, { recursive: true, force: true }));
@@ -65,7 +65,9 @@ describe("Store (real SQLite file)", () => {
   it("claimCapture is compare-and-set", () => {
     const s = new Store(":memory:");
     s.createIntentWithAttempt({ id: "i1", sku: "s", currency: "USD", amount_minor: 100, correlation_id: "c" }, { id: "a1", createRequestId: "r1", captureRequestId: "k1" });
-    s.updateAttempt("a1", { state: "approved" });
+    // Gate 1A: state is no longer writable via updateAttempt; reach `approved` by guarded transitions.
+    expect(s.attachOrder("a1", "ORDERX", "CREATED")).toBe(true);
+    expect(s.transition("a1", "approved", {}, "awaiting_buyer_approval")).toBe(true);
     expect(s.claimCapture("a1", ["approved"])).toBe(true);
     expect(s.claimCapture("a1", ["approved"])).toBe(false);
   });
@@ -94,7 +96,7 @@ describe("HTTP API (mocked provider)", () => {
 
   it("ignores browser-submitted amounts", async () => {
     const { a, fake } = await app();
-    const r = await a.inject({ method: "POST", url: "/api/orders", payload: { amount: "0.01", currency: "EUR", value: "99999" } });
+    const r = await a.inject({ method: "POST", url: "/api/orders", headers: { "x-checkout-key": newCheckoutKey() }, payload: { amount: "0.01", currency: "EUR", value: "99999" } });
     expect(r.statusCode).toBe(200);
     const sent = JSON.parse(fake.calls.find((c) => c.path === "/v2/checkout/orders")!.body!);
     expect(sent.purchase_units[0].amount.value).toBe("1.00");
@@ -103,7 +105,7 @@ describe("HTTP API (mocked provider)", () => {
 
   it("propagates a valid correlation id and rejects capture of unapproved order with 409", async () => {
     const { a } = await app();
-    const c = await a.inject({ method: "POST", url: "/api/orders", headers: { "x-correlation-id": "test-corr-123" } });
+    const c = await a.inject({ method: "POST", url: "/api/orders", headers: { "x-correlation-id": "test-corr-123", "x-checkout-key": newCheckoutKey() } });
     expect(c.headers["x-correlation-id"]).toBe("test-corr-123");
     const r = await a.inject({ method: "POST", url: `/api/orders/${c.json().orderId}/capture` });
     expect(r.statusCode).toBe(409);
@@ -114,7 +116,7 @@ describe("HTTP API (mocked provider)", () => {
     const { a, fake } = await app();
     expect((await a.inject({ method: "POST", url: "/api/orders/ABCDEFGH12345/capture" })).statusCode).toBe(404);
     fake.faults.create = "500";
-    const r = await a.inject({ method: "POST", url: "/api/orders" });
+    const r = await a.inject({ method: "POST", url: "/api/orders", headers: { "x-checkout-key": newCheckoutKey() } });
     expect(r.statusCode).toBe(502);
     expect(r.body).not.toContain(testPaypalConfig.clientSecret);
   });

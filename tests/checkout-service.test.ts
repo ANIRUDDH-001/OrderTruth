@@ -112,17 +112,20 @@ describe("CheckoutService lifecycle (mocked)", () => {
     expect(fake.calls.filter((c) => c.path.endsWith("/capture")).length).toBe(1);
   });
 
-  it("timeout on capture with nothing applied: stays approved (safe to retry with same request id)", async () => {
+  // Gate 1A (user D4): changed from "stays approved". An APPROVED readback right after a capture
+  // timeout is not proof the request cannot still complete, so the attempt is `uncertain` and an
+  // immediate retry is refused (no second POST). The after-window retry is covered by A6.
+  it("timeout on capture with nothing applied: uncertain, immediate retry refused (settle window)", async () => {
     const { fake, svc, store } = setup();
     const o = await svc.createOrder("c");
     fake.approve(o.orderId);
     fake.faults.capture = "timeout";
     const r = await svc.capture(o.orderId, "c");
-    expect(r.state).toBe("approved");
+    expect(r.state).toBe("uncertain");
     expect(store.listEvidence(r.attemptId).some((e) => e.operation === "capture_order_error")).toBe(true);
     delete fake.faults.capture;
-    const r2 = await svc.capture(o.orderId, "c2");
-    expect(r2.state).toBe("captured");
+    await expect(svc.capture(o.orderId, "c2")).rejects.toMatchObject({ code: "capture_outcome_pending" });
+    expect(fake.calls.filter((c) => c.path.endsWith("/capture")).length).toBe(1);
   });
 
   it("readback failure after capture leaves state uncertain, not captured and not failed", async () => {

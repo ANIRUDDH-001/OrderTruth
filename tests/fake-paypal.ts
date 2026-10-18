@@ -14,6 +14,12 @@ export class FakePayPal {
   faults: Partial<Record<"token" | "create" | "capture" | "get", "401" | "500" | "422" | "timeout" | "network" | "500-after-apply">> = {};
   captureStatus = "COMPLETED";
   captureAmountOverride: string | undefined;
+  /** undefined: echo the request's custom_id; null: omit custom_id from views; string: replace it. */
+  customIdOverride: string | null | undefined;
+  /** Awaited after a capture request is recorded and before it is processed (race tests). */
+  beforeCaptureApply: (() => Promise<void> | void) | undefined;
+  /** Called after the provider applied a capture, before the response is returned (DB-fault tests). */
+  afterCaptureApply: (() => void) | undefined;
   #n = 0;
 
   approve(orderId: string) {
@@ -65,12 +71,14 @@ export class FakePayPal {
     if (cap && method === "POST") {
       const o = this.orders.get(cap[1]!);
       if (!o) return json(404, { name: "RESOURCE_NOT_FOUND" });
+      if (this.beforeCaptureApply) await this.beforeCaptureApply();
       const rid = headers["PayPal-Request-Id"];
       if (rid && this.captureRequestIds.has(rid)) return json(201, this.captureRequestIds.get(rid));
       const f = this.faults.capture;
       if (f === "500-after-apply") {
         this.#applyCapture(o);
         if (rid) this.captureRequestIds.set(rid, this.#view(o));
+        this.afterCaptureApply?.();
         return json(500, { name: "INTERNAL_SERVER_ERROR" });
       }
       const ff = fault("capture");
@@ -80,6 +88,7 @@ export class FakePayPal {
       this.#applyCapture(o);
       const v = this.#view(o);
       if (rid) this.captureRequestIds.set(rid, v);
+      this.afterCaptureApply?.();
       return json(201, v);
     }
     const get = /^\/v2\/checkout\/orders\/([A-Z0-9]+)$/.exec(u.pathname);
@@ -109,7 +118,7 @@ export class FakePayPal {
       purchase_units: [
         {
           reference_id: pu.reference_id,
-          custom_id: pu.custom_id,
+          custom_id: this.customIdOverride === undefined ? pu.custom_id : (this.customIdOverride ?? undefined),
           amount: pu.amount,
           payee: { merchant_id: "MERCHANTFAKE123", email_address: "seller@example.com" },
           ...(o.captures.length ? { payments: { captures: o.captures } } : {}),
@@ -127,6 +136,11 @@ export const testPaypalConfig = {
   webhookId: undefined,
   timeoutMs: 2000,
 };
+
+/** Number of capture POSTs the fake received (each one is a potential provider write). */
+export const capturePosts = (fake: FakePayPal) => fake.calls.filter((c) => c.method === "POST" && c.path.endsWith("/capture"));
+
+export const newCheckoutKey = () => `ck_${crypto.randomUUID().replace(/-/g, "")}`;
 
 export const silentLogger = () => {
   const lines: string[] = [];
