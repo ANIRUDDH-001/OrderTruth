@@ -20,14 +20,21 @@ export const ATTEMPT_STATES = [
 ] as const;
 export type AttemptState = (typeof ATTEMPT_STATES)[number];
 
-const TRANSITIONS: Record<AttemptState, readonly AttemptState[]> = {
+/**
+ * The only legal state changes. Mirrored literally in the DB (migration 2, `attempt_transitions`
+ * plus a trigger) so every process and code path is held to it; a test asserts the two are equal.
+ * A change here needs a new migration.
+ * - Nothing returns to `approved` once a capture was claimed: a claim is never undone (F3), and an
+ *   APPROVED readback after an unknown-outcome capture is not proof the request cannot still land.
+ * - A create whose outcome is unknown stays `created` and is retried with the same request id.
+ */
+export const TRANSITIONS: Readonly<Record<AttemptState, readonly AttemptState[]>> = {
   created: ["awaiting_buyer_approval"],
-  awaiting_buyer_approval: ["approved", "capture_in_progress", "uncertain"],
-  approved: ["capture_in_progress"],
-  // Capture may end any way; uncertain must be resolved by readback, never by blind retry.
+  awaiting_buyer_approval: ["approved", "captured", "pending", "denied", "uncertain", "mismatch"],
+  approved: ["capture_in_progress", "captured", "pending", "denied", "uncertain", "mismatch"],
   capture_in_progress: ["captured", "pending", "denied", "uncertain", "mismatch"],
-  uncertain: ["captured", "pending", "denied", "mismatch", "capture_in_progress", "approved", "awaiting_buyer_approval"],
-  pending: ["captured", "denied", "mismatch", "uncertain"],
+  uncertain: ["capture_in_progress", "captured", "pending", "denied", "mismatch"],
+  pending: ["captured", "denied", "uncertain", "mismatch"],
   captured: [],
   denied: [],
   mismatch: [],
@@ -85,7 +92,9 @@ export function verifyCaptureReadback(
   if (readback.intent && readback.intent !== "CAPTURE") reasons.push(`unexpected intent ${readback.intent}`);
   if (units.length !== 1) return { ...base, state: "mismatch", reasons: [`expected 1 purchase unit, got ${units.length}`] };
   const unit = units[0]!;
-  if (unit.custom_id !== undefined && unit.custom_id !== expected.customId) reasons.push("custom_id differs from local intent");
+  // Gate 0 live readbacks always carried custom_id, so its absence is treated as a correlation failure.
+  if (unit.custom_id === undefined) reasons.push("custom_id missing from readback");
+  else if (unit.custom_id !== expected.customId) reasons.push("custom_id differs from local intent");
 
   const orderAmount = parseProviderValue(unit.amount?.value, unit.amount?.currency_code ?? "");
   if (!orderAmount || orderAmount.minor !== expected.amount.minor || orderAmount.currency !== expected.amount.currency) {
@@ -94,6 +103,8 @@ export function verifyCaptureReadback(
 
   const captures = unit.payments?.captures ?? [];
   if (captures.length === 0) {
+    // Correlation failure before any capture: never safe to capture this order for this intent.
+    if (reasons.length > 0) return { ...base, state: "mismatch", reasons };
     return { ...base, state: "uncertain", reasons: [...reasons, `no capture present (order status ${orderStatus ?? "unknown"})`] };
   }
   if (captures.length > 1) reasons.push(`multiple captures (${captures.length}) for one intent`);
