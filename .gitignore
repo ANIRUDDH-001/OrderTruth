@@ -1,0 +1,48 @@
+# Secrets: never commit API keys, Sandbox buyer passwords or token dumps
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+secrets/
+credentials/
+
+# Ignored, local-only agent ledgers, transient results, evidence and scratch
+.work/
+.cache/
+.tmp/
+tmp/
+temp/
+logs/
+*.log
+coverage/
+playwright-report/
+test-results/
+reports/local/
+
+# Node / build tools
+node_modules/
+dist/
+build/
+.next/
+.turbo/
+.vite/
+*.tsbuildinfo
+
+# Databases: all real local records and tokens remain off Git
+*.sqlite
+*.sqlite3
+*.sqlite-shm
+*.sqlite-wal
+*.db
+*.db-shm
+*.db-wal
+
+# OS / editors
+.DS_Store
+Thumbs.db
+.vscode/*.log
+.idea/
