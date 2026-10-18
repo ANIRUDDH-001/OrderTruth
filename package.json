@@ -14,6 +14,7 @@
     "build:web": "vite build",
     "dev": "vite build && tsx src/server/main.ts",
     "start": "tsx src/server/main.ts",
+    "webhooks": "tsx src/webhooks/main.ts",
     "cli": "tsx src/cli.ts",
     "gate0:ai": "tsx src/ai/gate0-eval.ts",
     "check": "pnpm typecheck && pnpm test"
