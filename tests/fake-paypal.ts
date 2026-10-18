@@ -2,7 +2,20 @@
  * IN-MEMORY FAKE of the PayPal Orders v2 surface used by tests. Results from this fake are
  * MOCKED and must never be reported as Sandbox executions.
  */
+import { createHmac } from "node:crypto";
+import { crc32 } from "node:zlib";
 import type { FetchLike } from "../src/paypal/client.ts";
+
+/** Key of the FAKE webhook signer (tests only). Real PayPal signs with RSA; this only proves byte preservation. */
+export const FAKE_WEBHOOK_SIGNING_KEY = "fake-webhook-signing-key-tests-only";
+
+/** Same signed string PayPal documents (id|time|webhook id|CRC32 of the raw body), HMAC'd with a fake key. */
+export function fakeWebhookSignature(transmissionId: string, transmissionTime: string, webhookId: string, rawBody: string) {
+  const msg = `${transmissionId}|${transmissionTime}|${webhookId}|${crc32(Buffer.from(rawBody, "utf8")) >>> 0}`;
+  return createHmac("sha256", FAKE_WEBHOOK_SIGNING_KEY).update(msg).digest("base64");
+}
+
+export type WebhookVerifyMode = "signed" | "SUCCESS" | "FAILURE" | "hang" | "hang_ignoring_abort" | "500" | "400" | "malformed" | "network";
 
 type FakeOrder = { id: string; status: string; body: any; captures: any[] };
 
@@ -20,6 +33,11 @@ export class FakePayPal {
   beforeCaptureApply: (() => Promise<void> | void) | undefined;
   /** Called after the provider applied a capture, before the response is returned (DB-fault tests). */
   afterCaptureApply: (() => void) | undefined;
+  /** verify-webhook-signature behaviour. "signed": SUCCESS only if the fake signature over the embedded raw event matches. */
+  webhookVerify: WebhookVerifyMode = "signed";
+  /** Webhook id registered at the fake "PayPal" (the postback must carry it). */
+  registeredWebhookId: string | undefined;
+  verifyCalls: Array<{ webhookId: unknown; transmissionId: unknown; rawEvent: string }> = [];
   #n = 0;
 
   approve(orderId: string) {
@@ -99,8 +117,54 @@ export class FakePayPal {
       if (!o) return json(404, { name: "RESOURCE_NOT_FOUND" });
       return json(200, this.#view(o));
     }
+    if (u.pathname === "/v1/notifications/verify-webhook-signature" && method === "POST") return this.#verifyWebhook(body ?? "", init.signal ?? undefined, json);
     return json(404, { name: "NOT_FOUND" });
   };
+
+  async #verifyWebhook(body: string, signal: AbortSignal | undefined, json: (s: number, b: unknown) => Response): Promise<Response> {
+    const marker = ',"webhook_event":';
+    const at = body.indexOf(marker);
+    const rawEvent = at >= 0 && body.endsWith("}") ? body.slice(at + marker.length, -1) : "";
+    let pb: Record<string, unknown> = {};
+    try {
+      pb = JSON.parse(body);
+    } catch {
+      return json(400, { name: "INVALID_REQUEST" });
+    }
+    this.verifyCalls.push({ webhookId: pb.webhook_id, transmissionId: pb.transmission_id, rawEvent });
+    switch (this.webhookVerify) {
+      case "SUCCESS":
+      case "FAILURE":
+        return json(200, { verification_status: this.webhookVerify });
+      case "500":
+        return json(500, { name: "INTERNAL_SERVER_ERROR" });
+      case "400":
+        return json(400, { name: "VALIDATION_ERROR" });
+      case "malformed":
+        return json(200, { verification_status: "MAYBE" });
+      case "network":
+        throw new TypeError("fetch failed");
+      case "hang":
+        return new Promise<Response>((_, reject) => signal?.addEventListener("abort", () => reject(signal.reason), { once: true }));
+      case "hang_ignoring_abort":
+        return new Promise<Response>(() => {});
+      case "signed": {
+        const ok =
+          typeof pb.webhook_id === "string" &&
+          pb.webhook_id === this.registeredWebhookId &&
+          typeof pb.transmission_id === "string" &&
+          typeof pb.transmission_time === "string" &&
+          pb.auth_algo === "SHA256withRSA" &&
+          pb.transmission_sig === fakeWebhookSignature(pb.transmission_id, pb.transmission_time, pb.webhook_id, rawEvent);
+        return json(200, { verification_status: ok ? "SUCCESS" : "FAILURE" });
+      }
+    }
+  }
+
+  /** Capture id the fake assigns to an order (deterministic). */
+  static captureIdFor(orderId: string) {
+    return `CAP${orderId.slice(-10)}`;
+  }
 
   #applyCapture(o: FakeOrder) {
     const pu = o.body.purchase_units[0];
