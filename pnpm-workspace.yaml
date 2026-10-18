@@ -1,0 +1,3 @@
+# esbuild (used by tsx/vite) runs a postinstall that only validates its platform binary.
+allowBuilds:
+  esbuild: true
