@@ -17,12 +17,12 @@ export const AiHypothesisSchema = z.object({
         missing_evidence: z.array(z.string().max(200)).max(5),
         next_test: z.enum(NEXT_TESTS),
         confidence: z.number().min(0).max(1),
-      }),
+      }).strict(),
     )
     .min(1)
     .max(3),
   operator_summary: z.string().min(1).max(600),
-});
+}).strict();
 export type AiHypothesis = z.infer<typeof AiHypothesisSchema>;
 
 /** JSON Schema sent to Gemini (structured output). Mirrors AiHypothesisSchema. */
@@ -93,12 +93,12 @@ export function validateOutput(raw: unknown, s: Scenario): { parsed: AiHypothesi
   return { parsed: r.data, error: null, detail: null, inventedIds: [] };
 }
 
-export async function callGemini(opts: { apiKey: string; model: string; scenario: Scenario; timeoutMs?: number; fetchImpl?: typeof fetch }): Promise<GeminiCallResult> {
+export async function callGemini(opts: { apiKey: string; model: string; scenario: Scenario; timeoutMs?: number; fetchImpl?: typeof fetch; advisoryPolicy?: string }): Promise<GeminiCallResult> {
   const { apiKey, model, scenario } = opts;
   if (!/^[a-z0-9.-]+$/.test(model)) throw new Error("invalid model id");
   const input = buildPrompt(scenario);
   const body = {
-    systemInstruction: { parts: [{ text: SYSTEM }] },
+    systemInstruction: { parts: [{ text: opts.advisoryPolicy ? `${SYSTEM} ${opts.advisoryPolicy}` : SYSTEM }] },
     contents: [{ role: "user", parts: [{ text: input }] }],
     generationConfig: { responseMimeType: "application/json", responseJsonSchema: RESPONSE_JSON_SCHEMA, temperature: 0, maxOutputTokens: 1024 },
   };
