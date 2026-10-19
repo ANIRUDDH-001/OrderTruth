@@ -29,3 +29,7 @@ Store **only durable, non-sensitive** decisions here. Detailed local agent scrat
   - (b) Cause is attributed only through the involved orders' own fault references (`CONTROLLED_FAULT_INJECTION` / `MIXED` / `UNKNOWN`). Unreferenced fault records are preserved but not treated as the cause.
   - (c) The repair design moved to `docs/STAGE1C_REPAIR_CONTRACT.md`. It uses append-only voids and resolutions instead of mutable orders and incidents, and is not implemented.
   - Evidence: 335/335 tests; 16/16 targeted mutations killed after strengthening (3 first-pass survivors reported).
+
+### ADR-006 — Stage 1D append-only local repair journal (2026-10-19)
+Status: product-owner authorized local implementation; human demonstration still requires independent review and exact interactive approval.
+Use immutable plans/execution identities with append-only approvals, EXECUTING transitions, unique terminal outcomes, order voids, incident resolutions and audit. Keep the original merchant/order incident statuses unchanged; derive effective state from committed facts. Serialize SQLite writers with BEGIN IMMEDIATE. Roll correction back to a savepoint and commit a refusal in the outer transaction, removing the two-transaction audit-loss window. Before COMMIT a crash leaves no repair; after COMMIT retries return the durable outcome. No provider client is available to repair code. CLI declarations are not authenticated identity or RBAC. No exposure or production readiness is implied.

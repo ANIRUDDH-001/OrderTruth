@@ -99,3 +99,16 @@ On any failure in steps 5–8, transaction A rolls back and transaction B append
 1. Approve the append-only `merchant_order_voids` + `incident_resolutions` model (R3/R6), instead of relaxing the immutability triggers.
 2. Accept the CLI-only, `LOCAL_DEMO_DECLARED_OPERATOR` approval for the local demo, with HTTP repair exposure BLOCKED until real auth/RBAC exists.
 3. Plan TTL (proposed 15 min), and whether the demo must enforce approver ≠ requester even though both are declared names.
+
+## Stage 1D accepted refinement (2026-10-19)
+
+The product owner authorized implementation with append-only voids, resolutions and audit; CLI-only unauthenticated declared operators; a 15-minute TTL; and the same declared person permitted as requester and approver. Historical incident/order rows remain immutable. See `STAGE1D_IMPLEMENTATION_PLAN.md` and `STAGE1D_RESULTS.md` for implementation/evidence, which do not authorize the human demonstration.
+
+This amendment supersedes the mutable execution state and transaction A/B wording in §3.4:
+- `repair_executions` is immutable identity (`id`, unique `plan_id`, `started_at`). `repair_transitions` appends EXECUTING; `repair_outcomes` appends exactly one terminal outcome via its execution primary key. No execution row is updated.
+- `BEGIN IMMEDIATE` holds the writer lock for validation, correction and result recording. A correction SAVEPOINT allows failed voids/postconditions to roll back while the outer transaction atomically commits the refusal/outcome/audit. This eliminates the rollback-to-transaction-B crash gap. A hard crash before outer COMMIT rolls back the whole invocation; retry revalidates the still-unconsumed approval. A crash after COMMIT returns the persisted terminal outcome on retry. No abandoned committed EXECUTING state is produced by the executor.
+- The executor accepts only a plan ID. Its service is already bound to a local organization scope, which is not authentication. It validates integrity before dereferencing plan scope. Invalid plan references get an integrity refusal; its provider hashes cover the bound organization because the plan references are untrusted.
+- Facts include the full attempt, every readback's full persisted row hash, every original order plus effective status and void rows, intent, incident, and resolution presence. This is stricter than §3.2's minimum. Plan hashes include distinct requester identity. A cause snapshot is audit-only and never establishes a new provenance claim.
+- `status` remains the original order status; `effectiveStatus` is `voided_duplicate` only through a visible void record. The pure checker uses effective active orders. Incident `state` is derived from resolutions and `historicalState` preserves the opening state.
+- Normal tests persist `approval_mode=SIMULATED_TEST` (test environment only); production CLI has no simulation option. Actual terminal testing uses an explicitly synthetic database and operator `AUTOMATED_SYNTHETIC_TTY_TEST_NOT_HUMAN`, recorded as `INTERACTIVE_TTY`. This proves terminal mechanics, not human authorization, authentication or separation of duties.
+- A completed unapproved execution attempt consumes that plan with a durable refusal. New approval requires a new plan. A second plan after successful resolution is refused. Repeating an already terminal plan returns its same outcome.
