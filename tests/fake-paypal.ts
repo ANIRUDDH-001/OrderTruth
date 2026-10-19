@@ -33,6 +33,8 @@ export class FakePayPal {
   beforeCaptureApply: (() => Promise<void> | void) | undefined;
   /** Called after the provider applied a capture, before the response is returned (DB-fault tests). */
   afterCaptureApply: (() => void) | undefined;
+  /** Stale-read simulation: the next N successful GETs of a captured order omit its captures (status APPROVED). */
+  staleCaptureGets = 0;
   /** verify-webhook-signature behaviour. "signed": SUCCESS only if the fake signature over the embedded raw event matches. */
   webhookVerify: WebhookVerifyMode = "signed";
   /** Webhook id registered at the fake "PayPal" (the postback must carry it). */
@@ -117,6 +119,10 @@ export class FakePayPal {
       if (f) return f;
       const o = this.orders.get(get[1]!);
       if (!o) return json(404, { name: "RESOURCE_NOT_FOUND" });
+      if (this.staleCaptureGets > 0 && o.captures.length) {
+        this.staleCaptureGets--;
+        return json(200, this.#view({ ...o, status: "APPROVED", captures: [] }));
+      }
       return json(200, this.#view(o));
     }
     if (u.pathname === "/v1/notifications/verify-webhook-signature" && method === "POST") return this.#verifyWebhook(body ?? "", init.signal ?? undefined, json);

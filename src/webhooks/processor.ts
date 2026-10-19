@@ -25,7 +25,14 @@ export type ProcessorOptions = {
 
 type Decision = { to: Exclude<EventState, "verified_pending" | "processing">; outcome: string; attemptId?: string | null; retry?: boolean };
 
-const sameAmount = (a: { currency_code: string | null; value: string | null } | null, b: { currency_code?: string; value?: string } | undefined) =>
+/**
+ * A capture event whose readback shows NO capture at all: PayPal may not have made the capture
+ * visible to GET yet (stale read). Not a contradiction; retried with backoff up to maxAttempts.
+ * A readback that shows a different capture, amount or custom_id stays a terminal disagreement.
+ */
+export const CAPTURE_NOT_YET_VISIBLE = "readback shows no capture yet (possibly stale)";
+
+const sameAmount =(a: { currency_code: string | null; value: string | null } | null, b: { currency_code?: string; value?: string } | undefined) =>
   !!b && a?.currency_code === (b.currency_code ?? null) && a?.value === (b.value ?? null);
 
 /**
@@ -39,6 +46,7 @@ export function eventAgreesWithReadback(s: EventSummary, raw: OrderReadback): st
   if (!unit || (raw.purchase_units?.length ?? 0) !== 1) return "readback purchase units not exactly one";
   if (s.resource.custom_id !== null && unit.custom_id !== s.resource.custom_id) return "custom_id differs between event and readback";
   if (s.event_type.startsWith("PAYMENT.CAPTURE.")) {
+    if ((unit.payments?.captures?.length ?? 0) === 0) return CAPTURE_NOT_YET_VISIBLE;
     const cap = unit.payments?.captures?.find((c) => c.id === s.resource.id);
     if (!cap) return "event capture id not present in readback";
     if (s.resource.amount && !sameAmount(s.resource.amount, cap.amount)) return "capture amount differs between event and readback";
@@ -148,6 +156,9 @@ export class WebhookProcessor {
     }
     try {
       const r = await this.checkout.readbackIf(orderId, `wh_${row.event_id}_${row.process_attempts}`, (raw) => eventAgreesWithReadback(s, raw));
+      if (!r.applied && r.reason === CAPTURE_NOT_YET_VISIBLE) {
+        return { to: "retryable_failure", outcome: `readback not yet consistent: ${r.reason}`, attemptId: ours.attemptId, retry: true };
+      }
       if (!r.applied) return { to: "disagreed", outcome: `readback disagrees: ${r.reason}`, attemptId: ours.attemptId };
       return { to: "processed", outcome: `readback applied; attempt state ${r.result.state}`, attemptId: ours.attemptId };
     } catch (err) {
