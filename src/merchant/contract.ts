@@ -6,11 +6,14 @@ import { parseProviderValue } from "../domain/money.ts";
  *   An ELIGIBLE checkout intent (its single payment attempt is locally `captured` with a COMPLETED
  *   capture, AND the newest authoritative PayPal GET readback that shows any capture confirms that
  *   same capture COMPLETED for the intent's server-owned amount) must yield EXACTLY ONE active local
- *   merchant order. Two or more is a violation (DUPLICATE_MERCHANT_ORDER).
+ *   merchant order that MATCHES the captured payment: same payment attempt, PayPal order id,
+ *   capture id, SKU, currency and amount (integer minor units). Two or more matching orders is a
+ *   violation (DUPLICATE_MERCHANT_ORDER).
  *
- * Only that violation opens an incident in this stage. Zero orders for an eligible intent, or
- * orders for a non-eligible intent, are recorded as OUT_OF_SCOPE (no incident class exists for
- * them yet) rather than silently treated as healthy or accused as duplicates.
+ * Only that violation opens an incident in this stage. Zero orders for an eligible intent, any
+ * placed order that does not match the capture (unless two matching orders already prove the
+ * duplicate), or orders for a non-eligible intent, are recorded as OUT_OF_SCOPE with explicit
+ * reasons (no incident class exists for them yet) rather than treated as healthy or accused.
  */
 export const CONTRACT_ID = "REF_MERCHANT_ONE_CAPTURE_ONE_ORDER_V1";
 export const INCIDENT_CLASS = "DUPLICATE_MERCHANT_ORDER";
@@ -31,6 +34,7 @@ export type ReadbackFact = {
 
 export type PaymentFacts = {
   intentId: string;
+  intentSku: string;
   intentCurrency: string;
   intentMinor: number;
   attemptId: string | null;
@@ -43,12 +47,14 @@ export type PaymentFacts = {
   readbacks: ReadbackFact[];
 };
 
-export type OrderFact = { id: string; status: string; captureId: string; amountMinor: number; currency: string };
+export type OrderFact = { id: string; status: string; attemptId: string; paypalOrderId: string; captureId: string; sku: string; amountMinor: number; currency: string };
 
 export type Evaluation = {
   result: EvaluationResult;
   eligible: boolean;
   activeOrderCount: number;
+  /** Placed orders that match the captured payment field for field (only when eligible). */
+  matchingOrderIds: string[];
   reasons: string[];
   /** Readback evidence rows that confirm the capture (only when eligible). */
   confirmingReadbackSeqs: number[];
@@ -67,6 +73,18 @@ function readbackContradiction(r: ReadbackFact, p: PaymentFacts): string | null 
   const m = parseProviderValue(c.value, c.currency ?? "");
   if (!m || m.minor !== p.intentMinor || m.currency !== p.intentCurrency) return "readback capture amount differs from intent";
   return null;
+}
+
+/** Every field in which a merchant order differs from the eligible captured payment; [] = matches. */
+export function orderMismatches(o: OrderFact, p: PaymentFacts): string[] {
+  const out: string[] = [];
+  if (o.attemptId !== p.attemptId) out.push(`payment attempt ${o.attemptId} != ${p.attemptId ?? "missing"}`);
+  if (o.paypalOrderId !== p.paypalOrderId) out.push(`PayPal order id ${o.paypalOrderId} != ${p.paypalOrderId ?? "missing"}`);
+  if (o.captureId !== p.captureId) out.push(`capture id ${o.captureId} != ${p.captureId ?? "missing"}`);
+  if (o.sku !== p.intentSku) out.push(`sku ${o.sku} != ${p.intentSku}`);
+  if (o.currency !== p.intentCurrency) out.push(`currency ${o.currency} != ${p.intentCurrency}`);
+  if (o.amountMinor !== p.intentMinor) out.push(`amount minor ${o.amountMinor} != ${p.intentMinor}`);
+  return out;
 }
 
 export function evaluateContract(p: PaymentFacts, orders: readonly OrderFact[]): Evaluation {
@@ -95,21 +113,29 @@ export function evaluateContract(p: PaymentFacts, orders: readonly OrderFact[]):
   const eligible = reasons.length === 0;
 
   if (!eligible) {
-    if (n === 0) return { result: "NOT_ELIGIBLE", eligible, activeOrderCount: n, reasons, confirmingReadbackSeqs: [] };
+    if (n === 0) return { result: "NOT_ELIGIBLE", eligible, activeOrderCount: n, matchingOrderIds: [], reasons, confirmingReadbackSeqs: [] };
     return {
       result: "OUT_OF_SCOPE",
       eligible,
       activeOrderCount: n,
+      matchingOrderIds: [],
       reasons: [...reasons, `${n} merchant order(s) exist without an eligible capture; no incident class for this in Stage 1C`],
       confirmingReadbackSeqs: [],
     };
   }
   const basis = `capture ${p.captureId} COMPLETED confirmed by readback evidence ${confirming.join(", ")}`;
-  if (n === 1) return { result: "HOLDS", eligible, activeOrderCount: n, reasons: [basis, "exactly one merchant order"], confirmingReadbackSeqs: confirming };
-  if (n === 0) {
-    return { result: "OUT_OF_SCOPE", eligible, activeOrderCount: n, reasons: [basis, "no merchant order yet; missing-order is not an incident class in Stage 1C"], confirmingReadbackSeqs: confirming };
+  const matching = active.filter((o) => orderMismatches(o, p).length === 0).map((o) => o.id);
+  const mismatched = active.filter((o) => !matching.includes(o.id)).map((o) => `merchant order ${o.id} does not match the capture: ${orderMismatches(o, p).join("; ")}`);
+  const out = (result: EvaluationResult, ...why: string[]): Evaluation => ({
+    result, eligible, activeOrderCount: n, matchingOrderIds: matching, reasons: [basis, ...why, ...mismatched], confirmingReadbackSeqs: confirming,
+  });
+  // Two matching orders prove the duplicate on their own; an extra mismatched order is reported, not ignored.
+  if (matching.length >= 2) return out("VIOLATED", `${matching.length} matching merchant orders for one captured intent; contract allows exactly one`);
+  if (mismatched.length > 0) {
+    return out("OUT_OF_SCOPE", `${mismatched.length} placed merchant order(s) do not match the captured payment; no incident class for mismatched orders in Stage 1C`);
   }
-  return { result: "VIOLATED", eligible, activeOrderCount: n, reasons: [basis, `${n} merchant orders for one captured intent; contract allows exactly one`], confirmingReadbackSeqs: confirming };
+  if (n === 1) return out("HOLDS", "exactly one merchant order, matching the capture");
+  return out("OUT_OF_SCOPE", "no merchant order yet; missing-order is not an incident class in Stage 1C");
 }
 
 /** Parse a persisted summarizeOrder() JSON into a ReadbackFact (tolerates missing fields). */

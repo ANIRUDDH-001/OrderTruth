@@ -288,6 +288,20 @@ export const MIGRATIONS: readonly string[] = [
      BEGIN SELECT RAISE(ABORT, 'incident evidence must reference an existing record of its own class, intent and organization'); END;
    CREATE TRIGGER incident_evidence_no_update BEFORE UPDATE ON incident_evidence BEGIN SELECT RAISE(ABORT, 'incident evidence is append-only'); END;
    CREATE TRIGGER incident_evidence_no_delete BEFORE DELETE ON incident_evidence BEGIN SELECT RAISE(ABORT, 'incident evidence is append-only'); END;`,
+  // 5 — Stage 1C review: a merchant order must match its captured payment field for field (attempt
+  // captured, PayPal order id, capture id, SKU, currency, amount), as the contract requires. There
+  // is still deliberately NO unique key on intent_id: REF-BUG-1 (two correct orders for one
+  // capture) must stay reproducible so the checker can detect it. Rows written before this
+  // migration are not rewritten; the checker compares every order regardless.
+  `DROP TRIGGER merchant_orders_i;
+   CREATE TRIGGER merchant_orders_i BEFORE INSERT ON merchant_orders
+     WHEN NEW.status <> 'placed'
+       OR NOT EXISTS (SELECT 1 FROM checkout_intents i JOIN payment_attempts a ON a.intent_id = i.id
+                      WHERE i.id = NEW.intent_id AND a.id = NEW.attempt_id AND i.organization_id = NEW.organization_id
+                        AND a.state = 'captured' AND a.paypal_order_id = NEW.paypal_order_id AND a.capture_id = NEW.capture_id
+                        AND i.sku = NEW.sku AND i.currency = NEW.currency AND i.amount_minor = NEW.amount_minor)
+       OR (NEW.fault_injection_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM fault_injections f WHERE f.id = NEW.fault_injection_id AND f.intent_id = NEW.intent_id))
+     BEGIN SELECT RAISE(ABORT, 'merchant order must start placed, match its own organization captured payment (order, capture, sku, currency, amount) and fault'); END;`,
 ];
 
 export type IntentRow = { id: string; sku: string; currency: "USD"; amount_minor: number; correlation_id: string; checkout_key: string | null; created_at: string };

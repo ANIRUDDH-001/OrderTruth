@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { Store } from "../db/store.ts";
 import { CONTRACT_ID, DUPLICATE_SEVERITY, evaluateContract, INCIDENT_CLASS, readbackFact, type EvaluationResult, type PaymentFacts } from "./contract.ts";
-import { MerchantRepo, type IncidentEvidenceRow, type MerchantOrderRow } from "./repo.ts";
+import { MerchantRepo, type FaultInjectionRow, type IncidentEvidenceRow, type MerchantOrderRow } from "./repo.ts";
 
 export type IntentCheck = { intentId: string; evaluationSeq: number; result: EvaluationResult; activeOrderCount: number; reasons: string[]; incidentId: string | null; incidentOpened: boolean; evidenceLinked: number };
 
@@ -14,6 +14,38 @@ type Link = { cls: IncidentEvidenceRow["evidence_class"]; refType: string; refId
  * Each evaluation is recorded; only VIOLATED opens an incident, at most one per intent (dedup key),
  * and re-running only appends evidence not linked yet. One transaction per intent.
  */
+const MECHANISM = "REF-BUG-1: reference merchant check-then-insert without unique key; capture_return and webhook_capture_completed paths both pass the existence check before either inserts";
+
+/**
+ * Causal provenance of a duplicate, from the INVOLVED orders' own fault references only. A fault
+ * record that no involved order references (e.g. an injection that failed before placing anything)
+ * is preserved in the reproduction as history but is never treated as the cause.
+ *   all involved orders reference a recorded fault -> CONTROLLED_FAULT_INJECTION
+ *   none do -> UNKNOWN;  some do -> MIXED
+ */
+export function attributeCause(involved: readonly MerchantOrderRow[], faults: readonly FaultInjectionRow[]) {
+  const known = new Set(faults.map((f) => f.id));
+  const refs = involved.map((o) => (o.fault_injection_id && known.has(o.fault_injection_id) ? o.fault_injection_id : null));
+  const faultInjectionIds = [...new Set(refs.filter((r): r is string => r !== null))];
+  const referencing = refs.filter((r) => r !== null).length;
+  const cause = referencing === 0 ? "UNKNOWN" : referencing === involved.length ? "CONTROLLED_FAULT_INJECTION" : "MIXED";
+  return {
+    cause,
+    faultInjectionIds,
+    orders: involved.map((o, i) => ({ id: o.id, createdByPath: o.created_by_path, faultInjectionId: refs[i] })),
+    unreferencedFaultRecords: faults
+      .filter((f) => !faultInjectionIds.includes(f.id))
+      .map((f) => ({ id: f.id, kind: f.kind, causalStatus: "NOT_REFERENCED_BY_ANY_INVOLVED_ORDER" })),
+    ...(cause === "UNKNOWN"
+      ? { note: "no involved order references a controlled fault; duplicate observed in merchant data" }
+      : {
+          mechanism: MECHANISM,
+          reproduce: "pnpm stage1c --mode fault --target-order <PayPal order id> (isolated DB copy) or pnpm exec vitest run tests/stage1c-merchant-incident.test.ts",
+          ...(cause === "MIXED" ? { note: "only some involved orders reference a controlled fault; the rest are of unknown cause" } : {}),
+        }),
+  };
+}
+
 export class InvariantChecker {
   readonly repo: MerchantRepo;
 
@@ -21,7 +53,7 @@ export class InvariantChecker {
     this.repo = new MerchantRepo(store);
   }
 
-  #paymentFacts(intent: { id: string; currency: string; amount_minor: number }): PaymentFacts {
+  #paymentFacts(intent: { id: string; sku: string; currency: string; amount_minor: number }): PaymentFacts {
     const a = this.store.getAttemptByIntentId(intent.id);
     const rows = a
       ? (this.store.db
@@ -30,6 +62,7 @@ export class InvariantChecker {
       : [];
     return {
       intentId: intent.id,
+      intentSku: intent.sku,
       intentCurrency: intent.currency,
       intentMinor: intent.amount_minor,
       attemptId: a?.id ?? null,
@@ -51,7 +84,7 @@ export class InvariantChecker {
       const orders = this.repo.ordersForIntent(orgId, intentId);
       const ev = evaluateContract(
         facts,
-        orders.map((o) => ({ id: o.id, status: o.status, captureId: o.capture_id, amountMinor: o.amount_minor, currency: o.currency })),
+        orders.map((o) => ({ id: o.id, status: o.status, attemptId: o.attempt_id, paypalOrderId: o.paypal_order_id, captureId: o.capture_id, sku: o.sku, amountMinor: o.amount_minor, currency: o.currency })),
       );
       const factsSnapshot = {
         attemptId: facts.attemptId,
@@ -62,6 +95,7 @@ export class InvariantChecker {
         readbackSeqs: facts.readbacks.map((r) => r.seq),
         confirmingReadbackSeqs: ev.confirmingReadbackSeqs,
         orderIds: orders.map((o) => o.id),
+        matchingOrderIds: ev.matchingOrderIds,
       };
       const at = new Date().toISOString();
       const evalSeq = Number(
@@ -74,15 +108,9 @@ export class InvariantChecker {
 
       const faults = this.repo.faultsForIntent(orgId, intentId);
       const dedupKey = `${orgId}|${CONTRACT_ID}|${intentId}`;
-      const reproduction = faults.length
-        ? {
-            cause: "CONTROLLED_FAULT_INJECTION",
-            faultInjectionIds: faults.map((f) => f.id),
-            kind: faults.map((f) => f.kind),
-            mechanism: "REF-BUG-1: reference merchant check-then-insert without unique key; capture_return and webhook_capture_completed paths both pass the existence check before either inserts",
-            reproduce: "pnpm stage1c --mode fault --target-order <PayPal order id> (isolated DB copy) or pnpm exec vitest run tests/stage1c-merchant-incident.test.ts",
-          }
-        : { cause: "UNKNOWN", note: "no controlled fault recorded for this intent; duplicate observed in merchant data", orderCreationPaths: orders.map((o) => o.created_by_path) };
+      const involved = orders.filter((o) => ev.matchingOrderIds.includes(o.id));
+      const reproduction = attributeCause(involved, faults);
+      const causalFaults = faults.filter((f) => reproduction.faultInjectionIds.includes(f.id));
       const incidentId = `inc_${randomUUID()}`;
       const opened =
         Number(
@@ -93,11 +121,11 @@ export class InvariantChecker {
             )
             .run(
               incidentId, orgId, INCIDENT_CLASS, CONTRACT_ID, dedupKey, DUPLICATE_SEVERITY, intentId, facts.attemptId, facts.paypalOrderId, facts.captureId,
-              `${ev.activeOrderCount} merchant orders for one captured PayPal payment`, evalSeq, JSON.stringify(reproduction), at,
+              `${ev.matchingOrderIds.length} merchant orders for one captured PayPal payment`, evalSeq, JSON.stringify(reproduction), at,
             ).changes,
         ) === 1;
       const incident = this.store.db.prepare("SELECT id FROM incidents WHERE dedup_key = ?").get(dedupKey) as { id: string };
-      const linked = this.#link(incident.id, this.#links(facts, ev.confirmingReadbackSeqs, orders, faults));
+      const linked = this.#link(incident.id, this.#links(facts, ev.confirmingReadbackSeqs, orders, causalFaults));
       return { ...base, incidentId: incident.id, incidentOpened: opened, evidenceLinked: linked };
     });
   }
