@@ -230,7 +230,7 @@ Mutation results (each killed by the tests named):
 | Listener surface, isolation, size/content-type limits, durable ack, dedup, crash recovery, DB triggers | VERIFIED-LOCAL (real sockets, real SQLite, real process kills) |
 | Postback request shape matches the documented schema | VERIFIED-LOCAL against docs; **NOT TESTED live** |
 | PayPal returns `SUCCESS` for a genuine Sandbox delivery to this code | **NOT TESTED** (MOCKED: fake HMAC signer) |
-| Real deliveries carry `PAYPAL-AUTH-ALGO` = `SHA256withRSA` | **HYPOTHESIS**. The docs page lists only 4 headers; `auth_algo` appears as a postback body field. If the header is absent, every delivery is rejected 400 (fail closed, not unsafe). |
+| Real deliveries carry `PAYPAL-AUTH-ALGO` = `SHA256withRSA` | Documented in the webhooks v1 schema field descriptions (recheck 2026-10-19, `docs/GATE1B_LIVE_PREFLIGHT.md` §5). Presence on real deliveries: **NOT TESTED**. If the header is absent, every delivery is rejected 400 (fail closed, not unsafe). |
 | Real cert URLs fall within the allowlist (`api(-m).sandbox.paypal.com/v1/notifications/certs/…`) | **HYPOTHESIS** |
 | PayPal retries carry a fresh `transmission_time` | **HYPOTHESIS** (§11 risk 1) |
 | Real event `resource` shapes match the summary extractor (capture `supplementary_data.related_ids.order_id`, `custom_id`) | **HYPOTHESIS** from the docs examples |
@@ -244,7 +244,7 @@ Mutation results (each killed by the tests named):
    - Mitigation options: confirm live behaviour, raise `WEBHOOK_MAX_TRANSMISSION_AGE_MS` (configurable up to 4 days), or use PayPal's resend API.
 2. **`paypal-auth-algo` header requirement:** see §10. Check this on the first live delivery.
 3. **Postback dependency.** If PayPal's verify endpoint is down, every delivery gets 503 and is retried by PayPal. No event is accepted on our own judgement. This is safe but adds latency.
-4. **Unbounded growth.** Delivery, event and audit tables have no retention policy yet. An unauthenticated sender can add one small row per request. Each row is size-bounded, but there is no rate limit apart from the verifier concurrency cap. Acceptable on loopback; needs a rate limit or retention before a long-lived public tunnel.
+4. **Unbounded growth: MITIGATED (VERIFIED-LOCAL).** There is now a pre-persistence token bucket (429), a durable ceiling on stored non-verified rows (503) and a keep-all retention policy with a proposed pruning rule. See `docs/GATE1B_LIVE_PREFLIGHT.md` §1–2. Residual risk: someone who knows the tunnel URL can delay genuine deliveries, but cannot forge events.
 5. **Single host, single SQLite file.** Multi-instance correctness is not certified (D6).
 6. **Self-verification not implemented.** Simulator events cannot be verified (by design).
 7. **Narrow agreement predicate.** It compares id, single unit, custom_id, capture id and amount. Partial refunds, multiple captures and disputes are not handled (they are `ignored` by type).
