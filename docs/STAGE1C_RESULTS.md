@@ -1,8 +1,8 @@
 # Stage 1C — Merchant contract, controlled fault and first incident
 
-**Date:** 2026-10-19. **Status:** implemented and verified offline; **awaiting review**. Recovery execution and UI expansion have not been started (out of scope until approved).
+**Date:** 2026-10-19. **Status:** independent review of `a36852d` accepted this as an offline detection prototype, with corrections (§9). **Gate 1 is NOT complete:** the human-approved repair workflow is designed (`docs/STAGE1C_REPAIR_CONTRACT.md`) but not implemented or executed. Gate 2 has not started.
 **Budget:** ₹0. No new dependency. **Zero PayPal calls in Stage 1C**: no checkout, capture, refund, resend or tunnel.
-**Git:** Claude made no commits. All changes are uncommitted in the working tree, and `docs/GATE1B_LIVE_RESULTS.md` (Gate 1B webhook-deletion evidence) is preserved as-is for an authorized Git actor.
+**Git:** Claude made no commits. The user committed the original Stage 1C work on `main` as `8901a53`, `9e16564`, `248b804`, `2f10308` and `a36852d`; the `docs/GATE1B_LIVE_RESULTS.md` deletion evidence is in `130a001`. The review corrections in §9 are **uncommitted** working-tree changes on top of `a36852d` and await an authorized Git actor.
 
 Claim labels: **VERIFIED** (reproduced in this stage, with the log path given), **RECORDED_NOT_REPRODUCED**, **HYPOTHESIS**, **BLOCKED**, **NOT_TESTED**.
 
@@ -19,7 +19,7 @@ A valid, already captured PayPal Sandbox payment can coexist with incorrect loca
 | Piece | File | Notes |
 |---|---|---|
 | Schema (migration 4, additive) | `src/db/store.ts` | Tables: `organizations` (seeded `org_reference`), `checkout_intents.organization_id` (immutable, NOT NULL DEFAULT `org_reference`), `fault_injections`, `merchant_orders`, `invariant_evaluations`, `incidents`, `incident_evidence`. Every new table is append-only or immutable through triggers; nothing is ever deleted. |
-| Contract | `src/merchant/contract.ts` | `REF_MERCHANT_ONE_CAPTURE_ONE_ORDER_V1`: one captured, eligible checkout intent yields exactly one `placed` merchant order. A pure function with no I/O. |
+| Contract | `src/merchant/contract.ts` | `REF_MERCHANT_ONE_CAPTURE_ONE_ORDER_V1`: one captured, eligible checkout intent yields exactly one `placed` merchant order **that matches the capture**: attempt, PayPal order id, capture id, SKU, currency and amount (`orderMismatches`). A pure function with no I/O. |
 | Reference merchant | `src/merchant/reference-merchant.ts` | Two paths (`capture_return`, `webhook_capture_completed`). **REF-BUG-1** (deliberate): check, then `await`, then insert, with no unique key on `intent_id`. It never calls PayPal. |
 | Fault injector | `src/merchant/fault-injection.ts` | Records a `fault_injections` row (label CHECK = `CONTROLLED_FAULT_INJECTION`) **before** running. A 2-party barrier then pins the interleaving, and both orders carry the fault id. It refuses an uncaptured intent, an intent in another org, or an intent that already has orders. |
 | Invariant checker | `src/merchant/checker.ts` | Runs one transaction per intent. It always appends an evaluation. It opens an incident only on VIOLATED, idempotent via `dedup_key` UNIQUE + `ON CONFLICT DO NOTHING`. It links evidence idempotently and makes zero PayPal calls. |
@@ -39,9 +39,10 @@ Results:
 |---|---|
 | Not eligible, 0 orders | NOT_ELIGIBLE |
 | Not eligible, ≥1 order | OUT_OF_SCOPE (no incident) |
-| Eligible, 1 order | HOLDS |
+| Eligible, exactly 1 placed order, and it matches | HOLDS |
 | Eligible, 0 orders | OUT_OF_SCOPE (missing-order is not an incident class in Stage 1C) |
-| Eligible, ≥2 orders | VIOLATED → incident `DUPLICATE_MERCHANT_ORDER`, severity high |
+| Eligible, ≥2 **matching** orders (any extra mismatched order is listed in the reasons) | VIOLATED → incident `DUPLICATE_MERCHANT_ORDER`, severity high |
+| Eligible, any mismatched placed order and fewer than 2 matching | OUT_OF_SCOPE; each order's differing fields are given as reasons (no second incident class) |
 
 **Evidence labels.** The database enforces both a CHECK and a BEFORE INSERT trigger. Each link must reference an existing record of its own kind for the incident's own intent, attempt and org.
 
@@ -52,7 +53,12 @@ Results:
 | `MERCHANT_DB_OBSERVED` | `merchant_orders.id` | same intent and org |
 | `CONTROLLED_FAULT_INJECTION` | `fault_injections.id` | same intent and org |
 
-An organic duplicate with no fault row gets `reproduction.cause = "UNKNOWN"` and order provenance `REFERENCE_MERCHANT_FLOW`. It never borrows the fault label (test C7).
+Causal provenance (corrected, §9) comes only from the **involved** (matching) orders' own `fault_injection_id`:
+- every involved order references a recorded fault → `CONTROLLED_FAULT_INJECTION`;
+- none does → `UNKNOWN`;
+- some do → `MIXED`.
+
+A fault record that no involved order references (for example, an injection that failed) is kept in `reproduction.unreferencedFaultRecords` with `causalStatus: NOT_REFERENCED_BY_ANY_INVOLVED_ORDER`. It is not linked as incident evidence (tests C7, V0–V3).
 
 ## 3. Healthy vs faulty comparison on the real data (VERIFIED)
 
@@ -167,6 +173,8 @@ Explanation for M3: the merchant's own `await` between check and insert already 
 
 ## 7. Proposed next-stage contract: operator-approved, local-only repair (NOT IMPLEMENTED)
 
+> **Superseded** by `docs/STAGE1C_REPAIR_CONTRACT.md`. That document reviews this sketch against the corrected checker (findings R1–R8) and specifies approval, independent executor checks, stale-plan rejection and postcondition proof. The sketch is kept below for history.
+
 1. **Scope:** only `DUPLICATE_MERCHANT_ORDER` incidents in `open` state, and only on the local reference merchant. No PayPal write of any kind (no refund, void or capture). The payment is correct; the merchant record is not.
 2. **Plan (dry run, read-only):** recompute the contract. If it no longer reports VIOLATED, refuse. Otherwise propose keeping the earliest `placed` order and moving the others `placed → voided_duplicate`. Store the plan with a hash of the facts it relied on.
 3. **Approval:** a named operator approves that specific plan hash. Approval expires and is single-use. Requires a real authenticated identity with a `repair:approve` role, so the dev header is insufficient (blocker in §6).
@@ -183,3 +191,28 @@ pnpm exec vitest run tests/stage1c-merchant-incident.test.ts tests/stage1c-stale
 pnpm stage1c --mode both --target-order 7TS74882M0297892Y   # needs fresh --out-dir if .work/stage1c/*.sqlite exist
 pnpm incidents --db .work/stage1c/fault.sqlite                # 127.0.0.1:3003, header x-ordertruth-org: org_reference
 ```
+
+## 9. Review corrections (review of `a36852d`, 2026-10-19) — uncommitted
+
+**P1a — the contract checks order correctness, not just the count.** Before the fix, `evaluateContract` only counted `placed` orders. A single order with the wrong capture id, amount, currency, PayPal order id or SKU therefore gave `HOLDS`.
+- **Contract:** `orderMismatches(order, payment)` lists every differing field: attempt, PayPal order id, capture id, SKU, currency and amount minor. `Evaluation` gained `matchingOrderIds`. Results follow the table in §2.
+- **Checker:** passes every order field plus the intent SKU, records `matchingOrderIds` in `facts_json`, and titles the incident with the matching-order count.
+- **DB (migration 5):** the `merchant_orders_i` trigger now also requires that the attempt is `captured` and that the order's PayPal order id, capture id, SKU, currency and amount equal the attempt/intent values. There is deliberately still **no unique key on `intent_id`**, so REF-BUG-1 stays reproducible (K9, C2). Rows written before migration 5 are not rewritten, but the checker compares them anyway (K6, K10).
+
+**P1b — causal provenance.** Before the fix, any fault record for the intent made the cause `CONTROLLED_FAULT_INJECTION`. Now `attributeCause` uses only the involved orders' fault references (§2). Test V1 reproduces the reviewer's case: a fault record is written before execution, the injection fails, and an organic duplicate follows. The result is `UNKNOWN`. The fault row is preserved but not linked as evidence.
+
+**P2 — repair.** Reviewed and specified in `docs/STAGE1C_REPAIR_CONTRACT.md`; not implemented. No repair endpoint exists, and `x-ordertruth-org` is still not authentication.
+
+**Verification (VERIFIED; logs in `.work/runs/stage1c-corrections/`, ignored):**
+
+| Check | Result |
+|---|---|
+| New tests fail before the fix (`01-red.txt`) | 19 of the first 22 failed for the stated reasons: `HOLDS` for a wrong-capture order, and `CONTROLLED_FAULT_INJECTION` for the failed-injection duplicate. The 3 that passed are controls (K0, K5, K9). K8b, V0 and K10 were added after the fix: K8b and V0 kill mutation survivors, and K10 covers the v4 → v5 migration. None of them can pass on `a36852d`: the v4 trigger accepts the K8b row, `attributeCause` did not exist, and there was no v5. |
+| `pnpm typecheck` | exit 0 (`08-typecheck-final.txt`) |
+| `pnpm test` | **16 files, 335/335** (310 baseline + 25 in `tests/stage1c-corrections.test.ts`) (`09-test-final.txt`) |
+| `pnpm build:web` | exit 0 (`10-build-final.txt`) |
+| Existing tests changed | M1 only: the hard-coded schema version `4` became `MIGRATIONS.length` (now 5), because migration 5 is new. Its assertions on preserved rows are unchanged. |
+| Demo on byte copies (`05-demo.txt`, `.work/stage1c-v5/`) | Healthy: 2 HOLDS, 0 incidents. Fault: 1 HOLDS + 1 VIOLATED → 1 incident with cause `CONTROLLED_FAULT_INJECTION` (both orders reference the fault), linked to 4 readbacks, 2 webhooks, 2 orders and 1 fault. Cross-org request returns 404. Copies are at schema v5. |
+| Live DB | `.work/ordertruth.sqlite` is still v3: sha256 `390fe8d8…16b1bb` unchanged, no `-wal`. **The next `Store` open will apply migrations 4 and 5.** |
+| Mutations (`06-mutations.txt`, `07-mutations-after-strengthening.txt`) | 16 mutations applied to the new logic. First pass: 13 killed and **3 survived**: N8 (a mismatch is ignored when one order matches), N12 (a dangling fault reference is trusted) and N15 (the trigger drops the `captured` state check). Tests were strengthened (K3 reason assertions, V0, K8b); all 3 are now killed, **16/16**. N12 cannot occur through the DB, because the FK and trigger reject dangling fault ids, so V0 tests the pure function directly. |
+| PayPal / cost | Zero PayPal calls, no tunnel, ₹0 |
