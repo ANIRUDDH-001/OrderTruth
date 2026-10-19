@@ -1,6 +1,6 @@
 # Stage 1D — local merchant repair results
 
-Date: 19 October 2026. Base: `5404f88`. STATUS: Gate 1 / Stage 1D implementation ready for independent review; **Gate 1 remains incomplete**. No human-approved repair demonstration has occurred.
+Date: 19 October 2026. Original implementation base: `5404f88`; bounded follow-up base: `edb4dc51608c4b045e3f683231b0459178dfccd8`. STATUS: Stage 1D implementation accepted and verified offline under simulated approvals; **Gate 1 remains incomplete**. Real interactive human-approved actual-evidence repair demonstration is pending.
 
 ## Verified implementation
 
@@ -111,4 +111,35 @@ Top risks: (1) declared identities can be forged by local DB writers—keep loca
 
 COST / QUOTA: ₹0 incremental service spend; no new dependency/service or provider calls. Agent inference token/cost accounting unavailable. Optional community lookup returned not connected; no community claims are relied on.
 
-BLOCKING QUESTIONS: none for implementation. NEXT ACTION: independent review; then separately authorized human interactive repair demonstration. GIT: ordinary working files only; no staging, commits, branches, pushes or other Git writes by Codex or reviewer. The final Git status lists the exact working changes. Gate 1 is not marked complete.
+BLOCKING QUESTIONS: none for implementation. NEXT ACTION: independent review; then separately authorized human interactive repair demonstration. GIT (original checkpoint): no Git writes by Codex or reviewer. The bounded follow-up below has separate explicit commit/push authorization. Gate 1 is not marked complete.
+
+## Bounded independent-review follow-up (19 October 2026)
+
+IMPLEMENTED: `src/merchant/repair.ts` hashes a deterministically ordered provider snapshot for both approval staleness and execution postconditions. It covers full attempt rows and their evidence (including PayPal API responses/readbacks), associated webhook events with a verified first delivery, verified first/duplicate deliveries, associated unassigned verified-webhook evidence, webhook state audit rows, and the shared immutable `attempt_transitions` rules. This last table defines allowed state transitions; it is **not a per-attempt transition history**. No new history or migration is implied.
+
+Association is scoped through the attempt's organization and identity. An event's explicit attempt link takes precedence; only unlinked events may associate by the intended PayPal order ID. Event verification requires a matching verified first delivery. A claimed event ID alone never brings an unverified delivery into the snapshot. Unassigned webhook evidence must name both the associated event and its first delivery. Invalid plan references are not dereferenced; integrity refusals hash provider records in the service's bound organization plus shared transition rules. Ordinary repair never updates original merchant-order rows; void records determine effective status.
+
+VERIFIED offline (synthetic databases and simulated approvals only):
+
+| Command | Observed result | Local evidence under `.work/runs/stage1d-followup/` |
+|---|---|---|
+| `pnpm test` before edits | 392/392 baseline passed | `01-baseline.txt` |
+| `pnpm exec vitest run tests/stage1d-repair.test.ts -t 'provider preservation'` before fix | 7 failures: missing protection/staleness; 2 controls passed | `02-red.txt` |
+| Same targeted command after fix and added controls | 13 passed, 54 unrelated tests filtered out | `06-adversarial.txt` |
+| `pnpm test` after correction | 404/404 passed, 18 files; 392 baseline + 12 new | `07-full-suite.txt` |
+| `pnpm typecheck` | exit 0 | `04-typecheck.txt` |
+| `pnpm build:web` | exit 0 | `05-web-build.txt` |
+| `pnpm exec vitest run tests/stage1d-repair.test.ts tests/stage1d-schema.test.ts` | 69/69 passed | `09-targeted.txt` |
+| `node tests/helpers/stage1d-mutations.mjs` | 12/14 killed; R08/R10 survived; zero harness errors | `08-mutations.txt` and `.work/runs/stage1d/mutations/results.json` |
+| `node .work/runs/stage1d-followup/scan.mjs` (also `--staged` before commit) | 5 scoped files, zero heuristic findings, zero forbidden paths; no secret/private-evidence files read | `11-secret-scan.json`, `12-staged-scan.json` |
+| `git diff --check` / `git diff --cached --check` | exit 0 | final verification session |
+
+The new savepoint regressions tamper with event content/association, delivery content/association, a verified duplicate, unassigned webhook evidence, webhook audit, and shared transition rules. Each proves `FAILED_POSTCONDITION`, full provider-row restoration, zero merchant voids, zero incident resolutions and one durable refusal. Controls cover stale approved webhook facts, unlinked associated events, unrelated events/unverified claims, and a different organization's explicit attempt binding despite a claimed matching order ID. Where an append-only trigger normally blocks tampering, the test drops it inside the savepoint to exercise the preservation guard; rollback restores it too.
+
+Mutation survivors R08 and R10 remain explicitly reported above; no cosmetic mutation-score improvement is claimed. The original results table remains the historical 392-test checkpoint, distinct from this follow-up.
+
+VERIFIED read-only file hash: original `.work/ordertruth.sqlite` SHA-256 still equals the recorded `390fe8d8c12a8b787480158420355f940fc7aeb4e25ae0954cafcc461b16b1bb`. It was not opened through Store or migrated. This file hash alone is not a logical/WAL-state assertion.
+
+NOT_TESTED / stop boundary: no real interactive actual-evidence repair, no PayPal calls or financial mutations, no original database Store open/migration, no actual-evidence plan creation/approval/execution, no Gate 2, AI evaluation or UI expansion. The old ready plan expired at 2026-10-19 04:16:09 UTC and must never be approved or executed. A fresh unapproved/unexecuted plan belongs to a separate step **after** the correction commit and independent-review report.
+
+COST / QUOTA: ₹0 incremental service spend; no new dependencies or external service usage. Agent inference accounting unavailable. Optional community lookup returned not connected; no community claims are relied on. NEXT ACTION: stop after the authorized scoped commit/push and final verification report for independent review.

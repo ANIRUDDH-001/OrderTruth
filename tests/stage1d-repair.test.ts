@@ -19,6 +19,7 @@ import { injectDuplicateOrderRace } from '../src/merchant/fault-injection.ts';
 import { ReferenceMerchant } from '../src/merchant/reference-merchant.ts';
 import { MerchantRepo, REFERENCE_ORG as ORG } from '../src/merchant/repo.ts';
 import { RepairService, canonical, sha256 } from '../src/merchant/repair.ts';
+import { WebhookInbox } from '../src/webhooks/inbox.ts';
 import { buildIncidentApi, ORG_HEADER } from '../src/merchant/api.ts';
 const dir=mkdtempSync(join(tmpdir(),'ot-rp-')); let seq=0;
 afterAll(()=>rmSync(dir,{recursive:true,force:true}));
@@ -34,6 +35,78 @@ async function fixture(){
 }
 const approve=(r:RepairService,p:ReturnType<RepairService['plan']>)=>r.approveSimulated(p.id,p.plan_sha256,'test operator',p.plan_sha256.slice(-8));
 const count=(s:Store,t:string)=>(s.db.prepare(`SELECT COUNT(*) n FROM ${t}`).get() as {n:number}).n;
+// Fabricated verified inbox facts only: this helper never calls signature verification or PayPal.
+function syntheticWebhook(s:Store,eventId='EVENTTEST',attemptId:string|null='pa_test',orderId='ORDERTEST') {
+ const inbox=new WebhookInbox(s);
+ const delivery=inbox.recordDelivery({claimedEventId:eventId,claimedEventType:'PAYMENT.CAPTURE.COMPLETED',bodySha256:'synthetic',bodyBytes:1,correlationId:'test',nowMs:0});
+ inbox.acceptVerified(delivery,{id:eventId,event_type:'PAYMENT.CAPTURE.COMPLETED',resource_type:'capture',event_version:null,resource_version:null,create_time:null,
+  resource:{id:'CAPTEST',status:'COMPLETED',amount:{currency_code:'USD',value:'1.00'},custom_id:null,order_id:orderId}},{ms:0,debugId:null},'test');
+ s.db.prepare('UPDATE webhook_events SET attempt_id=? WHERE event_id=?').run(attemptId,eventId);
+ return delivery;
+}
+it.each(['event','event association','delivery','delivery association','verified duplicate','webhook evidence','webhook audit','attempt transition rules'] as const)(
+ 'provider preservation rolls back %s tampering inside the correction savepoint',async target=>{
+ const {s,incident}=await fixture();try{
+  const delivery=syntheticWebhook(s);
+  const inbox=new WebhookInbox(s);
+  const duplicate=inbox.recordDelivery({claimedEventId:'EVENTTEST',claimedEventType:null,bodySha256:'synthetic duplicate',bodyBytes:1,correlationId:'test',nowMs:0});
+  const summary=JSON.parse((s.db.prepare("SELECT summary_json FROM webhook_events WHERE event_id='EVENTTEST'").get() as {summary_json:string}).summary_json);
+  inbox.acceptVerified(duplicate,summary,{ms:0,debugId:null},'test');
+  const tables=['payment_attempts','evidence','webhook_events','webhook_deliveries','webhook_audit','attempt_transitions'];
+  const snapshot=()=>canonical(tables.map(t=>s.db.prepare(`SELECT * FROM ${t}`).all()));
+  const before=snapshot();
+  const r=new RepairService(s,ORG,{boundary:b=>{if(b!=='after_voids')return;
+   if(target==='event')s.db.exec("UPDATE webhook_events SET outcome='tampered' WHERE event_id='EVENTTEST'");
+   if(target==='event association')s.db.exec("UPDATE webhook_events SET attempt_id=NULL,order_id='WRONG' WHERE event_id='EVENTTEST'");
+   if(target==='delivery')s.db.prepare("UPDATE webhook_deliveries SET reason='tampered' WHERE seq=?").run(delivery);
+   if(target==='delivery association')s.db.prepare("UPDATE webhook_deliveries SET claimed_event_id='WRONG' WHERE seq=?").run(delivery);
+   if(target==='verified duplicate')s.db.prepare("UPDATE webhook_deliveries SET reason='tampered' WHERE seq=?").run(duplicate);
+   if(target==='webhook evidence'){s.db.exec('DROP TRIGGER evidence_no_update');s.db.exec("UPDATE evidence SET duration_ms=999 WHERE attempt_id IS NULL");}
+   if(target==='webhook audit'){s.db.exec('DROP TRIGGER webhook_audit_no_update');s.db.exec("UPDATE webhook_audit SET reason='tampered' WHERE subject='event'");}
+   if(target==='attempt transition rules'){s.db.exec('DROP TRIGGER attempt_transitions_static_u');s.db.exec("UPDATE attempt_transitions SET to_state='tampered' WHERE from_state='created'");}
+  }});
+  const p=r.plan(incident,'requester');approve(r,p);const outcome=r.execute(p.id);
+  expect(outcome.outcome).toBe('FAILED_POSTCONDITION');
+  expect(snapshot()).toBe(before);expect(count(s,'merchant_order_voids')).toBe(0);
+  expect(count(s,'incident_resolutions')).toBe(0);expect(count(s,'repair_outcomes')).toBe(1);
+  expect(outcome.provider_after_sha256).toBe(outcome.provider_before_sha256);
+ }finally{s.close();}
+});
+it('provider preservation rejects stale webhook facts after approval',async()=>{
+ const {s,incident,service}=await fixture();try{syntheticWebhook(s);const p=service.plan(incident,'requester');approve(service,p);
+ s.db.exec("UPDATE webhook_events SET outcome='changed after approval' WHERE event_id='EVENTTEST'");
+ expect(service.execute(p.id).outcome).toBe('REJECTED_STALE');expect(count(s,'merchant_order_voids')).toBe(0);expect(count(s,'incident_resolutions')).toBe(0);
+ }finally{s.close();}
+});
+it('provider preservation includes an associated webhook awaiting attempt linkage',async()=>{
+ const {s,incident}=await fixture();try{syntheticWebhook(s,'EVENTTEST',null);
+ const r=new RepairService(s,ORG,{boundary:b=>{if(b==='after_voids')s.db.exec("UPDATE webhook_events SET outcome='tampered' WHERE event_id='EVENTTEST'");}});
+ const p=r.plan(incident,'requester');approve(r,p);expect(r.execute(p.id).outcome).toBe('FAILED_POSTCONDITION');expect(count(s,'merchant_order_voids')).toBe(0);expect(count(s,'incident_resolutions')).toBe(0);
+ }finally{s.close();}
+});
+it('provider preservation excludes unrelated webhooks and unverified claims of the associated event id',async()=>{
+ const {s,incident}=await fixture();try{syntheticWebhook(s);syntheticWebhook(s,'OTHER',null,'OTHERORDER');
+ const inbox=new WebhookInbox(s);const spoof=inbox.recordDelivery({claimedEventId:'EVENTTEST',claimedEventType:null,bodySha256:'unverified',bodyBytes:1,correlationId:'test',nowMs:0});
+ const r=new RepairService(s,ORG,{boundary:b=>{if(b==='after_voids'){
+  s.db.exec("UPDATE webhook_events SET outcome='unrelated change' WHERE event_id='OTHER'");
+  s.db.prepare("UPDATE webhook_deliveries SET reason='unverified change' WHERE seq=?").run(spoof);
+ }}});const p=r.plan(incident,'requester');approve(r,p);expect(r.execute(p.id).outcome).toBe('SUCCEEDED');
+ expect(count(s,'merchant_order_voids')).toBe(1);expect(count(s,'incident_resolutions')).toBe(1);
+ }finally{s.close();}
+});
+it('provider preservation excludes another organization attempt even when its webhook claims the intended order',async()=>{
+ const {s,incident}=await fixture();try{
+  new MerchantRepo(s).createOrganization('org_other','Other');
+  s.db.exec("INSERT INTO checkout_intents(id,sku,currency,amount_minor,correlation_id,created_at,organization_id) VALUES('ci_other','SKU','USD',100,'other','2026-10-19T00:00:00Z','org_other')");
+  s.db.exec("INSERT INTO payment_attempts(id,intent_id,state,create_request_id,capture_request_id,created_at,updated_at) VALUES('pa_other','ci_other','created','other-create','other-capture','2026-10-19T00:00:00Z','2026-10-19T00:00:00Z')");
+  syntheticWebhook(s,'OTHER','pa_other','ORDERTEST');
+  const r=new RepairService(s,ORG,{boundary:b=>{if(b==='after_voids'){
+   s.updateAttempt('pa_other',{verdict_reasons:'unrelated'});
+   s.db.exec("UPDATE webhook_events SET outcome='unrelated' WHERE event_id='OTHER'");
+  }}});const p=r.plan(incident,'requester');approve(r,p);
+  expect(r.execute(p.id).outcome).toBe('SUCCEEDED');expect(count(s,'merchant_order_voids')).toBe(1);expect(count(s,'incident_resolutions')).toBe(1);
+ }finally{s.close();}
+});
 it('RP1 RP11 approve/execute preserves provider, merchant history, fault provenance and resolves with one effective order',async()=>{
  const {s,id,incident,service}=await fixture(); try{
  const before=canonical({a:s.getAttempt('pa_test'),e:s.listEvidence('pa_test'),m:s.db.prepare('SELECT * FROM merchant_orders ORDER BY id').all(),f:s.db.prepare('SELECT * FROM fault_injections').all(),i:s.db.prepare('SELECT * FROM incidents').all()});

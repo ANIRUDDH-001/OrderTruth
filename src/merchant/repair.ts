@@ -38,6 +38,40 @@ export class RepairService {
   const p=this.store.db.prepare('SELECT * FROM repair_plans WHERE id=? AND organization_id=?').get(id,this.organizationId) as RepairPlan|undefined;
   if(!p)throw Error('plan not found for organization');return p;
  }
+ private providerSnapshot(attemptId:string|null=null) {
+  // Never use a claimed event ID alone as an association. The event must have a verified
+  // first delivery; an explicit attempt binding wins over an order-ID-only association.
+  const scope=`WITH scoped_attempts AS (
+   SELECT a.* FROM payment_attempts a JOIN checkout_intents i ON i.id=a.intent_id
+   WHERE i.organization_id=? AND (? IS NULL OR a.id=?)
+  ), scoped_events AS (
+   SELECT w.* FROM webhook_events w JOIN webhook_deliveries d ON d.seq=w.first_delivery_seq
+   WHERE d.state='verified' AND d.claimed_event_id=w.event_id AND EXISTS (
+    SELECT 1 FROM scoped_attempts a WHERE w.attempt_id=a.id OR
+     (w.attempt_id IS NULL AND w.order_id=a.paypal_order_id)
+   )
+  ), scoped_deliveries AS (
+   SELECT d.* FROM webhook_deliveries d JOIN scoped_events w ON w.event_id=d.claimed_event_id
+   WHERE d.state IN ('verified','duplicate')
+  ) `;
+  const rows=(sql:string)=>this.store.db.prepare(scope+sql).all(this.organizationId,attemptId,attemptId);
+  return {
+   attempts:rows('SELECT * FROM scoped_attempts ORDER BY id'),
+   evidence:rows(`SELECT e.* FROM evidence e WHERE e.attempt_id IN (SELECT id FROM scoped_attempts) OR (
+    e.attempt_id IS NULL AND e.evidence_class='PAYPAL_VERIFIED_WEBHOOK' AND EXISTS (
+     SELECT 1 FROM scoped_events w WHERE
+      json_extract(CASE WHEN json_valid(e.summary_json) THEN e.summary_json ELSE '{}' END,'$.event.id')=w.event_id AND
+      json_extract(CASE WHEN json_valid(e.summary_json) THEN e.summary_json ELSE '{}' END,'$.delivery_seq')=w.first_delivery_seq
+    )) ORDER BY e.seq`),
+   webhookEvents:rows('SELECT * FROM scoped_events ORDER BY event_id'),
+   webhookDeliveries:rows('SELECT * FROM scoped_deliveries ORDER BY seq'),
+   webhookAudit:rows(`SELECT * FROM webhook_audit WHERE
+    (subject='event' AND subject_id IN (SELECT event_id FROM scoped_events)) OR
+    (subject='delivery' AND subject_id IN (SELECT CAST(seq AS TEXT) FROM scoped_deliveries)) ORDER BY seq`),
+   // This table is the shared immutable state-machine definition, not per-attempt history.
+   attemptTransitionRules:this.store.db.prepare('SELECT * FROM attempt_transitions ORDER BY from_state,to_state').all()
+  };
+ }
  private snapshot(incidentId:string) {
   const incident=this.repo.getIncident(this.organizationId,incidentId);
   if(!incident||incident.incident_class!==INCIDENT_CLASS||incident.contract!==CONTRACT_ID)throw Error('eligible incident not found for organization');
@@ -52,9 +86,10 @@ export class RepairService {
   const evaluation=evaluateContract(payment,orders.map(o=>({id:o.id,status:o.status,effectiveStatus:o.effective_status,attemptId:o.attempt_id,paypalOrderId:o.paypal_order_id,captureId:o.capture_id,sku:o.sku,currency:o.currency,amountMinor:o.amount_minor})));
   const voids=this.store.db.prepare('SELECT v.* FROM merchant_order_voids v JOIN merchant_orders m ON m.id=v.order_id WHERE m.organization_id=? AND m.intent_id=? ORDER BY v.order_id').all(this.organizationId,intent.id);
   const resolution=this.store.db.prepare('SELECT * FROM incident_resolutions WHERE incident_id=?').get(incidentId)??null;
-  // Full attempt + full readback metadata hashes exceed the contract minimum, intentionally detecting any transition or new evidence.
-  const facts={contract:CONTRACT_ID,intent,attempt,readbacks:rows.map(e=>({seq:e.seq,sha256:sha256(canonical(e))})),orders,voids,incident,resolution};
-  return {incident,intent,attempt,evidence,orders,evaluation,resolution,factsJson:canonical(facts),providerHash:sha256(canonical({attempt,evidence}))};
+  const provider=this.providerSnapshot(attempt.id),providerHash=sha256(canonical(provider));
+  // Bind the complete provider snapshot to both approval staleness and execution preservation.
+  const facts={contract:CONTRACT_ID,intent,attempt,readbacks:rows.map(e=>({seq:e.seq,sha256:sha256(canonical(e))})),providerHash,orders,voids,incident,resolution};
+  return {incident,intent,attempt,evidence,orders,evaluation,resolution,factsJson:canonical(facts),providerHash};
  }
  private recordEvaluation(s:ReturnType<RepairService['snapshot']>,runId:string):number {
   return Number(this.store.db.prepare(`INSERT INTO invariant_evaluations(organization_id,contract,intent_id,result,active_order_count,reasons_json,facts_json,run_id,evaluated_at) VALUES(?,?,?,?,?,?,?,?,?)`)
@@ -121,10 +156,7 @@ export class RepairService {
    this.options.boundary?.('after_begin');
    // An edited plan's scope is untrusted. Refuse before dereferencing any of its references.
    if(hashPlan(p)!==p.plan_sha256||sha256(p.facts_json)!==p.facts_sha256){
-    const providerHash=sha256(canonical({
-     attempts:this.store.db.prepare('SELECT a.* FROM payment_attempts a JOIN checkout_intents i ON i.id=a.intent_id WHERE i.organization_id=? ORDER BY a.id').all(this.organizationId),
-     evidence:this.store.db.prepare('SELECT e.* FROM evidence e JOIN payment_attempts a ON a.id=e.attempt_id JOIN checkout_intents i ON i.id=a.intent_id WHERE i.organization_id=? ORDER BY e.seq').all(this.organizationId)
-    }));
+    const providerHash=sha256(canonical(this.providerSnapshot()));
     const refusal:Outcome={execution_id:execution,outcome:'REJECTED_INTEGRITY',reasons_json:canonical(['plan integrity failed; provider hashes cover organization scope because plan references are untrusted']),provider_before_sha256:providerHash,provider_after_sha256:providerHash,completed_at:this.at()};
     this.store.db.prepare('INSERT INTO repair_outcomes VALUES(?,?,?,?,?,?)').run(...Object.values(refusal));
     this.audit(p.id,refusal.outcome,{executionId:execution});this.options.boundary?.('before_commit');return refusal;
