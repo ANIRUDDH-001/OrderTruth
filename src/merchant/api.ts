@@ -1,0 +1,118 @@
+import Fastify, { type FastifyInstance, type FastifyRequest } from "fastify";
+import type { Store } from "../db/store.ts";
+import { MerchantRepo, ORG_ID, type IncidentRow } from "./repo.ts";
+
+/**
+ * DEV-ONLY ORGANIZATION SCOPE, NOT AUTHENTICATION. The caller names its organization in this
+ * header; every query is filtered by it, and another organization's incident is indistinguishable
+ * from a missing one (404). A real identity/RBAC layer must replace this before any exposure.
+ */
+export const ORG_HEADER = "x-ordertruth-org";
+const INCIDENT_ID = /^inc_[0-9a-f-]{36}$/;
+const INTENT_ID = /^ci_[0-9a-f-]{36}$/;
+
+const parse = (s: string): unknown => JSON.parse(s);
+
+function incidentView(repo: MerchantRepo, i: IncidentRow) {
+  const evidence = repo.incidentEvidence(i.id).map((e) => ({
+    seq: e.seq,
+    evidenceClass: e.evidence_class,
+    ref: { type: e.ref_type, id: e.ref_id },
+    sourceAt: e.source_at,
+    linkedAt: e.linked_at,
+    summary: parse(e.summary_json),
+  }));
+  const affected = repo.ordersForIntent(i.organization_id, i.intent_id).map((o) => ({
+    id: o.id,
+    status: o.status,
+    createdByPath: o.created_by_path,
+    createdAt: o.created_at,
+    amount: { currency: o.currency, minor: o.amount_minor },
+    faultInjectionId: o.fault_injection_id,
+    provenance: o.fault_injection_id ? "CONTROLLED_FAULT_INJECTION" : "REFERENCE_MERCHANT_FLOW",
+  }));
+  const opening = repo.getEvaluation(i.organization_id, i.opened_by_evaluation_seq);
+  const latest = repo.latestEvaluation(i.organization_id, i.intent_id);
+  const evalView = (e: typeof opening) => e && { seq: e.seq, result: e.result, activeOrderCount: e.active_order_count, reasons: parse(e.reasons_json), evaluatedAt: e.evaluated_at, runId: e.run_id };
+  return {
+    id: i.id,
+    organizationId: i.organization_id,
+    class: i.incident_class,
+    contract: i.contract,
+    severity: i.severity,
+    state: i.state,
+    title: i.title,
+    openedAt: i.opened_at,
+    payment: { intentId: i.intent_id, attemptId: i.attempt_id, paypalOrderId: i.paypal_order_id, captureId: i.capture_id },
+    openingEvaluation: evalView(opening),
+    latestEvaluation: evalView(latest),
+    affectedOrders: affected,
+    evidenceCounts: evidence.reduce<Record<string, number>>((m, e) => ((m[e.evidenceClass] = (m[e.evidenceClass] ?? 0) + 1), m), {}),
+    evidence,
+    reproduction: parse(i.reproduction_json),
+  };
+}
+
+export async function buildIncidentApi(o: { store: Store; logger?: boolean }): Promise<FastifyInstance> {
+  const repo = new MerchantRepo(o.store);
+  const app = Fastify({ logger: o.logger ?? false, bodyLimit: 1024 });
+
+  app.addHook("onSend", async (_req, reply) => {
+    reply.header("x-content-type-options", "nosniff");
+    reply.header("referrer-policy", "no-referrer");
+    reply.header("cache-control", "no-store");
+  });
+  // Read-only surface: anything but GET is refused before routing.
+  app.addHook("onRequest", async (req, reply) => {
+    if (req.method !== "GET" && req.method !== "HEAD") return reply.status(405).header("allow", "GET").send({ error: "method_not_allowed" });
+  });
+
+  const org = (req: FastifyRequest): string | null => {
+    const h = req.headers[ORG_HEADER];
+    return typeof h === "string" && ORG_ID.test(h) && repo.organizationExists(h) ? h : null;
+  };
+  const deny = { error: "organization_required", note: `dev-only ${ORG_HEADER} scope header; not authentication` };
+
+  app.get("/api/incidents", async (req, reply) => {
+    const id = org(req);
+    if (!id) return reply.status(401).send(deny);
+    return {
+      organizationId: id,
+      incidents: repo.listIncidents(id).map((i) => ({
+        id: i.id,
+        class: i.incident_class,
+        severity: i.severity,
+        state: i.state,
+        title: i.title,
+        openedAt: i.opened_at,
+        intentId: i.intent_id,
+        paypalOrderId: i.paypal_order_id,
+        captureId: i.capture_id,
+        affectedOrderCount: repo.ordersForIntent(id, i.intent_id).length,
+      })),
+    };
+  });
+
+  app.get<{ Params: { id: string } }>("/api/incidents/:id", async (req, reply) => {
+    const id = org(req);
+    if (!id) return reply.status(401).send(deny);
+    if (!INCIDENT_ID.test(req.params.id)) return reply.status(400).send({ error: "invalid_incident_id" });
+    const i = repo.getIncident(id, req.params.id);
+    if (!i) return reply.status(404).send({ error: "not_found" });
+    return incidentView(repo, i);
+  });
+
+  app.get<{ Querystring: { intentId?: string } }>("/api/evaluations", async (req, reply) => {
+    const id = org(req);
+    if (!id) return reply.status(401).send(deny);
+    const intent = req.query.intentId;
+    if (intent !== undefined && !INTENT_ID.test(intent)) return reply.status(400).send({ error: "invalid_intent_id" });
+    const rows = intent ? [repo.latestEvaluation(id, intent)].filter((r) => r !== undefined) : repo.latestEvaluations(id);
+    return {
+      organizationId: id,
+      evaluations: rows.map((e) => ({ seq: e.seq, contract: e.contract, intentId: e.intent_id, result: e.result, activeOrderCount: e.active_order_count, reasons: parse(e.reasons_json), facts: parse(e.facts_json), evaluatedAt: e.evaluated_at })),
+    };
+  });
+
+  return app;
+}
