@@ -36,12 +36,18 @@ export async function assembleWebhookService(o: {
     webhookId,
     maxTransmissionAgeMs: w.maxTransmissionAgeMs,
     maxFutureSkewMs: w.maxFutureSkewMs,
+    maxStoredUnverified: o.config.webhookIngress.maxStoredUnverified,
     log: o.log,
     onAccepted: () => processor.kick(),
     ...(o.now ? { now: o.now } : {}),
     ...(o.afterVerify ? { afterVerify: o.afterVerify } : {}),
   });
-  const app = await buildWebhookApp({ intake, maxBodyBytes: w.maxBodyBytes, log: o.log });
+  const app = await buildWebhookApp({
+    intake,
+    maxBodyBytes: w.maxBodyBytes,
+    log: o.log,
+    rateLimit: { perMinute: o.config.webhookIngress.ratePerMinute, burst: o.config.webhookIngress.rateBurst, ...(o.now ? { now: o.now } : {}) },
+  });
   return { app, inbox, intake, processor, config: o.config, log: o.log };
 }
 

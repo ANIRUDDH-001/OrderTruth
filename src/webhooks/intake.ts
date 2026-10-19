@@ -11,6 +11,12 @@ export type IntakeOptions = {
   webhookId: string;
   maxTransmissionAgeMs: number;
   maxFutureSkewMs: number;
+  /**
+   * Ceiling on stored deliveries that did not become a new verified event (rejected, retryable,
+   * abandoned, open, duplicate). At the ceiling a request is refused with 503 before any row is
+   * written, so unauthenticated traffic can never grow the inbox past it. Default 5000.
+   */
+  maxStoredUnverified?: number;
   /** Concurrent postbacks allowed; beyond this, 503 so PayPal retries (bounds outbound amplification). */
   maxConcurrentVerifications?: number;
   now?: () => number;
@@ -25,6 +31,7 @@ const fatalUtf8 = new TextDecoder("utf-8", { fatal: true });
 
 /**
  * One webhook delivery, start to finish. Order of operations:
+ *   0. (app) global rate limit, then (here) the stored-unverified ceiling — 429/503, nothing stored
  *   1. durable delivery row (received_unverified) — failure: 503, nothing claimed
  *   2. structure, headers, transmission-time window — failure: 400, delivery rejected
  *   3. PayPal postback — FAILURE: 400 rejected; no definitive answer: 503 retryable
@@ -37,6 +44,7 @@ export class WebhookIntake {
   #active = 0;
   readonly #now: () => number;
   readonly #max: number;
+  readonly #ceiling: number;
 
   constructor(
     private readonly inbox: WebhookInbox,
@@ -46,6 +54,7 @@ export class WebhookIntake {
     if (!/^[A-Za-z0-9]{1,50}$/.test(opts.webhookId)) throw new Error("WebhookIntake requires a configured webhook id");
     this.#now = opts.now ?? Date.now;
     this.#max = opts.maxConcurrentVerifications ?? 8;
+    this.#ceiling = opts.maxStoredUnverified ?? 5000;
   }
 
   #log(level: keyof Logger, obj: object) {
@@ -82,6 +91,10 @@ export class WebhookIntake {
 
     let seq: number;
     try {
+      if (this.inbox.countStoredUnverified() >= this.#ceiling) {
+        this.#log("warn", { state: "not_recorded", reason: "inbox_ceiling", ceiling: this.#ceiling });
+        return { status: 503, body: { ok: false, error: "inbox_ceiling" } };
+      }
       seq = this.inbox.recordDelivery({
         claimedEventId: claimed.id,
         claimedEventType: claimed.type,

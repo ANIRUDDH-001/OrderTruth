@@ -48,6 +48,10 @@ const EnvSchema = z.object({
   WEBHOOK_VERIFY_TIMEOUT_MS: z.coerce.number().int().min(500).max(10000).default(5000),
   WEBHOOK_MAX_BODY_BYTES: z.coerce.number().int().min(1024).max(262144).default(65536),
   WEBHOOK_MAX_TRANSMISSION_AGE_MS: z.coerce.number().int().min(60_000).max(4 * 24 * 3600_000).default(3600_000),
+  // Pre-persistence ingress limits (unauthenticated traffic must not grow the inbox without bound).
+  WEBHOOK_RATE_PER_MIN: z.coerce.number().int().min(1).max(6000).default(60),
+  WEBHOOK_RATE_BURST: z.coerce.number().int().min(1).max(1000).default(30),
+  WEBHOOK_MAX_STORED_UNVERIFIED: z.coerce.number().int().min(10).max(1_000_000).default(5000),
 });
 
 export type AppConfig = {
@@ -73,6 +77,12 @@ export type AppConfig = {
     maxBodyBytes: number;
     maxTransmissionAgeMs: number;
     maxFutureSkewMs: number;
+  };
+  /** Pre-persistence bounds on the public webhook ingress. */
+  webhookIngress: {
+    ratePerMinute: number;
+    rateBurst: number;
+    maxStoredUnverified: number;
   };
   databasePath: string;
   port: number;
@@ -141,6 +151,7 @@ export function loadConfig(env: Record<string, string | undefined>): AppConfig {
       maxTransmissionAgeMs: e.WEBHOOK_MAX_TRANSMISSION_AGE_MS,
       maxFutureSkewMs: 300_000,
     },
+    webhookIngress: { ratePerMinute: e.WEBHOOK_RATE_PER_MIN, rateBurst: e.WEBHOOK_RATE_BURST, maxStoredUnverified: e.WEBHOOK_MAX_STORED_UNVERIFIED },
     ai: { provider: e.AI_PROVIDER, model: e.AI_MODEL, apiKey: e.AI_API_KEY, baseUrl: e.AI_BASE_URL },
     databasePath,
     port: e.PORT,

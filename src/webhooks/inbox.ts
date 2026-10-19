@@ -63,6 +63,14 @@ export class WebhookInbox {
     return Number(r.lastInsertRowid);
   }
 
+  /** Stored deliveries that did not create a verified event. Bounded by the intake ceiling. */
+  countStoredUnverified(): number {
+    const r = this.#db
+      .prepare("SELECT COUNT(*) AS n FROM webhook_deliveries WHERE state IN ('received_unverified', 'rejected', 'retryable_failure', 'abandoned', 'duplicate')")
+      .get() as { n: number };
+    return Number(r.n);
+  }
+
   noteTransmission(seq: number, transmissionId: string, transmissionTime: string) {
     this.#db.prepare("UPDATE webhook_deliveries SET transmission_id = ?, transmission_time = ?, updated_at = ? WHERE seq = ? AND state = 'received_unverified'").run(transmissionId, transmissionTime, now(), seq);
   }
