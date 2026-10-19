@@ -39,7 +39,7 @@ export function attributeCause(involved: readonly MerchantOrderRow[], faults: re
     ...(cause === "UNKNOWN"
       ? { note: "no involved order references a controlled fault; duplicate observed in merchant data" }
       : {
-          mechanism: MECHANISM,
+          ...(faultInjectionIds.length === 1 ? { mechanism: MECHANISM } : { note: "involved orders reference different controlled injections; no single injection is established as the duplicate's cause" }),
           reproduce: "pnpm stage1c --mode fault --target-order <PayPal order id> (isolated DB copy) or pnpm exec vitest run tests/stage1c-merchant-incident.test.ts",
           ...(cause === "MIXED" ? { note: "only some involved orders reference a controlled fault; the rest are of unknown cause" } : {}),
         }),
@@ -81,10 +81,10 @@ export class InvariantChecker {
       const intent = this.repo.intentInOrg(orgId, intentId);
       if (!intent) throw new Error("intent not found for this organization");
       const facts = this.#paymentFacts(intent);
-      const orders = this.repo.ordersForIntent(orgId, intentId);
+      const orders = this.repo.effectiveOrdersForIntent(orgId, intentId);
       const ev = evaluateContract(
         facts,
-        orders.map((o) => ({ id: o.id, status: o.status, attemptId: o.attempt_id, paypalOrderId: o.paypal_order_id, captureId: o.capture_id, sku: o.sku, amountMinor: o.amount_minor, currency: o.currency })),
+        orders.map((o) => ({ id: o.id, status: o.status, effectiveStatus: o.effective_status, attemptId: o.attempt_id, paypalOrderId: o.paypal_order_id, captureId: o.capture_id, sku: o.sku, amountMinor: o.amount_minor, currency: o.currency })),
       );
       const factsSnapshot = {
         attemptId: facts.attemptId,

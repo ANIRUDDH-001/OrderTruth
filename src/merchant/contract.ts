@@ -47,7 +47,7 @@ export type PaymentFacts = {
   readbacks: ReadbackFact[];
 };
 
-export type OrderFact = { id: string; status: string; attemptId: string; paypalOrderId: string; captureId: string; sku: string; amountMinor: number; currency: string };
+export type OrderFact = { id: string; status: string; effectiveStatus?: string; attemptId: string; paypalOrderId: string; captureId: string; sku: string; amountMinor: number; currency: string };
 
 export type Evaluation = {
   result: EvaluationResult;
@@ -88,7 +88,7 @@ export function orderMismatches(o: OrderFact, p: PaymentFacts): string[] {
 }
 
 export function evaluateContract(p: PaymentFacts, orders: readonly OrderFact[]): Evaluation {
-  const active = orders.filter((o) => o.status === "placed");
+  const active = orders.filter((o) => o.status === "placed" && (o.effectiveStatus ?? o.status) === "placed");
   const n = active.length;
   const reasons: string[] = [];
   let confirming: number[] = [];

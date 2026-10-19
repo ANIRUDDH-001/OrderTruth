@@ -1,6 +1,7 @@
 import Fastify, { type FastifyInstance, type FastifyRequest } from "fastify";
 import type { Store } from "../db/store.ts";
 import { MerchantRepo, ORG_ID, type IncidentRow } from "./repo.ts";
+import { RepairService } from "./repair.ts";
 
 /**
  * DEV-ONLY ORGANIZATION SCOPE, NOT AUTHENTICATION. The caller names its organization in this
@@ -22,9 +23,10 @@ function incidentView(repo: MerchantRepo, i: IncidentRow) {
     linkedAt: e.linked_at,
     summary: parse(e.summary_json),
   }));
-  const affected = repo.ordersForIntent(i.organization_id, i.intent_id).map((o) => ({
+  const affected = repo.effectiveOrdersForIntent(i.organization_id, i.intent_id).map((o) => ({
     id: o.id,
     status: o.status,
+    effectiveStatus: o.effective_status,
     createdByPath: o.created_by_path,
     createdAt: o.created_at,
     amount: { currency: o.currency, minor: o.amount_minor },
@@ -40,7 +42,9 @@ function incidentView(repo: MerchantRepo, i: IncidentRow) {
     class: i.incident_class,
     contract: i.contract,
     severity: i.severity,
-    state: i.state,
+    state: repo.incidentState(i.id),
+    historicalState: i.state,
+    repairHistory: new RepairService(repo.store, i.organization_id).history(i.id),
     title: i.title,
     openedAt: i.opened_at,
     payment: { intentId: i.intent_id, attemptId: i.attempt_id, paypalOrderId: i.paypal_order_id, captureId: i.capture_id },
@@ -82,7 +86,7 @@ export async function buildIncidentApi(o: { store: Store; logger?: boolean }): P
         id: i.id,
         class: i.incident_class,
         severity: i.severity,
-        state: i.state,
+        state: repo.incidentState(i.id),
         title: i.title,
         openedAt: i.opened_at,
         intentId: i.intent_id,

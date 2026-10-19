@@ -99,6 +99,16 @@ export class MerchantRepo {
     return this.db.prepare("SELECT * FROM fault_injections WHERE organization_id = ? AND intent_id = ? ORDER BY created_at, id").all(orgId, intentId) as FaultInjectionRow[];
   }
 
+  effectiveOrdersForIntent(orgId: string, intentId: string): Array<MerchantOrderRow & { effective_status: string }> {
+    return this.db.prepare(`SELECT m.*, CASE WHEN v.order_id IS NULL THEN m.status ELSE 'voided_duplicate' END AS effective_status
+      FROM merchant_orders m LEFT JOIN merchant_order_voids v ON v.order_id = m.id
+      WHERE m.organization_id = ? AND m.intent_id = ? ORDER BY m.created_at, m.id`).all(orgId, intentId) as Array<MerchantOrderRow & { effective_status: string }>;
+  }
+
+  incidentState(incidentId: string): string {
+    return this.db.prepare("SELECT 1 FROM incident_resolutions WHERE incident_id = ?").get(incidentId) ? "resolved_verified" : "open";
+  }
+
   listIncidents(orgId: string): IncidentRow[] {
     return this.db.prepare("SELECT * FROM incidents WHERE organization_id = ? ORDER BY opened_at, id").all(orgId) as IncidentRow[];
   }

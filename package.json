@@ -18,6 +18,7 @@
     "cli": "tsx src/cli.ts",
     "gate0:ai": "tsx src/ai/gate0-eval.ts",
     "stage1c": "tsx src/merchant/demo.ts",
+    "repair": "tsx src/merchant/repair-cli.ts",
     "incidents": "tsx src/merchant/api-main.ts",
     "check": "pnpm typecheck && pnpm test"
   },
