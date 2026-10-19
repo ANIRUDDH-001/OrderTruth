@@ -304,6 +304,16 @@ export const MIGRATIONS: readonly string[] = [
        OR (NEW.fault_injection_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM fault_injections f WHERE f.id = NEW.fault_injection_id AND f.intent_id = NEW.intent_id))
      BEGIN SELECT RAISE(ABORT, 'merchant order must start placed, match its own organization captured payment (order, capture, sku, currency, amount) and fault'); END;`,
   REPAIR_MIGRATION,
+  // 7 — Gate 2B: widen only the incident-class constraint. A column swap avoids rebuilding a
+  // referenced parent table or disabling foreign keys. Existing class values are copied exactly;
+  // the transaction restores the immutable trigger before committing. No provider rows change.
+  `DROP TRIGGER incidents_no_update;
+   ALTER TABLE incidents ADD COLUMN gate2b_class TEXT NOT NULL DEFAULT 'DUPLICATE_MERCHANT_ORDER'
+     CHECK (gate2b_class IN ('DUPLICATE_MERCHANT_ORDER', 'MISSING_MERCHANT_ORDER'));
+   UPDATE incidents SET gate2b_class = incident_class;
+   ALTER TABLE incidents DROP COLUMN incident_class;
+   ALTER TABLE incidents RENAME COLUMN gate2b_class TO incident_class;
+   CREATE TRIGGER incidents_no_update BEFORE UPDATE ON incidents BEGIN SELECT RAISE(ABORT, 'incidents are immutable'); END;`,
 ];
 
 export type IntentRow = { id: string; sku: string; currency: "USD"; amount_minor: number; correlation_id: string; checkout_key: string | null; created_at: string };

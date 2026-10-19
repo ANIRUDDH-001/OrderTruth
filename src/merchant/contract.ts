@@ -10,7 +10,8 @@ import { parseProviderValue } from "../domain/money.ts";
  *   capture id, SKU, currency and amount (integer minor units). Two or more matching orders is a
  *   violation (DUPLICATE_MERCHANT_ORDER).
  *
- * Only that violation opens an incident in this stage. Zero orders for an eligible intent, any
+ * This base evaluator retains Stage 1C duplicate semantics. Gate 2B separately evaluates zero
+ * effective orders with stricter current-readback eligibility and a persisted-time grace period. Any
  * placed order that does not match the capture (unless two matching orders already prove the
  * duplicate), or orders for a non-eligible intent, are recorded as OUT_OF_SCOPE with explicit
  * reasons (no incident class exists for them yet) rather than treated as healthy or accused.
@@ -45,6 +46,8 @@ export type PaymentFacts = {
   capturedMinor: number | null;
   capturedCurrency: string | null;
   readbacks: ReadbackFact[];
+  /** Failed GET observations are uncertainty, never authoritative capture proof. */
+  readbackFailures?: Array<{ seq: number; createdAt: string }>;
 };
 
 export type OrderFact = { id: string; status: string; effectiveStatus?: string; attemptId: string; paypalOrderId: string; captureId: string; sku: string; amountMinor: number; currency: string };
@@ -140,26 +143,31 @@ export function evaluateContract(p: PaymentFacts, orders: readonly OrderFact[]):
 
 /** Parse a persisted summarizeOrder() JSON into a ReadbackFact (tolerates missing fields). */
 export function readbackFact(row: { seq: number; http_status: number | null; created_at: string; summary_json: string }): ReadbackFact {
+  const object = (v: unknown): Record<string, unknown> => v !== null && typeof v === "object" && !Array.isArray(v) ? v as Record<string, unknown> : {};
   let s: Record<string, unknown> = {};
   try {
-    s = JSON.parse(row.summary_json) as Record<string, unknown>;
+    s = object(JSON.parse(row.summary_json));
   } catch {
     /* unparsable summary -> no units, never confirms */
   }
   const str = (v: unknown) => (typeof v === "string" ? v : null);
-  const units = Array.isArray(s.purchase_units) ? (s.purchase_units as Array<Record<string, unknown>>) : [];
+  const units: unknown[] = Array.isArray(s.purchase_units) ? s.purchase_units : [];
   return {
     seq: row.seq,
     httpStatus: row.http_status,
     createdAt: row.created_at,
     orderId: str(s.id),
     orderStatus: str(s.status),
-    units: units.map((u) => ({
-      customId: str(u.custom_id),
-      captures: (Array.isArray(u.captures) ? (u.captures as Array<Record<string, unknown>>) : []).map((c) => {
-        const amt = (c.amount ?? {}) as Record<string, unknown>;
-        return { id: str(c.id), status: str(c.status), currency: str(amt.currency_code), value: str(amt.value) };
-      }),
-    })),
+    units: units.map((unit) => {
+      const u = object(unit);
+      return {
+        customId: str(u.custom_id),
+        captures: (Array.isArray(u.captures) ? u.captures : []).map((capture: unknown) => {
+          const c = object(capture);
+          const amt = object(c.amount);
+          return { id: str(c.id), status: str(c.status), currency: str(amt.currency_code), value: str(amt.value) };
+        }),
+      };
+    }),
   };
 }

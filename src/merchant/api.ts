@@ -2,6 +2,7 @@ import Fastify, { type FastifyInstance, type FastifyRequest } from "fastify";
 import type { Store } from "../db/store.ts";
 import { MerchantRepo, ORG_ID, type IncidentRow } from "./repo.ts";
 import { RepairService } from "./repair.ts";
+import { MISSING_INCIDENT_CLASS } from "./missing-order.ts";
 
 /**
  * DEV-ONLY ORGANIZATION SCOPE, NOT AUTHENTICATION. The caller names its organization in this
@@ -35,7 +36,8 @@ function incidentView(repo: MerchantRepo, i: IncidentRow) {
   }));
   const opening = repo.getEvaluation(i.organization_id, i.opened_by_evaluation_seq);
   const latest = repo.latestEvaluation(i.organization_id, i.intent_id);
-  const evalView = (e: typeof opening) => e && { seq: e.seq, result: e.result, activeOrderCount: e.active_order_count, reasons: parse(e.reasons_json), evaluatedAt: e.evaluated_at, runId: e.run_id };
+  const evalView = (e: typeof opening) => e && { seq: e.seq, result: e.result, activeOrderCount: e.active_order_count, reasons: parse(e.reasons_json), facts: parse(e.facts_json), evaluatedAt: e.evaluated_at, runId: e.run_id };
+  const intent = repo.intentInOrg(i.organization_id, i.intent_id);
   return {
     id: i.id,
     organizationId: i.organization_id,
@@ -54,6 +56,13 @@ function incidentView(repo: MerchantRepo, i: IncidentRow) {
     evidenceCounts: evidence.reduce<Record<string, number>>((m, e) => ((m[e.evidenceClass] = (m[e.evidenceClass] ?? 0) + 1), m), {}),
     evidence,
     reproduction: parse(i.reproduction_json),
+    ...(i.incident_class === MISSING_INCIDENT_CLASS ? { missingOrder: {
+      impact: { currency: intent?.currency, minor: intent?.amount_minor, description: "Captured payment had no effective merchant order at detection; fulfillment may be delayed. This is not proof of financial loss." },
+      absenceEvidence: { type: "invariant_evaluation", id: String(i.opened_by_evaluation_seq) },
+      lastCheckedCondition: latest?.result === "HOLDS" ? "ORDER_PRESENT" : latest?.result === "VIOLATED" && latest.active_order_count === 0 ? "MISSING_AFTER_GRACE" : "RECHECK_REQUIRED",
+      recoverySupported: false,
+      nextAction: "Inspect the opening and latest evaluations, persisted readbacks and merchant state. A late order does not erase the historical incident. Recovery requires separate authorization; do not automatically create an order or use duplicate-order repair.",
+    } } : {}),
   };
 }
 

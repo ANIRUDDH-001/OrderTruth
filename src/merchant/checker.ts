@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { Store } from "../db/store.ts";
 import { CONTRACT_ID, DUPLICATE_SEVERITY, evaluateContract, INCIDENT_CLASS, readbackFact, type EvaluationResult, type PaymentFacts } from "./contract.ts";
 import { MerchantRepo, type FaultInjectionRow, type IncidentEvidenceRow, type MerchantOrderRow } from "./repo.ts";
+import { assessMissingOrder, DEFAULT_MISSING_ORDER_GRACE_MS, MISSING_INCIDENT_CLASS } from "./missing-order.ts";
 
 export type IntentCheck = { intentId: string; evaluationSeq: number; result: EvaluationResult; activeOrderCount: number; reasons: string[]; incidentId: string | null; incidentOpened: boolean; evidenceLinked: number };
 
@@ -49,7 +50,9 @@ export function attributeCause(involved: readonly MerchantOrderRow[], faults: re
 export class InvariantChecker {
   readonly repo: MerchantRepo;
 
-  constructor(readonly store: Store) {
+  constructor(readonly store: Store, private readonly options: { now?: () => number; missingOrderGraceMs?: number } = {}) {
+    const grace = options.missingOrderGraceMs ?? DEFAULT_MISSING_ORDER_GRACE_MS;
+    if (!Number.isSafeInteger(grace) || grace < 0) throw new Error("missing order grace must be a nonnegative safe integer in milliseconds");
     this.repo = new MerchantRepo(store);
   }
 
@@ -73,19 +76,28 @@ export class InvariantChecker {
       capturedMinor: a?.captured_minor ?? null,
       capturedCurrency: a?.captured_currency ?? null,
       readbacks: rows.map(readbackFact),
+      readbackFailures: a ? (this.store.db.prepare(`SELECT seq, created_at AS createdAt FROM evidence
+        WHERE attempt_id = ? AND evidence_class = 'PAYPAL_API_RESPONSE' AND operation IN
+        ('pre_capture_readback_error', 'post_capture_readback_error', 'reconcile_readback_error', 'readback_error', 'webhook_readback_error') ORDER BY seq`)
+        .all(a.id) as Array<{ seq: number; createdAt: string }>) : [],
     };
   }
 
   evaluateIntent(orgId: string, intentId: string, runId = `run_${randomUUID()}`): IntentCheck {
     return this.store.tx(() => {
+      const nowMs = this.options.now?.() ?? Date.now();
+      if (!Number.isSafeInteger(nowMs) || !Number.isFinite(new Date(nowMs).getTime())) throw new Error("invalid checker clock");
+      const at = new Date(nowMs).toISOString();
       const intent = this.repo.intentInOrg(orgId, intentId);
       if (!intent) throw new Error("intent not found for this organization");
       const facts = this.#paymentFacts(intent);
       const orders = this.repo.effectiveOrdersForIntent(orgId, intentId);
-      const ev = evaluateContract(
+      const baseEvaluation = evaluateContract(
         facts,
         orders.map((o) => ({ id: o.id, status: o.status, effectiveStatus: o.effective_status, attemptId: o.attempt_id, paypalOrderId: o.paypal_order_id, captureId: o.capture_id, sku: o.sku, amountMinor: o.amount_minor, currency: o.currency })),
       );
+      const missing = assessMissingOrder(facts, baseEvaluation, nowMs, this.options.missingOrderGraceMs ?? DEFAULT_MISSING_ORDER_GRACE_MS);
+      const ev = missing.evaluation;
       const factsSnapshot = {
         attemptId: facts.attemptId,
         attemptState: facts.attemptState,
@@ -93,11 +105,12 @@ export class InvariantChecker {
         captureId: facts.captureId,
         captureStatus: facts.captureStatus,
         readbackSeqs: facts.readbacks.map((r) => r.seq),
+        readbackFailureSeqs: facts.readbackFailures?.map(r => r.seq) ?? [],
         confirmingReadbackSeqs: ev.confirmingReadbackSeqs,
         orderIds: orders.map((o) => o.id),
         matchingOrderIds: ev.matchingOrderIds,
+        missingOrder: missing.timing,
       };
-      const at = new Date().toISOString();
       const evalSeq = Number(
         this.store.db
           .prepare("INSERT INTO invariant_evaluations (organization_id, contract, intent_id, result, active_order_count, reasons_json, facts_json, run_id, evaluated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)")
@@ -107,10 +120,17 @@ export class InvariantChecker {
       if (ev.result !== "VIOLATED") return { ...base, incidentId: null, incidentOpened: false, evidenceLinked: 0 };
 
       const faults = this.repo.faultsForIntent(orgId, intentId);
-      const dedupKey = `${orgId}|${CONTRACT_ID}|${intentId}`;
+      const incidentClass = missing.violated ? MISSING_INCIDENT_CLASS : INCIDENT_CLASS;
+      // Keep the original duplicate key stable. Missing and duplicate may occur at different times
+      // for the same intent; neither is allowed to steal the other's incident or evidence.
+      const dedupKey = `${orgId}|${CONTRACT_ID}|${intentId}${missing.violated ? `|${MISSING_INCIDENT_CLASS}` : ""}`;
       const involved = orders.filter((o) => ev.matchingOrderIds.includes(o.id));
-      const reproduction = attributeCause(involved, faults);
-      const causalFaults = faults.filter((f) => reproduction.faultInjectionIds.includes(f.id));
+      const duplicateCause = attributeCause(involved, faults);
+      const reproduction = missing.violated ? {
+        cause: "UNKNOWN", note: "Missing order observed; no causal mechanism established and no recovery authorized.",
+        absenceObservation: { refType: "invariant_evaluation", refId: String(evalSeq), organizationId: orgId, intentId, matchingOrderIds: [], ...missing.timing },
+      } : duplicateCause;
+      const causalFaults = missing.violated ? [] : faults.filter((f) => duplicateCause.faultInjectionIds.includes(f.id));
       const incidentId = `inc_${randomUUID()}`;
       const opened =
         Number(
@@ -120,17 +140,17 @@ export class InvariantChecker {
                VALUES (?, ?, ?, ?, ?, ?, 'open', ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (dedup_key) DO NOTHING`,
             )
             .run(
-              incidentId, orgId, INCIDENT_CLASS, CONTRACT_ID, dedupKey, DUPLICATE_SEVERITY, intentId, facts.attemptId, facts.paypalOrderId, facts.captureId,
-              `${ev.matchingOrderIds.length} merchant orders for one captured PayPal payment`, evalSeq, JSON.stringify(reproduction), at,
+              incidentId, orgId, incidentClass, CONTRACT_ID, dedupKey, DUPLICATE_SEVERITY, intentId, facts.attemptId, facts.paypalOrderId, facts.captureId,
+              missing.violated ? "Captured PayPal payment without a merchant order after grace" : `${ev.matchingOrderIds.length} merchant orders for one captured PayPal payment`, evalSeq, JSON.stringify(reproduction), at,
             ).changes,
         ) === 1;
       const incident = this.store.db.prepare("SELECT id FROM incidents WHERE dedup_key = ?").get(dedupKey) as { id: string };
-      const linked = this.#link(incident.id, this.#links(facts, ev.confirmingReadbackSeqs, orders, causalFaults));
+      const linked = this.#link(incident.id, this.#links(facts, ev.confirmingReadbackSeqs, orders, causalFaults, !missing.violated));
       return { ...base, incidentId: incident.id, incidentOpened: opened, evidenceLinked: linked };
     });
   }
 
-  #links(facts: PaymentFacts, confirming: number[], orders: MerchantOrderRow[], faults: ReturnType<MerchantRepo["faultsForIntent"]>): Link[] {
+  #links(facts: PaymentFacts, confirming: number[], orders: MerchantOrderRow[], faults: ReturnType<MerchantRepo["faultsForIntent"]>, includeWebhooks = true): Link[] {
     const links: Link[] = [];
     for (const r of facts.readbacks.filter((x) => confirming.includes(x.seq))) {
       const op = this.store.db.prepare("SELECT operation, paypal_debug_id FROM evidence WHERE seq = ?").get(r.seq) as { operation: string; paypal_debug_id: string | null };
@@ -143,7 +163,7 @@ export class InvariantChecker {
         summary: { operation: op.operation, httpStatus: r.httpStatus, paypalDebugId: op.paypal_debug_id, orderId: r.orderId, orderStatus: r.orderStatus, captureId: c.id, captureStatus: c.status, amount: { currency: c.currency, value: c.value } },
       });
     }
-    const events = facts.attemptId
+    const events = includeWebhooks && facts.attemptId
       ? (this.store.db
           .prepare(
             `SELECT w.event_id, w.event_type, w.event_create_time, w.outcome, w.first_delivery_seq, w.deliveries, d.reason AS verify_reason, d.verify_debug_id, w.created_at

@@ -12,6 +12,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run",
     "build:web": "vite build",
+    "build": "pnpm build:web",
     "dev": "vite build && tsx src/server/main.ts",
     "start": "tsx src/server/main.ts",
     "webhooks": "tsx src/webhooks/main.ts",
