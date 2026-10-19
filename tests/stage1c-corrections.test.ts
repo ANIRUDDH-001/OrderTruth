@@ -192,7 +192,7 @@ describe("migration 5 is additive", () => {
     const before = JSON.stringify(db.prepare("SELECT * FROM merchant_orders").all());
     db.close();
     const store = new Store(path);
-    expect((store.db.prepare("SELECT MAX(version) v FROM schema_migrations").get() as { v: number }).v).toBe(5);
+    expect((store.db.prepare("SELECT MAX(version) v FROM schema_migrations").get() as { v: number }).v).toBe(MIGRATIONS.length);
     expect(JSON.stringify(store.db.prepare("SELECT * FROM merchant_orders").all())).toBe(before);
     expect(() => store.db.prepare(`INSERT INTO merchant_orders (id, organization_id, intent_id, attempt_id, paypal_order_id, capture_id, sku, currency, amount_minor, status, created_by_path, fault_injection_id, created_at)
                   VALUES ('mo_new', 'org_reference', 'ci_k10', 'pa_k10', 'ORD', 'CAP', 'S', 'USD', 999, 'placed', 'capture_return', NULL, 't')`).run()).toThrow(/merchant order must/);
