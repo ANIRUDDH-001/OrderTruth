@@ -17,6 +17,8 @@
     "webhooks": "tsx src/webhooks/main.ts",
     "cli": "tsx src/cli.ts",
     "gate0:ai": "tsx src/ai/gate0-eval.ts",
+    "stage1c": "tsx src/merchant/demo.ts",
+    "incidents": "tsx src/merchant/api-main.ts",
     "check": "pnpm typecheck && pnpm test"
   },
   "dependencies": {

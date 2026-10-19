@@ -8,7 +8,7 @@ import { ATTEMPT_STATES, TRANSITIONS, type AttemptState } from "../domain/checko
  * this module so a later swap (better-sqlite3 / Postgres) touches one file.
  * Not certified for multi-instance production (D6); multi-process tests cover one host only.
  */
-const MIGRATIONS: string[] = [
+export const MIGRATIONS: readonly string[] = [
   `CREATE TABLE checkout_intents (
      id TEXT PRIMARY KEY,
      sku TEXT NOT NULL,
@@ -163,6 +163,131 @@ const MIGRATIONS: string[] = [
      BEGIN INSERT INTO webhook_audit (subject, subject_id, from_state, to_state, reason, at) VALUES ('event', NEW.event_id, NULL, NEW.state, 'delivery ' || NEW.first_delivery_seq, NEW.updated_at); END;
    CREATE TRIGGER webhook_events_audit_u AFTER UPDATE OF state ON webhook_events WHEN OLD.state <> NEW.state
      BEGIN INSERT INTO webhook_audit (subject, subject_id, from_state, to_state, reason, at) VALUES ('event', NEW.event_id, OLD.state, NEW.state, NEW.outcome, NEW.updated_at); END;`,
+  // Stage 1C: reference merchant orders, controlled faults, invariant evaluations and incidents.
+  // Additive only: existing intents join the seeded reference organization through a column
+  // default; no existing row or value changes. merchant_orders deliberately has NO unique key on
+  // intent_id: it models the reference merchant's real check-then-insert defect (REF-BUG-1).
+  // Every incident evidence link is checked by trigger against the row it names, so a label can
+  // never point at the wrong kind of record (e.g. a PAYPAL_API_RESPONSE row filed as READBACK).
+  // Nothing here is ever deleted; incidents and orders are immutable until a later stage adds
+  // explicit, audited transitions.
+  `CREATE TABLE organizations (id TEXT PRIMARY KEY, name TEXT NOT NULL, created_at TEXT NOT NULL);
+   INSERT INTO organizations (id, name, created_at) VALUES ('org_reference', 'OrderTruth reference merchant', '2026-10-19T00:00:00.000Z');
+   CREATE TRIGGER organizations_no_delete BEFORE DELETE ON organizations BEGIN SELECT RAISE(ABORT, 'organizations are never deleted'); END;
+   ALTER TABLE checkout_intents ADD COLUMN organization_id TEXT NOT NULL DEFAULT 'org_reference';
+   CREATE TRIGGER checkout_intents_org_i BEFORE INSERT ON checkout_intents
+     WHEN NOT EXISTS (SELECT 1 FROM organizations WHERE id = NEW.organization_id)
+     BEGIN SELECT RAISE(ABORT, 'unknown organization'); END;
+   CREATE TRIGGER checkout_intents_org_u BEFORE UPDATE OF organization_id ON checkout_intents
+     WHEN OLD.organization_id <> NEW.organization_id
+     BEGIN SELECT RAISE(ABORT, 'intent organization is immutable'); END;
+   CREATE TABLE fault_injections (
+     id TEXT PRIMARY KEY,
+     organization_id TEXT NOT NULL REFERENCES organizations(id),
+     label TEXT NOT NULL CHECK (label = 'CONTROLLED_FAULT_INJECTION'),
+     kind TEXT NOT NULL CHECK (kind IN ('DUPLICATE_ORDER_RACE')),
+     intent_id TEXT NOT NULL REFERENCES checkout_intents(id),
+     params_json TEXT NOT NULL,
+     created_at TEXT NOT NULL
+   );
+   CREATE TRIGGER fault_injections_org BEFORE INSERT ON fault_injections
+     WHEN NOT EXISTS (SELECT 1 FROM checkout_intents i WHERE i.id = NEW.intent_id AND i.organization_id = NEW.organization_id)
+     BEGIN SELECT RAISE(ABORT, 'fault injection intent belongs to another organization'); END;
+   CREATE TRIGGER fault_injections_no_update BEFORE UPDATE ON fault_injections BEGIN SELECT RAISE(ABORT, 'fault injections are append-only'); END;
+   CREATE TRIGGER fault_injections_no_delete BEFORE DELETE ON fault_injections BEGIN SELECT RAISE(ABORT, 'fault injections are append-only'); END;
+   CREATE TABLE merchant_orders (
+     id TEXT PRIMARY KEY,
+     organization_id TEXT NOT NULL REFERENCES organizations(id),
+     intent_id TEXT NOT NULL REFERENCES checkout_intents(id),
+     attempt_id TEXT NOT NULL REFERENCES payment_attempts(id),
+     paypal_order_id TEXT NOT NULL,
+     capture_id TEXT NOT NULL,
+     sku TEXT NOT NULL,
+     currency TEXT NOT NULL,
+     amount_minor INTEGER NOT NULL CHECK (amount_minor > 0),
+     status TEXT NOT NULL,
+     created_by_path TEXT NOT NULL CHECK (created_by_path IN ('capture_return', 'webhook_capture_completed')),
+     fault_injection_id TEXT REFERENCES fault_injections(id),
+     created_at TEXT NOT NULL
+   );
+   CREATE INDEX merchant_orders_intent ON merchant_orders(organization_id, intent_id);
+   CREATE TRIGGER merchant_orders_i BEFORE INSERT ON merchant_orders
+     WHEN NEW.status <> 'placed'
+       OR NOT EXISTS (SELECT 1 FROM checkout_intents i JOIN payment_attempts a ON a.intent_id = i.id
+                      WHERE i.id = NEW.intent_id AND a.id = NEW.attempt_id AND i.organization_id = NEW.organization_id)
+       OR (NEW.fault_injection_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM fault_injections f WHERE f.id = NEW.fault_injection_id AND f.intent_id = NEW.intent_id))
+     BEGIN SELECT RAISE(ABORT, 'merchant order must start placed, for its own organization intent/attempt and fault'); END;
+   CREATE TRIGGER merchant_orders_no_update BEFORE UPDATE ON merchant_orders BEGIN SELECT RAISE(ABORT, 'merchant orders are immutable in Stage 1C'); END;
+   CREATE TRIGGER merchant_orders_no_delete BEFORE DELETE ON merchant_orders BEGIN SELECT RAISE(ABORT, 'merchant orders are never deleted'); END;
+   CREATE TABLE invariant_evaluations (
+     seq INTEGER PRIMARY KEY AUTOINCREMENT,
+     organization_id TEXT NOT NULL REFERENCES organizations(id),
+     contract TEXT NOT NULL,
+     intent_id TEXT NOT NULL REFERENCES checkout_intents(id),
+     result TEXT NOT NULL CHECK (result IN ('HOLDS', 'VIOLATED', 'NOT_ELIGIBLE', 'OUT_OF_SCOPE')),
+     active_order_count INTEGER NOT NULL,
+     reasons_json TEXT NOT NULL,
+     facts_json TEXT NOT NULL,
+     run_id TEXT NOT NULL,
+     evaluated_at TEXT NOT NULL
+   );
+   CREATE INDEX invariant_evaluations_intent ON invariant_evaluations(organization_id, intent_id, seq);
+   CREATE TRIGGER invariant_evaluations_no_update BEFORE UPDATE ON invariant_evaluations BEGIN SELECT RAISE(ABORT, 'invariant evaluations are append-only'); END;
+   CREATE TRIGGER invariant_evaluations_no_delete BEFORE DELETE ON invariant_evaluations BEGIN SELECT RAISE(ABORT, 'invariant evaluations are append-only'); END;
+   CREATE TABLE incidents (
+     id TEXT PRIMARY KEY,
+     organization_id TEXT NOT NULL REFERENCES organizations(id),
+     incident_class TEXT NOT NULL CHECK (incident_class IN ('DUPLICATE_MERCHANT_ORDER')),
+     contract TEXT NOT NULL,
+     dedup_key TEXT NOT NULL UNIQUE,
+     severity TEXT NOT NULL CHECK (severity IN ('low', 'medium', 'high', 'critical')),
+     state TEXT NOT NULL,
+     intent_id TEXT NOT NULL REFERENCES checkout_intents(id),
+     attempt_id TEXT NOT NULL REFERENCES payment_attempts(id),
+     paypal_order_id TEXT NOT NULL,
+     capture_id TEXT NOT NULL,
+     title TEXT NOT NULL,
+     opened_by_evaluation_seq INTEGER NOT NULL REFERENCES invariant_evaluations(seq),
+     reproduction_json TEXT NOT NULL,
+     opened_at TEXT NOT NULL
+   );
+   CREATE TRIGGER incidents_i BEFORE INSERT ON incidents
+     WHEN NEW.state <> 'open'
+       OR NOT EXISTS (SELECT 1 FROM invariant_evaluations e WHERE e.seq = NEW.opened_by_evaluation_seq AND e.result = 'VIOLATED'
+                      AND e.intent_id = NEW.intent_id AND e.organization_id = NEW.organization_id)
+     BEGIN SELECT RAISE(ABORT, 'incident must open from a VIOLATED evaluation of the same organization intent'); END;
+   CREATE TRIGGER incidents_no_update BEFORE UPDATE ON incidents BEGIN SELECT RAISE(ABORT, 'incidents are immutable in Stage 1C'); END;
+   CREATE TRIGGER incidents_no_delete BEFORE DELETE ON incidents BEGIN SELECT RAISE(ABORT, 'incidents are never deleted'); END;
+   CREATE TABLE incident_evidence (
+     seq INTEGER PRIMARY KEY AUTOINCREMENT,
+     incident_id TEXT NOT NULL REFERENCES incidents(id),
+     evidence_class TEXT NOT NULL CHECK (evidence_class IN ('PAYPAL_API_READBACK', 'PAYPAL_VERIFIED_WEBHOOK', 'MERCHANT_DB_OBSERVED', 'CONTROLLED_FAULT_INJECTION')),
+     ref_type TEXT NOT NULL,
+     ref_id TEXT NOT NULL,
+     source_at TEXT,
+     summary_json TEXT NOT NULL,
+     linked_at TEXT NOT NULL,
+     UNIQUE (incident_id, evidence_class, ref_id),
+     CHECK ((evidence_class = 'PAYPAL_API_READBACK' AND ref_type = 'evidence')
+         OR (evidence_class = 'PAYPAL_VERIFIED_WEBHOOK' AND ref_type = 'webhook_event')
+         OR (evidence_class = 'MERCHANT_DB_OBSERVED' AND ref_type = 'merchant_order')
+         OR (evidence_class = 'CONTROLLED_FAULT_INJECTION' AND ref_type = 'fault_injection'))
+   );
+   CREATE TRIGGER incident_evidence_ref BEFORE INSERT ON incident_evidence
+     WHEN NOT (
+       (NEW.ref_type = 'evidence' AND EXISTS (SELECT 1 FROM evidence e JOIN incidents x ON x.id = NEW.incident_id
+          WHERE e.seq = CAST(NEW.ref_id AS INTEGER) AND CAST(e.seq AS TEXT) = NEW.ref_id
+            AND e.evidence_class = 'PAYPAL_API_READBACK' AND e.http_status = 200 AND e.attempt_id = x.attempt_id))
+       OR (NEW.ref_type = 'webhook_event' AND EXISTS (SELECT 1 FROM webhook_events w JOIN webhook_deliveries d ON d.seq = w.first_delivery_seq JOIN incidents x ON x.id = NEW.incident_id
+          WHERE w.event_id = NEW.ref_id AND w.state = 'processed' AND d.state = 'verified' AND w.attempt_id = x.attempt_id))
+       OR (NEW.ref_type = 'merchant_order' AND EXISTS (SELECT 1 FROM merchant_orders m JOIN incidents x ON x.id = NEW.incident_id
+          WHERE m.id = NEW.ref_id AND m.intent_id = x.intent_id AND m.organization_id = x.organization_id))
+       OR (NEW.ref_type = 'fault_injection' AND EXISTS (SELECT 1 FROM fault_injections f JOIN incidents x ON x.id = NEW.incident_id
+          WHERE f.id = NEW.ref_id AND f.intent_id = x.intent_id AND f.organization_id = x.organization_id))
+     )
+     BEGIN SELECT RAISE(ABORT, 'incident evidence must reference an existing record of its own class, intent and organization'); END;
+   CREATE TRIGGER incident_evidence_no_update BEFORE UPDATE ON incident_evidence BEGIN SELECT RAISE(ABORT, 'incident evidence is append-only'); END;
+   CREATE TRIGGER incident_evidence_no_delete BEFORE DELETE ON incident_evidence BEGIN SELECT RAISE(ABORT, 'incident evidence is append-only'); END;`,
 ];
 
 export type IntentRow = { id: string; sku: string; currency: "USD"; amount_minor: number; correlation_id: string; checkout_key: string | null; created_at: string };
