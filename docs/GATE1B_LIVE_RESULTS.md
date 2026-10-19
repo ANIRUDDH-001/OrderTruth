@@ -86,7 +86,7 @@ The intake stores neither which allowlisted host was used nor the header values.
 
 - **Graceful stop: FAILED, then forced.** Plain `taskkill /T` (no `/F`) was refused by Windows for all three detached console process trees ("can only be terminated forcefully"). Each tree was then stopped with `taskkill /T /F`, in this order: checkout server 15956, listener 20836, cloudflared 56540. Afterwards there were no node or cloudflared processes, and 3001, 3002 and 20241 showed only TIME_WAIT (`11-teardown.txt`). A truly graceful stop needs a console-attached Ctrl+C or a shutdown hook; that is not implemented.
 - **Tunnel URL:** dead now that cloudflared is stopped.
-- **Webhook registration:** the user must delete it in the Sandbox dashboard. Claude cannot change the account. **Status: see §8.**
+- **Webhook registration: deleted by the user** in the Sandbox dashboard (Claude made no account change). Verified at 03:01:07Z with a read-only `webhook-check` (1 OAuth + 1 GET): HTTP **404**, debug `f51830851ab80`, "webhook id not found for this Sandbox REST app", exit 5. The same id returned 200 at preflight (`14-webhook-check-after-delete.json`).
 - **DB after the test (logical, read-only):**
   - integrity ok, quick_check ok, 0 FK violations, WAL, schema v3
   - 8 awaiting + **2 captured**, 34 evidence rows
@@ -119,7 +119,9 @@ Also recorded:
 - **Graceful shutdown of detached processes on Windows is not achievable with `taskkill` without `/F`** (§5).
 - **The exact cert-URL host and header-presence are not logged per delivery,** so they are inferred from the code path (§3). Logging the allowlisted host name would close this.
 
-## 8. Remaining user actions
+## 8. Post-test cleanup
 
-- Delete or disable the temporary webhook in developer.paypal.com → Apps & Credentials → **Sandbox** → this REST app → Webhooks. Its URL is now dead. Afterwards, clear `PAYPAL_WEBHOOK_ID` in `.env` locally if you want the listener to refuse to start.
-- **Registration status at the time of writing: still registered (PENDING USER ACTION).**
+- **Temporary webhook registration: DELETED** (VERIFIED-LIVE, 404 at 03:01:07Z; §5).
+- **Tunnel, listener and checkout server:** stopped; ports free (§5).
+- **Optional user step:** `PAYPAL_WEBHOOK_ID` is still set in `.env` but now points to a deleted registration. Clear it locally (`PAYPAL_WEBHOOK_ID=`) so the listener refuses to start. Claude has not edited `.env`.
+- **Experiment status: COMPLETE.** Every teardown step is done; the forced process stop is recorded in §5. Awaiting your Gate 1B decision.
