@@ -4,6 +4,8 @@ import { createInterface } from 'node:readline/promises';
 import type { Store } from '../db/store.ts';
 import { CONTRACT_ID, evaluateContract, INCIDENT_CLASS, readbackFact, type PaymentFacts } from './contract.ts';
 import { MerchantRepo } from './repo.ts';
+import type { EventRow, DeliveryRow } from '../webhooks/inbox.ts';
+import type { EventSummary } from '../webhooks/event.ts';
 
 /** Sorted keys recursively; arrays retain their deliberately defined order. */
 export function canonical(v: unknown): string {
@@ -39,22 +41,25 @@ export class RepairService {
   if(!p)throw Error('plan not found for organization');return p;
  }
  private providerSnapshot(attemptId:string|null=null) {
-  // Never use a claimed event ID alone as an association. The event must have a verified
-  // first delivery; an explicit attempt binding wins over an order-ID-only association.
+  // Association precedes trust validation: invalid first deliveries must not hide events.
+  // Explicit attempt binding wins; unverified delivery claims never establish association.
   const scope=`WITH scoped_attempts AS (
    SELECT a.* FROM payment_attempts a JOIN checkout_intents i ON i.id=a.intent_id
    WHERE i.organization_id=? AND (? IS NULL OR a.id=?)
-  ), scoped_events AS (
-   SELECT w.* FROM webhook_events w JOIN webhook_deliveries d ON d.seq=w.first_delivery_seq
-   WHERE d.state='verified' AND d.claimed_event_id=w.event_id AND EXISTS (
+  ), candidate_events AS (
+   SELECT w.* FROM webhook_events w WHERE EXISTS (
     SELECT 1 FROM scoped_attempts a WHERE w.attempt_id=a.id OR
      (w.attempt_id IS NULL AND w.order_id=a.paypal_order_id)
    )
+  ), scoped_events AS (
+   SELECT w.* FROM candidate_events w JOIN webhook_deliveries d ON d.seq=w.first_delivery_seq
+   WHERE d.state='verified' AND d.claimed_event_id=w.event_id
   ), scoped_deliveries AS (
    SELECT d.* FROM webhook_deliveries d JOIN scoped_events w ON w.event_id=d.claimed_event_id
    WHERE d.state IN ('verified','duplicate')
   ) `;
   const rows=(sql:string)=>this.store.db.prepare(scope+sql).all(this.organizationId,attemptId,attemptId);
+  for(const event of rows('SELECT * FROM candidate_events ORDER BY event_id') as EventRow[])this.validateWebhookProvenance(event);
   return {
    attempts:rows('SELECT * FROM scoped_attempts ORDER BY id'),
    evidence:rows(`SELECT e.* FROM evidence e WHERE e.attempt_id IN (SELECT id FROM scoped_attempts) OR (
@@ -71,6 +76,43 @@ export class RepairService {
    // This table is the shared immutable state-machine definition, not per-attempt history.
    attemptTransitionRules:this.store.db.prepare('SELECT * FROM attempt_transitions ORDER BY from_state,to_state').all()
   };
+ }
+ /** Read-only consistency check, not a fresh signature verification or provider readback. */
+ private validateWebhookProvenance(w:EventRow) {
+  const db=this.store.db;
+  const refuse=():never=>{throw Error('webhook provenance invalid or contradictory; repair refused');};
+  const parse=<T>(json:string):T=>{try{return JSON.parse(json) as T;}catch{return refuse();}};
+  const d=db.prepare('SELECT * FROM webhook_deliveries WHERE seq=?').get(w.first_delivery_seq) as DeliveryRow|undefined;
+  if(!d||d.state!=='verified'||d.claimed_event_id!==w.event_id||d.claimed_event_type!==w.event_type)refuse();
+  const summary=parse<Partial<EventSummary>|null>(w.summary_json);
+  if(!summary||summary.id!==w.event_id||summary.event_type!==w.event_type||summary.resource_type!==w.resource_type||
+   summary.create_time!==w.event_create_time||!summary.resource||summary.resource.order_id!==w.order_id)refuse();
+  if(w.attempt_id!==null&&this.store.getAttempt(w.attempt_id)?.paypal_order_id!==w.order_id)refuse();
+  // Either side of the evidence linkage selects a record, so contradictory links cannot hide it.
+  const evidence=db.prepare(`SELECT * FROM evidence WHERE evidence_class='PAYPAL_VERIFIED_WEBHOOK' AND (
+   json_extract(CASE WHEN json_valid(summary_json) THEN summary_json ELSE '{}' END,'$.event.id')=? OR
+   json_extract(CASE WHEN json_valid(summary_json) THEN summary_json ELSE '{}' END,'$.delivery_seq')=?)`).all(w.event_id,w.first_delivery_seq) as
+   Array<{attempt_id:string|null;operation:string;paypal_debug_id:string|null;correlation_id:string;duration_ms:number|null;summary_json:string}>;
+  if(evidence.length!==1)refuse();
+  const e=evidence[0]!, proof=parse<{delivery_seq?:number;verification?:string;event?:unknown}|null>(e.summary_json);
+  if(!proof||proof.delivery_seq!==w.first_delivery_seq||proof.verification!=='paypal_postback'||canonical(proof.event)!==canonical(summary)||
+   (e.attempt_id!==null&&e.attempt_id!==w.attempt_id)||e.operation!=='webhook_verified'||e.paypal_debug_id!==d!.verify_debug_id||
+   e.duration_ms!==d!.verify_ms||e.correlation_id!==d!.correlation_id)refuse();
+  const audit=(subject:'event'|'delivery',id:string,initial:string,current:string,reason?:string)=>{
+   const history=db.prepare('SELECT from_state,to_state,reason FROM webhook_audit WHERE subject=? AND subject_id=? ORDER BY seq').all(subject,id) as
+    Array<{from_state:string|null;to_state:string;reason:string|null}>;
+   if(!history.length||history[0]!.from_state!==null||history[0]!.to_state!==initial||(reason!==undefined&&history[0]!.reason!==reason))refuse();
+   for(let i=1;i<history.length;i++){
+    const step=history[i]!;
+    if(step.from_state!==history[i-1]!.to_state||!db.prepare('SELECT 1 FROM webhook_transitions WHERE subject=? AND from_state=? AND to_state=?')
+     .get(subject,step.from_state,step.to_state))refuse();
+   }
+   if(history.at(-1)!.to_state!==current)refuse();
+   return history;
+  };
+  const deliveryAudit=audit('delivery',String(w.first_delivery_seq),'received_unverified','verified');
+  if(deliveryAudit.length!==2||deliveryAudit[1]!.from_state!=='received_unverified')refuse();
+  audit('event',w.event_id,'verified_pending',w.state,`delivery ${w.first_delivery_seq}`);
  }
  private snapshot(incidentId:string) {
   const incident=this.repo.getIncident(this.organizationId,incidentId);

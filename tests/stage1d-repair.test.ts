@@ -44,6 +44,97 @@ function syntheticWebhook(s:Store,eventId='EVENTTEST',attemptId:string|null='pa_
  s.db.prepare('UPDATE webhook_events SET attempt_id=? WHERE event_id=?').run(attemptId,eventId);
  return delivery;
 }
+// Independent complete rows, deliberately no repair snapshot/helper or association filtering.
+const completeProviderRows=(s:Store)=>canonical(['payment_attempts','evidence','webhook_events','webhook_deliveries','webhook_audit','attempt_transitions']
+ .map(t=>s.db.prepare(`SELECT * FROM ${t} ORDER BY 1`).all()));
+const provenanceFaults=['missing delivery (FK bypass)','wrong claim','rejected delivery','duplicate as first','event summary','event order','delivery type','evidence missing (guard bypass)','evidence link','evidence summary','evidence metadata','ambiguous evidence','event audit link (guard bypass)','delivery audit (guard bypass)','impossible audit transition'] as const;
+function corruptProvenance(s:Store,fault:typeof provenanceFaults[number]) {
+ const delivery=(s.db.prepare("SELECT first_delivery_seq n FROM webhook_events WHERE event_id='EVENTTEST'").get() as {n:number}).n;
+ if(fault==='missing delivery (FK bypass)') {
+  // Deliberately impossible with FK ON: emulate a damaged/imported database, then restore FK.
+  s.db.exec('PRAGMA foreign_keys=OFF');s.db.exec("UPDATE webhook_events SET first_delivery_seq=999999 WHERE event_id='EVENTTEST'");s.db.exec('PRAGMA foreign_keys=ON');
+ }else if(fault==='wrong claim')s.db.prepare("UPDATE webhook_deliveries SET claimed_event_id='WRONG' WHERE seq=?").run(delivery);
+ else if(fault==='rejected delivery'||fault==='duplicate as first') {
+  const inbox=new WebhookInbox(s), seq=inbox.recordDelivery({claimedEventId:'EVENTTEST',claimedEventType:null,bodySha256:'synthetic',bodyBytes:1,correlationId:'test',nowMs:0});
+  if(fault==='rejected delivery')inbox.finishUnverified(seq,'rejected','synthetic');
+  else inbox.acceptVerified(seq,JSON.parse((s.db.prepare("SELECT summary_json FROM webhook_events WHERE event_id='EVENTTEST'").get() as {summary_json:string}).summary_json),{ms:0,debugId:null},'test');
+  s.db.prepare("UPDATE webhook_events SET first_delivery_seq=? WHERE event_id='EVENTTEST'").run(seq);
+ }else if(fault==='event summary')s.db.exec("UPDATE webhook_events SET summary_json='{}' WHERE event_id='EVENTTEST'");
+ else if(fault==='event order')s.db.exec("UPDATE webhook_events SET order_id='WRONG' WHERE event_id='EVENTTEST'");
+ else if(fault==='delivery type')s.db.prepare("UPDATE webhook_deliveries SET claimed_event_type='WRONG' WHERE seq=?").run(delivery);
+ else if(fault==='evidence missing (guard bypass)'){s.db.exec('DROP TRIGGER evidence_no_delete');s.db.exec("DELETE FROM evidence WHERE evidence_class='PAYPAL_VERIFIED_WEBHOOK'");}
+ else if(fault==='ambiguous evidence')s.db.exec("INSERT INTO evidence(attempt_id,evidence_class,operation,http_status,paypal_debug_id,request_id,correlation_id,duration_ms,summary_json,created_at) SELECT attempt_id,evidence_class,operation,http_status,paypal_debug_id,request_id,correlation_id,duration_ms,summary_json,created_at FROM evidence WHERE evidence_class='PAYPAL_VERIFIED_WEBHOOK'");
+ else if(fault.startsWith('evidence')) {
+  s.db.exec('DROP TRIGGER evidence_no_update');
+  if(fault==='evidence link')s.db.exec("UPDATE evidence SET summary_json=json_set(summary_json,'$.delivery_seq',999999) WHERE evidence_class='PAYPAL_VERIFIED_WEBHOOK'");
+  if(fault==='evidence summary')s.db.exec("UPDATE evidence SET summary_json=json_set(summary_json,'$.event.resource.id','WRONG') WHERE evidence_class='PAYPAL_VERIFIED_WEBHOOK'");
+  if(fault==='evidence metadata')s.db.exec("UPDATE evidence SET operation='forged' WHERE evidence_class='PAYPAL_VERIFIED_WEBHOOK'");
+ }else if(fault==='impossible audit transition')s.db.exec("INSERT INTO webhook_audit(subject,subject_id,from_state,to_state,at) VALUES('event','EVENTTEST','verified_pending','impossible_state','synthetic'),('event','EVENTTEST','impossible_state','verified_pending','synthetic')");
+ else {
+  s.db.exec('DROP TRIGGER webhook_audit_no_update');
+  if(fault==='event audit link (guard bypass)')s.db.exec("UPDATE webhook_audit SET reason='delivery 999999' WHERE subject='event' AND from_state IS NULL");
+  else s.db.exec("UPDATE webhook_audit SET to_state='duplicate' WHERE subject='delivery' AND to_state='verified'");
+ }
+}
+it.each(provenanceFaults)('F2 planning refuses %s without merchant or provider mutation',async fault=>{
+ const {s,service,incident}=await fixture();try{
+  syntheticWebhook(s);corruptProvenance(s,fault);const before=completeProviderRows(s),evaluations=count(s,'invariant_evaluations');
+  expect(()=>service.plan(incident,'requester')).toThrow(/webhook provenance/i);
+  expect(count(s,'repair_plans')).toBe(0);expect(count(s,'invariant_evaluations')).toBe(evaluations);
+  expect(count(s,'merchant_order_voids')).toBe(0);expect(count(s,'incident_resolutions')).toBe(0);expect(completeProviderRows(s)).toBe(before);
+ }finally{s.close();}
+});
+it('F2 corruption before approval refuses approval without committing audit',async()=>{
+ const {s,service,incident}=await fixture();try{syntheticWebhook(s);const p=service.plan(incident,'requester');corruptProvenance(s,'wrong claim');const before=completeProviderRows(s),audit=count(s,'repair_audit');
+  expect(()=>approve(service,p)).toThrow(/webhook provenance/i);expect(count(s,'repair_approvals')).toBe(0);expect(count(s,'repair_audit')).toBe(audit);
+  expect(count(s,'merchant_order_voids')).toBe(0);expect(count(s,'incident_resolutions')).toBe(0);expect(completeProviderRows(s)).toBe(before);
+ }finally{s.close();}
+});
+it('F2 corruption after approval refuses execution with no committed execution or correction',async()=>{
+ const {s,service,incident}=await fixture();try{syntheticWebhook(s);const p=service.plan(incident,'requester');approve(service,p);corruptProvenance(s,'wrong claim');const before=completeProviderRows(s);
+  expect(()=>service.execute(p.id)).toThrow(/webhook provenance/i);expect(count(s,'repair_executions')).toBe(0);expect(count(s,'repair_outcomes')).toBe(0);
+  expect(count(s,'merchant_order_voids')).toBe(0);expect(count(s,'incident_resolutions')).toBe(0);expect(completeProviderRows(s)).toBe(before);
+ }finally{s.close();}
+});
+it.each(['wrong claim','evidence link','event audit link (guard bypass)'] as const)('F2 correction savepoint rolls back %s and retains terminal refusal',async fault=>{
+ const {s,incident}=await fixture();try{syntheticWebhook(s);const before=completeProviderRows(s);
+  const r=new RepairService(s,ORG,{boundary:b=>{if(b==='after_voids')corruptProvenance(s,fault);}}),p=r.plan(incident,'requester');approve(r,p);
+  expect(r.execute(p.id).outcome).toBe('FAILED_POSTCONDITION');expect(count(s,'repair_outcomes')).toBe(1);
+  expect(count(s,'merchant_order_voids')).toBe(0);expect(count(s,'incident_resolutions')).toBe(0);expect(completeProviderRows(s)).toBe(before);
+ }finally{s.close();}
+});
+it('F2 healthy first delivery and verified duplicate preserve complete provider rows',async()=>{
+ const {s,service,incident}=await fixture();try{syntheticWebhook(s);const inbox=new WebhookInbox(s),d=inbox.recordDelivery({claimedEventId:'EVENTTEST',claimedEventType:null,bodySha256:'synthetic duplicate',bodyBytes:1,correlationId:'test',nowMs:0});
+  inbox.acceptVerified(d,JSON.parse((s.db.prepare("SELECT summary_json FROM webhook_events WHERE event_id='EVENTTEST'").get() as {summary_json:string}).summary_json),{ms:0,debugId:null},'test');
+  const before=completeProviderRows(s),p=service.plan(incident,'requester');approve(service,p);expect(service.execute(p.id).outcome).toBe('SUCCEEDED');expect(completeProviderRows(s)).toBe(before);
+ }finally{s.close();}
+});
+it('F2 explicit target attempt cannot contradict the verified event order',async()=>{
+ const {s,service,incident}=await fixture();try{syntheticWebhook(s,'EVENTTEST','pa_test','WRONGORDER');const before=completeProviderRows(s);
+  expect(()=>service.plan(incident,'requester')).toThrow(/webhook provenance/i);expect(count(s,'repair_plans')).toBe(0);
+  expect(count(s,'merchant_order_voids')).toBe(0);expect(count(s,'incident_resolutions')).toBe(0);expect(completeProviderRows(s)).toBe(before);
+ }finally{s.close();}
+});
+it.each(['unlinked','processed'] as const)('F2 healthy %s event succeeds with complete provider preservation',async state=>{
+ const {s,service,incident}=await fixture();try{syntheticWebhook(s,'EVENTTEST',null);
+  if(state==='processed'){const inbox=new WebhookInbox(s),leased=inbox.claimNext(0,1000)!;expect(inbox.finishEvent(leased.event_id,leased.process_attempts,'processed',{outcome:'synthetic processed',attemptId:'pa_test'})).toBe(true);}
+  const before=completeProviderRows(s),p=service.plan(incident,'requester');approve(service,p);
+  expect(service.execute(p.id).outcome).toBe('SUCCEEDED');expect(completeProviderRows(s)).toBe(before);
+ }finally{s.close();}
+});
+it('F2 pre-existing first delivery redirected to unverified delivery refuses planning atomically',async()=>{
+ const {s,service,incident}=await fixture();try{
+  syntheticWebhook(s);
+  const unverified=new WebhookInbox(s).recordDelivery({claimedEventId:'EVENTTEST',claimedEventType:null,bodySha256:'synthetic unverified',bodyBytes:1,correlationId:'test',nowMs:0});
+  // UPDATE of first_delivery_seq is allowed by existing guards; foreign keys remain ON.
+  s.db.prepare("UPDATE webhook_events SET first_delivery_seq=? WHERE event_id='EVENTTEST'").run(unverified);
+  const before=completeProviderRows(s), evaluations=count(s,'invariant_evaluations');
+  expect(()=>service.plan(incident,'requester')).toThrow(/webhook provenance/i);
+  expect(count(s,'repair_plans')).toBe(0);expect(count(s,'invariant_evaluations')).toBe(evaluations);
+  expect(count(s,'merchant_order_voids')).toBe(0);expect(count(s,'incident_resolutions')).toBe(0);
+  expect(completeProviderRows(s)).toBe(before);
+ }finally{s.close();}
+});
 it.each(['event','event association','delivery','delivery association','verified duplicate','webhook evidence','webhook audit','attempt transition rules'] as const)(
  'provider preservation rolls back %s tampering inside the correction savepoint',async target=>{
  const {s,incident}=await fixture();try{
