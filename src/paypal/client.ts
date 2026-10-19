@@ -204,6 +204,11 @@ export class PayPalClient {
     return this.#request<{ verification_status?: unknown }>("POST", "/v1/notifications/verify-webhook-signature", { meta, rawJson: postbackJson, timeoutMs });
   }
 
+  /** Read-only: the webhook registration (url, event types) as seen by THIS REST app's credentials. */
+  getWebhook(webhookId: string, meta: CallMeta) {
+    return this.#request<{ id?: unknown; url?: unknown; event_types?: unknown }>("GET", `/v1/notifications/webhooks/${encodeURIComponent(webhookId)}`, { meta });
+  }
+
   getOrder(orderId: string, meta: CallMeta) {
     return this.#request<unknown>("GET", `/v2/checkout/orders/${encodeURIComponent(orderId)}`, { meta });
   }

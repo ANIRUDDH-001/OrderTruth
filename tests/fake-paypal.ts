@@ -38,6 +38,8 @@ export class FakePayPal {
   /** Webhook id registered at the fake "PayPal" (the postback must carry it). */
   registeredWebhookId: string | undefined;
   verifyCalls: Array<{ webhookId: unknown; transmissionId: unknown; rawEvent: string }> = [];
+  /** GET /v1/notifications/webhooks/{id} registrations visible to this fake app. */
+  webhookRegistrations = new Map<string, { url: string; event_types: Array<{ name: string }> }>();
   #n = 0;
 
   approve(orderId: string) {
@@ -118,6 +120,12 @@ export class FakePayPal {
       return json(200, this.#view(o));
     }
     if (u.pathname === "/v1/notifications/verify-webhook-signature" && method === "POST") return this.#verifyWebhook(body ?? "", init.signal ?? undefined, json);
+    const wh = /^\/v1\/notifications\/webhooks\/([A-Za-z0-9]+)$/.exec(u.pathname);
+    if (wh && method === "GET") {
+      const reg = this.webhookRegistrations.get(wh[1]!);
+      if (!reg) return json(404, { name: "INVALID_RESOURCE_ID", message: "Resource id is invalid." });
+      return json(200, { id: wh[1], ...reg });
+    }
     return json(404, { name: "NOT_FOUND" });
   };
 
