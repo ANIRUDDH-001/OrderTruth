@@ -389,7 +389,7 @@ describe("read-only incident API and cross-organization denial", () => {
 });
 
 describe("migration 4 is additive", () => {
-  it("M1 a v3 database with payment data migrates to v4 with every existing row and value unchanged", () => {
+  it("M1 a v3 database with payment data migrates to the latest version (v4 Stage 1C tables, v5 order-match trigger) with every existing row and value unchanged", () => {
     const path = dbFile();
     const db = new DatabaseSync(path);
     db.exec("PRAGMA foreign_keys = ON; CREATE TABLE schema_migrations (version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL)");
@@ -405,7 +405,7 @@ describe("migration 4 is additive", () => {
     db.close();
 
     const store = new Store(path);
-    expect(count(store.db, "SELECT MAX(version) n FROM schema_migrations")).toBe(4);
+    expect(count(store.db, "SELECT MAX(version) n FROM schema_migrations")).toBe(MIGRATIONS.length);
     const after = JSON.parse(snap(store.db as unknown as DatabaseSync)) as Array<Array<Record<string, unknown>>>;
     expect(after[0]![0]!.organization_id).toBe(REFERENCE_ORG);
     delete after[0]![0]!.organization_id;
@@ -414,7 +414,7 @@ describe("migration 4 is additive", () => {
     store.close();
     // Reopening applies nothing twice.
     const again = new Store(path);
-    expect(count(again.db, "SELECT COUNT(*) n FROM schema_migrations")).toBe(4);
+    expect(count(again.db, "SELECT COUNT(*) n FROM schema_migrations")).toBe(MIGRATIONS.length);
     again.close();
   });
 });
