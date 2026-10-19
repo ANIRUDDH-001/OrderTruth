@@ -1,6 +1,25 @@
 # Stage 1D — local merchant repair results
 
-Date: 19 October 2026. Original implementation base: `5404f88`; bounded follow-up base: `edb4dc51608c4b045e3f683231b0459178dfccd8`. STATUS: Stage 1D implementation accepted and verified offline under simulated approvals; **Gate 1 remains incomplete**. Real interactive human-approved actual-evidence repair demonstration is pending.
+Date: 19 October 2026. Original implementation base: `5404f88`; bounded follow-up base: `edb4dc51608c4b045e3f683231b0459178dfccd8`. CURRENT STATUS: Stage 1D actual-evidence repair PASSED independent post-execution inspection; the user accepted the scoped Gate 1 closeout. See the current closeout section below and `docs/GATE1_CLOSEOUT.md`. Earlier pending/unapproved statements below are explicitly historical checkpoints, not current demo state.
+
+## Current actual-evidence closeout (19 October 2026)
+
+RECORDED_NOT_REPRODUCED in this documentation-only closeout: the independent read-only inspection at 2026-10-19T05:10:16.330278Z passed all ten requested checks plus plan/facts integrity and source-family preservation. No payment or repair was repeated. The user's subsequent acceptance authorizes this scoped closeout, not Gate 2 implementation.
+
+- Isolated database: `.work/runs/gate1-human-demo-prep/actual-evidence-demo.sqlite`.
+- Plan `rp_fa8151bc-85ee-4edf-b448-0414c2bf0873`, SHA-256 `b3d3eeaa23482237757f2614662ac7a26044bc49c260adcc18e014a4136a1217`.
+- Execution `rx_8cac9691-642d-43fd-a813-24c47705440e`; persisted SUCCEEDED at 2026-10-19T05:06:41.086Z.
+- Post-repair evaluation **14**, HOLDS; intent `ci_b18b1fa3-fb92-407d-bd05-f39fd6ccf1f7`; incident `inc_ae053acb-97f7-4bb8-9122-49a7a80c8377` effectively resolved_verified, backed by that evaluation and execution.
+- Exactly one effective placed keeper `mo_9889eeaf-2f58-43ab-9452-318583bdd8d5`; one append-only local void for `mo_045628a3-7e9f-419d-b87b-09c5aa496f8c`. All original merchant-order values are identical to the pre-execution snapshot; physical SQLite page bytes are not claimed identical.
+- One recorded INTERACTIVE_TTY approval at 2026-10-19T05:06:25.947Z, literal operator placeholder **YOUR_DECLARED_NAME**. This is not authenticated operator identity or independently proven human identity. No extra repair attempts.
+- All six complete provider-table hashes match preparation baselines. The original and fault-source database families remain unchanged; SQLite integrity and foreign keys passed. No fresh PayPal call or signature verification was performed.
+- Evidence: `.work/runs/gate1-human-demo-prep/REPORT.md` and `.work/runs/gate1-human-demo-verification/{REPORT.md,verification.json,read-source-baseline.json}` (ignored local evidence, not public-checkout fixtures).
+
+F2 remains OPEN: conditional scoped hashing can omit a pre-existing associated event with invalid first-delivery provenance. This independently preflighted consistent copy passed; that is not a general fix. F3's ignored-file fixture dependency is addressed by the focused closeout and clean-export regression. See `docs/GATE1_CLOSEOUT.md` for exact new test counts and remaining limits.
+
+## Historical implementation and review checkpoints
+
+The sections below retain their original commands, counts, expired plans and stop boundaries. They do not authorize another payment, plan, approval or execution.
 
 ## Verified implementation
 

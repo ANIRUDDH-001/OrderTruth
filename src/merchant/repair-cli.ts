@@ -6,10 +6,11 @@ import { parseArgs } from 'node:util';
 import { Store } from '../db/store.ts';
 import { RepairService } from './repair.ts';
 const original=fileURLToPath(new URL('../../.work/ordertruth.sqlite',import.meta.url));
-export function isolatedDatabase(path:string):string {
+// Tests supply a synthetic protected file; the CLI always uses the fixed default.
+export function isolatedDatabase(path:string,protectedPath:string=original):string {
  const target=realpathSync(resolve(path));
- if(existsSync(original)){
-  const source=realpathSync(original), a=statSync(source,{bigint:true}), b=statSync(target,{bigint:true});
+ if(existsSync(protectedPath)){
+  const source=realpathSync(protectedPath), a=statSync(source,{bigint:true}), b=statSync(target,{bigint:true});
   if(target.toLowerCase()===source.toLowerCase()||(a.dev===b.dev&&a.ino===b.ino))throw Error('original v3 database is protected; use an isolated demo/test copy');
  }
  if(!statSync(target).isFile())throw Error('database must be an existing isolated file');return target;

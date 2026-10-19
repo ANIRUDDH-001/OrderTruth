@@ -1,8 +1,8 @@
 # Stage 1C — Merchant contract, controlled fault and first incident
 
-**Date:** 2026-10-19. **Status:** independent review of `a36852d` accepted this as an offline detection prototype, with corrections (§9). **Gate 1 is NOT complete:** the human-approved repair workflow is designed (`docs/STAGE1C_REPAIR_CONTRACT.md`) but not implemented or executed. Gate 2 has not started.
+**Date:** 2026-10-19. **Current status:** Stage 1C detection and Stage 1D local repair are accepted for the scoped Gate 1 closeout. Actual-evidence execution `rx_8cac9691-642d-43fd-a813-24c47705440e` is independently verified: evaluation 14 HOLDS, incident effectively resolved_verified. See `docs/GATE1_CLOSEOUT.md` for evidence, limitations and Gate 2 handoff. The Stage 1C checkpoint below remains historical; it does not describe the later repair state. Gate 2 has not started.
 **Budget:** ₹0. No new dependency. **Zero PayPal calls in Stage 1C**: no checkout, capture, refund, resend or tunnel.
-**Git:** Claude made no commits. The user committed the original Stage 1C work on `main` as `8901a53`, `9e16564`, `248b804`, `2f10308` and `a36852d`; the `docs/GATE1B_LIVE_RESULTS.md` deletion evidence is in `130a001`. The review corrections in §9 are **uncommitted** working-tree changes on top of `a36852d` and await an authorized Git actor.
+**Git:** Claude made no commits. The user committed the original Stage 1C work on `main` as `8901a53`, `9e16564`, `248b804`, `2f10308` and `a36852d`; the `docs/GATE1B_LIVE_RESULTS.md` deletion evidence is in `130a001`. The review corrections in §9 were subsequently committed, including contract guards in `fc1eb00`; Stage 1D implementation followed in `7531a96` and provider preservation in `ce861c1`. Historical test counts below remain their original checkpoint results.
 
 Claim labels: **VERIFIED** (reproduced in this stage, with the log path given), **RECORDED_NOT_REPRODUCED**, **HYPOTHESIS**, **BLOCKED**, **NOT_TESTED**.
 
@@ -164,16 +164,16 @@ Explanation for M3: the merchant's own `await` between check and insert already 
 | `x-ordertruth-org` is **not authentication** | BLOCKER for any exposure | Any local caller can name any existing org. Real identity and RBAC are required before anything leaves 127.0.0.1. |
 | Merchant not wired into the live flows | — | The reference merchant is invoked by tests and the demo, not by the live capture-return or webhook handlers. Running it live is NOT_TESTED. |
 | Single incident class | by design | Only `DUPLICATE_MERCHANT_ORDER`. Missing orders, wrong amounts and orders without a capture are recorded as OUT_OF_SCOPE evaluations, not incidents. |
-| Incidents and orders are immutable | by design | No resolve, void or repair transitions exist yet. |
+| Incidents and orders are immutable | by design | At the Stage 1C checkpoint no repair transitions existed. Stage 1D now appends voids and resolutions without changing original order/incident rows; see `docs/STAGE1D_RESULTS.md`. |
 | Checker is on-demand | — | No scheduler. An incident reflects state at evaluation time; a later refund readback would only change the *latest* evaluation, and the open incident remains. |
 | Byte-copy demo relies on the absence of a `-wal` file | — | It refuses otherwise; this does not replace a `VACUUM INTO` snapshot of a running DB. |
 | Stale-readback fix not exercised live | RECORDED_NOT_REPRODUCED / NOT_TESTED live | Offline proof only. Real PayPal GET staleness timing is unknown. |
 | Remaining Gate 1B risks | — | Inbox ceiling check-then-insert; transmission_time reuse HYPOTHESIS; cert host/auth-algo not logged; Windows shutdown needs `/F`; WAL backup discipline; only first-delivery proven live. |
 | `.env` | — | Untouched. `PAYPAL_WEBHOOK_ID` still names the deleted registration; the owner must update it locally before any future live webhook work. |
 
-## 7. Proposed next-stage contract: operator-approved, local-only repair (NOT IMPLEMENTED)
+## 7. Historical Stage 1C proposal: operator-approved, local-only repair
 
-> **Superseded** by `docs/STAGE1C_REPAIR_CONTRACT.md`. That document reviews this sketch against the corrected checker (findings R1–R8) and specifies approval, independent executor checks, stale-plan rejection and postcondition proof. The sketch is kept below for history.
+> **Superseded** by `docs/STAGE1C_REPAIR_CONTRACT.md`. That document reviews this sketch against the corrected checker (findings R1–R8) and specifies approval, independent executor checks, stale-plan rejection and postcondition proof. The sketch is kept below for history; Stage 1D implementation and the verified local execution supersede its implementation status. The later local declared-operator concession does not provide the authentication proposed in this sketch.
 
 1. **Scope:** only `DUPLICATE_MERCHANT_ORDER` incidents in `open` state, and only on the local reference merchant. No PayPal write of any kind (no refund, void or capture). The payment is correct; the merchant record is not.
 2. **Plan (dry run):** recompute the contract. If it no longer reports VIOLATED, refuse. Otherwise propose keeping the earliest effective `placed` order and appending void records for the others. Original merchant-order rows and their `placed` status remain immutable; effective `voided_duplicate` status derives from those void records. Store the plan with a hash of the facts it relied on.
@@ -192,7 +192,7 @@ pnpm stage1c --mode both --target-order 7TS74882M0297892Y   # needs fresh --out-
 pnpm incidents --db .work/stage1c/fault.sqlite                # 127.0.0.1:3003, header x-ordertruth-org: org_reference
 ```
 
-## 9. Review corrections (review of `a36852d`, 2026-10-19) — uncommitted
+## 9. Historical review corrections (review of `a36852d`, 2026-10-19; subsequently committed)
 
 **P1a — the contract checks order correctness, not just the count.** Before the fix, `evaluateContract` only counted `placed` orders. A single order with the wrong capture id, amount, currency, PayPal order id or SKU therefore gave `HOLDS`.
 - **Contract:** `orderMismatches(order, payment)` lists every differing field: attempt, PayPal order id, capture id, SKU, currency and amount minor. `Evaluation` gained `matchingOrderIds`. Results follow the table in §2.
@@ -201,7 +201,7 @@ pnpm incidents --db .work/stage1c/fault.sqlite                # 127.0.0.1:3003, 
 
 **P1b — causal provenance.** Before the fix, any fault record for the intent made the cause `CONTROLLED_FAULT_INJECTION`. Now `attributeCause` uses only the involved orders' fault references (§2). Test V1 reproduces the reviewer's case: a fault record is written before execution, the injection fails, and an organic duplicate follows. The result is `UNKNOWN`. The fault row is preserved but not linked as evidence.
 
-**P2 — repair.** Reviewed and specified in `docs/STAGE1C_REPAIR_CONTRACT.md`; not implemented. No repair endpoint exists, and `x-ordertruth-org` is still not authentication.
+**P2 — repair (historical checkpoint).** Originally specified only in `docs/STAGE1C_REPAIR_CONTRACT.md`; subsequently implemented and verified in Stage 1D. There remains no HTTP repair mutation endpoint, and `x-ordertruth-org` is still not authentication. See `docs/GATE1_CLOSEOUT.md`.
 
 **Verification (VERIFIED; logs in `.work/runs/stage1c-corrections/`, ignored):**
 

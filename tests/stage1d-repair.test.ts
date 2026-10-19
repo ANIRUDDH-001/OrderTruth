@@ -1,5 +1,5 @@
 import { spawn, type ChildProcess } from 'node:child_process';
-import { existsSync, writeFileSync, readFileSync } from 'node:fs';
+import { existsSync, writeFileSync, readFileSync, linkSync } from 'node:fs';
 import { setTimeout as delay } from 'node:timers/promises';
 import { isolatedDatabase } from '../src/merchant/repair-cli.ts';
 import { attributeCause } from '../src/merchant/checker.ts';
@@ -171,8 +171,15 @@ it('approved unconsumed plan blocks creation of another plan',async()=>{const {s
 it('RP9 DB refuses keeper void even inside executing approved identity',async()=>{const {s,service,incident}=await fixture();try{const p=service.plan(incident,'requester');approve(service,p);s.db.prepare('INSERT INTO repair_executions VALUES(?,?,?)').run('rx_test',p.id,new Date().toISOString());s.db.prepare("INSERT INTO repair_transitions VALUES(?,'EXECUTING',?)").run('rx_test',new Date().toISOString());expect(()=>s.db.prepare("INSERT INTO merchant_order_voids VALUES(?,?,'DUPLICATE_MERCHANT_ORDER',?)").run(p.keep_order_id,'rx_test',new Date().toISOString())).toThrow(/non-keeper/);expect(()=>s.db.prepare('INSERT INTO incident_resolutions VALUES(?,?,?,?)').run(incident,p.evaluation_seq,'rx_test',new Date().toISOString())).toThrow(/HOLDS/);}finally{s.close();}});
 it('RP11 different controlled injection IDs never establish a single injected race mechanism',async()=>{const {s,id}=await fixture();try{const repo=new MerchantRepo(s),orders=repo.ordersForIntent(ORG,id),faults=repo.faultsForIntent(ORG,id);const second={...faults[0]!,id:'fault_second'};const result=attributeCause([orders[0]!,{...orders[1]!,fault_injection_id:second.id}],[...faults,second]);expect(result.faultInjectionIds).toHaveLength(2);expect(result).not.toHaveProperty('mechanism');expect(result.note).toMatch(/different controlled injections/);}finally{s.close();}});
 it('approval entry point rejects non-TTY, simulated path remains explicitly labelled and test-only',async()=>{const {s,service,incident}=await fixture();try{const p=service.plan(incident,'requester');await expect(service.approveInteractive(p.id,p.plan_sha256,'operator')).rejects.toThrow(/TTY/);expect(count(s,'repair_approvals')).toBe(0);approve(service,p);expect(s.db.prepare('SELECT approval_mode FROM repair_approvals').get()).toMatchObject({approval_mode:'SIMULATED_TEST'});const prior=process.env.NODE_ENV;try{process.env.NODE_ENV='production';expect(()=>approve(service,p)).toThrow(/test-only/);}finally{process.env.NODE_ENV=prior;}}finally{s.close();}});
+it('protected database guard uses a synthetic fixture, rejects aliases and permits a separate copy',()=>{
+ const protectedPath=join(dir,'protected.sqlite'), alias=join(dir,'protected-alias.sqlite'), copy=join(dir,'separate.sqlite');
+ writeFileSync(protectedPath,'synthetic protected file');linkSync(protectedPath,alias);writeFileSync(copy,'synthetic protected file');
+ expect(()=>isolatedDatabase(protectedPath,protectedPath)).toThrow(/protected/);
+ expect(()=>isolatedDatabase(alias,protectedPath)).toThrow(/protected/);
+ expect(isolatedDatabase(copy,protectedPath)).toBe(copy);
+ expect(readFileSync(protectedPath,'utf8')).toBe('synthetic protected file');
+});
 it('CLI protects original and requires explicit database; piped approval cannot write',async()=>{
- expect(()=>isolatedDatabase('.work/ordertruth.sqlite')).toThrow(/protected/);
  const {s,service,incident,path}=await fixture();const p=service.plan(incident,'requester');s.close();
  const run=(args:string[])=>new Promise<{code:number|null,out:string}>((ok,no)=>{const c=spawn(process.execPath,['--import','tsx','src/merchant/repair-cli.ts',...args],{stdio:['ignore','pipe','pipe']});let out='';c.stdout.on('data',d=>out+=d);c.stderr.on('data',d=>out+=d);const timer=setTimeout(()=>{c.kill('SIGKILL');no(Error('CLI timeout'));},5000);c.once('exit',code=>{clearTimeout(timer);ok({code,out});});});
  expect((await run(['plan'])).code).toBe(2);expect((await run(['execute','--db','.work/ordertruth.sqlite','--org',ORG,'--plan',p.id])).code).toBe(2);

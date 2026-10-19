@@ -1,6 +1,6 @@
-# Stage 1C — Repair contract review (design only, NOT IMPLEMENTED)
+# Stage 1C — Historical repair contract review (implemented in Stage 1D)
 
-**Date:** 2026-10-19. **Status:** proposed for review. No repair code, endpoint, table or migration exists. Nothing here has been executed.
+**Date:** 2026-10-19. **Current status:** historical design with accepted Stage 1D refinements below; local CLI repair, migration 6 and append-only history are implemented. Actual-evidence execution `rx_8cac9691-642d-43fd-a813-24c47705440e` passed independent verification, with evaluation 14 HOLDS. See `docs/GATE1_CLOSEOUT.md`. Original design/proposal wording below is historical, not a claim that code remains absent or that authenticated operator identity was established.
 **Supersedes:** the sketch in `docs/STAGE1C_RESULTS.md` §7.
 **Reviewed against:** the corrected checker (`src/merchant/contract.ts` `orderMismatches`/`matchingOrderIds`, `src/merchant/checker.ts` `attributeCause`, migration 5).
 **Boundaries:** local reference-merchant data only. No PayPal call of any kind (no refund, void, capture or resend). No HTTP repair surface. ₹0.
