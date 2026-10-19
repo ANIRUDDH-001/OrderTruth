@@ -1,5 +1,6 @@
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
+import { REPAIR_MIGRATION } from "./repair-schema.ts";
 import { DatabaseSync } from "node:sqlite";
 import { ATTEMPT_STATES, TRANSITIONS, type AttemptState } from "../domain/checkout.ts";
 
@@ -302,6 +303,7 @@ export const MIGRATIONS: readonly string[] = [
                         AND i.sku = NEW.sku AND i.currency = NEW.currency AND i.amount_minor = NEW.amount_minor)
        OR (NEW.fault_injection_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM fault_injections f WHERE f.id = NEW.fault_injection_id AND f.intent_id = NEW.intent_id))
      BEGIN SELECT RAISE(ABORT, 'merchant order must start placed, match its own organization captured payment (order, capture, sku, currency, amount) and fault'); END;`,
+  REPAIR_MIGRATION,
 ];
 
 export type IntentRow = { id: string; sku: string; currency: "USD"; amount_minor: number; correlation_id: string; checkout_key: string | null; created_at: string };
