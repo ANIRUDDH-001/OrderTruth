@@ -211,7 +211,11 @@ it('RP1 RP11 approve/execute preserves provider, merchant history, fault provena
  expect(service.execute(p.id)).toEqual(result); expect(count(s,'repair_outcomes')).toBe(1); expect(count(s,'merchant_order_voids')).toBe(1);
  expect(()=>service.plan(incident,'another')).toThrow(/resolved/);
  const app=await buildIncidentApi({store:s}); const body=(await app.inject({url:`/api/incidents/${incident}`,headers:{[ORG_HEADER]:ORG}})).json();
- expect(body.state).toBe('resolved_verified'); expect(body.affectedOrders.filter((x:{effectiveStatus:string})=>x.effectiveStatus==='placed')).toHaveLength(1);expect(body.repairHistory.plans).toHaveLength(1); await app.close();
+ expect(body.state).toBe('resolved_verified'); expect(body.affectedOrders.filter((x:{effectiveStatus:string})=>x.effectiveStatus==='placed')).toHaveLength(1);expect(body.repairHistory.plans).toHaveLength(1);
+ expect(body.repairHistory.voids).toHaveLength(1);expect(body.repairHistory.voids[0].execution_id).toBe(result.execution_id);
+ expect(body.repairHistory.resolutions).toHaveLength(1);expect(body.repairHistory.resolutions[0].postcondition.result).toBe('HOLDS');expect(body.repairHistory.resolutions[0].postcondition.activeOrderCount).toBe(1);
+ expect((await app.inject({url:`/api/incidents/${incident}`,headers:{[ORG_HEADER]:'org_other'}})).statusCode).not.toBe(200);
+ await app.close();
  }finally{s.close();}
 });
 it('RP3 missing approval persists one refusal; later approval cannot resurrect consumed plan',async()=>{const {s,service,incident}=await fixture();try{const p=service.plan(incident,'requester');expect(service.execute(p.id).outcome).toBe('REJECTED_APPROVAL');expect(()=>approve(service,p)).toThrow();expect(count(s,'merchant_order_voids')).toBe(0);}finally{s.close();}});

@@ -38,6 +38,13 @@ function incidentView(repo: MerchantRepo, i: IncidentRow) {
   const latest = repo.latestEvaluation(i.organization_id, i.intent_id);
   const evalView = (e: typeof opening) => e && { seq: e.seq, result: e.result, activeOrderCount: e.active_order_count, reasons: parse(e.reasons_json), facts: parse(e.facts_json), evaluatedAt: e.evaluated_at, runId: e.run_id };
   const intent = repo.intentInOrg(i.organization_id, i.intent_id);
+  // Incident-specific append-only links, distinct from the intent's latest check.
+  const voids = repo.db.prepare(`SELECT v.* FROM merchant_order_voids v
+    JOIN repair_executions e ON e.id=v.execution_id JOIN repair_plans p ON p.id=e.plan_id
+    WHERE p.incident_id=? AND p.organization_id=? ORDER BY v.created_at,v.order_id`).all(i.id,i.organization_id);
+  const resolutions = (repo.db.prepare(`SELECT r.* FROM incident_resolutions r
+    JOIN incidents x ON x.id=r.incident_id WHERE x.id=? AND x.organization_id=?`).all(i.id,i.organization_id) as Array<{evaluation_seq:number}>)
+    .map(row=>({...row,postcondition:evalView(repo.getEvaluation(i.organization_id,row.evaluation_seq))}));
   return {
     id: i.id,
     organizationId: i.organization_id,
@@ -46,7 +53,7 @@ function incidentView(repo: MerchantRepo, i: IncidentRow) {
     severity: i.severity,
     state: repo.incidentState(i.id),
     historicalState: i.state,
-    repairHistory: new RepairService(repo.store, i.organization_id).history(i.id),
+    repairHistory: {...new RepairService(repo.store, i.organization_id).history(i.id),voids,resolutions},
     title: i.title,
     openedAt: i.opened_at,
     payment: { intentId: i.intent_id, attemptId: i.attempt_id, paypalOrderId: i.paypal_order_id, captureId: i.capture_id },
