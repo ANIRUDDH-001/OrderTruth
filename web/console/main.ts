@@ -93,6 +93,7 @@ function renderScope() {
 function setOrg(org: string) {
   state.org = org; state.scopeEditing = false; state.details.clear();
   try { localStorage.setItem(ORG_KEY, org); } catch { /* per-viewer convenience only */ }
+  setParam('org', null); // the chosen scope replaces whatever the link asked for
   renderShell();
   if (location.pathname.startsWith('/console/incidents/')) navigate('/console/incidents', true);
   void loadAll().then(route);
@@ -135,6 +136,14 @@ async function route() {
   $('rail').classList.remove('open'); $('menu-btn').setAttribute('aria-expanded', 'false');
   closeResults();
   const focus = !firstRender; firstRender = false;
+  // A link may name its organization. A valid one is used and remembered; an invalid one stops here, never falling back to a default.
+  const scope = M.scopeFromUrl(location.search);
+  if (scope.kind === 'invalid') { renderScopeError(scope.reason); return; }
+  if (scope.kind === 'valid' && scope.org !== state.org) {
+    state.org = scope.org; state.details.clear(); state.checkouts = []; state.incidents = []; state.loadedAt = null; state.error = null;
+    try { localStorage.setItem(ORG_KEY, scope.org); } catch { /* per-viewer convenience only */ }
+    renderShell();
+  }
   if (!state.loadedAt && !state.error) { renderLoading(); await loadAll(); }
   if (parseRoute(location.pathname).page !== r.page || (r.id && parseRoute(location.pathname).id !== r.id)) return; // navigated meanwhile
   if (r.page === 'missing') renderNotFound();
@@ -193,6 +202,17 @@ function renderError(e: Error) {
       h('button', { class: 'btn pri', onclick: () => void refresh() }, icon('refresh'), 'Try again'),
       scope ? h('button', { class: 'btn sec', onclick: () => { state.scopeEditing = true; renderScope(); $('rail').classList.add('open'); ($('scope-input') as HTMLInputElement).focus(); } }, 'Change scope') : null)));
 }
+function renderScopeError(reason: string) {
+  title('Invalid scope');
+  $('checked').textContent = 'Scope rejected';
+  clear(main, h('div', { class: 'state', role: 'alert' },
+    h('div', { class: 'state-mark bad' }, icon('lock')),
+    h('h1', {}, 'This link names an invalid organization'),
+    h('p', {}, `${reason} Nothing was loaded, and no other organization was used in its place.`),
+    h('div', { class: 'actions' },
+      h('button', { class: 'btn pri', onclick: () => { state.scopeEditing = true; renderScope(); $('rail').classList.add('open'); ($('scope-input') as HTMLInputElement).focus(); } }, 'Choose a scope'),
+      h('a', { class: 'btn sec', href: '/console/' }, `Open ${state.org} instead`))));
+}
 function renderNotFound(message = 'There is no console page at this address.') {
   title('Not found');
   clear(main, h('div', { class: 'state' }, h('div', { class: 'state-mark' }, icon('search')), h('h1', {}, 'Nothing here'), h('p', {}, message),
@@ -202,7 +222,7 @@ function renderNotFound(message = 'There is no console page at this address.') {
 /* ---------------- overview ---------------- */
 function renderOverview() {
   title('Overview');
-  const o = M.overview(state.checkouts, state.incidents);
+  const now = Date.now(), o = M.overview(state.checkouts, state.incidents, now), v = M.verdict(o);
   const byIntent = new Map(state.checkouts.map(c => [c.intentId, c]));
   if (o.checked === 0) {
     clear(main, h('div', { class: 'state' }, h('div', { class: 'state-mark' }, icon('list')), h('h1', {}, 'No checkouts have been checked yet'),
@@ -211,26 +231,27 @@ function renderOverview() {
     return;
   }
   const n = o.open.length;
-  const headline = n === 0 ? 'Every checked payment matches its order.' : `${n} payment${n === 1 ? '' : 's'} need${n === 1 ? 's' : ''} attention.`;
-  const nextDue = o.waiting[0]?.dueAt ?? null;
+  const nextDue = o.insideGrace[0]?.dueAt ?? null;
   clear(main,
-    h('div', { class: 'head' }, h('div', {}, h('h1', {}, headline),
-      h('p', { class: 'lede' }, `OrderTruth compared ${o.checked} checkout${o.checked === 1 ? '' : 's'} with their PayPal captures and store orders. Last check `, agoEl(o.lastCheckedAt), '.'))),
+    h('div', { class: 'head' }, h('div', {}, h('h1', {}, v.headline),
+      h('p', { class: 'lede' }, `OrderTruth compared ${o.checked} checkout${o.checked === 1 ? '' : 's'} with their PayPal captures and store orders. Last check `, agoEl(o.lastCheckedAt), '. This page shows stored checks; it does not run the checker.'),
+      v.notes.length ? h('ul', { class: 'verdict-notes' }, v.notes.map(x => h('li', {}, x))) : null)),
     h('section', { class: 'panel ov-strip', 'aria-labelledby': 'strip-h' },
       h('div', { class: 'ph' }, h('h2', { id: 'strip-h' }, 'Every checkout, oldest to newest'), h('span', { class: 'sub' }, 'Select a red block to open its incident')),
       h('div', { class: 'strip', role: 'list' }, o.strip.map(s => s.href
         ? h('a', { role: 'listitem', class: s.outcome, href: s.href, 'aria-label': s.label, title: s.label })
         : h('span', { role: 'listitem', class: s.outcome, 'aria-label': s.label, title: s.label }))),
-      h('div', { class: 'strip-legend', 'aria-hidden': 'true' }, h('span', {}, h('i', { class: 'matched' }), 'Matched'), h('span', {}, h('i', { class: 'break' }), 'Duplicate or missing order'), h('span', {}, h('i', { class: 'waiting' }), 'Waiting inside grace'), h('span', {}, h('i', { class: 'neutral' }), 'Not captured or undecided')),
+      h('div', { class: 'strip-legend', 'aria-hidden': 'true' }, h('span', {}, h('i', { class: 'matched' }), 'Matched'), h('span', {}, h('i', { class: 'break' }), 'Duplicate or missing order'), h('span', {}, h('i', { class: 'waiting' }), 'Waiting for an order'), h('span', {}, h('i', { class: 'neutral' }), 'Not captured or undecided')),
       h('div', { class: 'kpis' },
-        h('div', {}, h('small', {}, 'Captured value checked'), h('b', {}, M.money(o.capturedMinor)), h('em', {}, 'from PayPal readbacks')),
+        h('div', {}, h('small', {}, 'Captured value checked'), h('b', {}, M.money(o.capturedMinor)), h('em', {}, `${o.capturedConfirmed} capture${o.capturedConfirmed === 1 ? '' : 's'} confirmed by stored PayPal readbacks${o.capturedUnconfirmed ? `; ${o.capturedUnconfirmed} unconfirmed not counted` : ''}`)),
         h('div', {}, h('small', {}, 'Matched'), h('b', {}, `${o.matched} of ${o.checked}`), h('em', {}, 'one capture, one order')),
         h('div', {}, h('small', {}, 'Open incidents'), h('b', { class: n ? 'break' : '' }, String(n)), h('em', {}, n ? `${M.money(o.atRiskMinor)} in affected payments` : `${o.resolved} resolved`)),
-        h('div', {}, h('small', {}, 'Waiting for an order'), h('b', {}, String(o.waiting.length)), h('em', {}, nextDue ? h('span', {}, 'next deadline ', h('span', { 'data-ago': nextDue }, M.ago(nextDue, Date.now()))) : 'none inside grace')))),
+        h('div', {}, h('small', {}, 'Waiting for an order'), h('b', { class: o.overdue.length ? 'wait' : '' }, String(o.waiting.length)),
+          h('em', {}, o.overdue.length ? `${o.overdue.length} past deadline, not re-checked` : nextDue ? h('span', {}, 'next deadline ', h('span', { 'data-ago': nextDue }, M.ago(nextDue, now))) : 'none inside grace')))),
     h('div', { class: 'ov-grid' },
       h('section', { class: 'panel', 'aria-labelledby': 'att-h' },
         h('div', { class: 'ph' }, h('h2', { id: 'att-h' }, 'Needs attention'), h('span', { class: 'sub' }, 'Open incidents, newest first'), h('div', { class: 'r' }, h('a', { class: 'btn sec sm', href: '/console/incidents' }, 'All incidents'))),
-        n === 0 ? h('p', { class: 'empty' }, 'Nothing needs attention. Resolved incidents stay listed under Incidents.') :
+        n === 0 ? h('p', { class: 'empty' }, o.overdue.length || o.contradictory.length || o.unclear ? 'No open incidents. That is not an all-clear: read the notes above.' : 'No open incidents. Resolved incidents stay listed under Incidents.') :
           h('ul', { class: 'att' }, o.open.map(i => {
             const c = byIntent.get(i.intentId);
             return h('li', {}, h('a', { href: `/console/incidents/${i.id}` },
@@ -240,12 +261,17 @@ function renderOverview() {
           }))),
       h('div', { class: 'stack' },
         h('section', { class: 'panel', 'aria-labelledby': 'wait-h' },
-          h('div', { class: 'ph' }, h('h2', { id: 'wait-h' }, 'Waiting for an order'), h('span', { class: 'sub' }, 'Paid, inside the 5 minute grace')),
+          h('div', { class: 'ph' }, h('h2', { id: 'wait-h' }, 'Waiting for an order'), h('span', { class: 'sub' }, 'Paid, no order at the last check')),
           o.waiting.length === 0 ? h('p', { class: 'empty' }, 'No payment is waiting for its order.') :
-            h('ul', { class: 'wait-list' }, o.waiting.map(c => h('li', {}, icon('clock'),
-              h('div', {}, h('b', {}, `${c.sku} · ${M.money(c.amountMinor, c.currency)}`), h('small', {}, `Captured ${M.clock(c.confirmedAt)} · no order yet`)),
-              h('span', { class: 'due' }, 'deadline ', h('span', { 'data-ago': c.dueAt ?? '' }, M.ago(c.dueAt, Date.now())))))),
-          o.waiting.length ? h('p', { class: 'empty' }, 'This is the last recorded check. The incident opens only when the checker runs again after the deadline.') : null),
+            h('ul', { class: 'wait-list' }, o.waiting.map(c => {
+              const g = M.graceStatus(c, now)!;
+              return h('li', { class: g.phase === 'overdue_unchecked' ? 'overdue' : null }, icon(g.phase === 'overdue_unchecked' ? 'alert' : 'clock'),
+                h('div', {}, h('b', {}, `${c.sku} · ${M.money(c.amountMinor, c.currency)}`), h('small', {}, `${g.label} · confirmed ${M.clock(c.confirmedAt)} · checked ${M.clock(c.evaluatedAt)}`)),
+                h('span', { class: 'due', title: M.utc(c.dueAt) }, g.phase === 'overdue_unchecked' ? 'deadline passed ' : 'deadline ', h('span', { 'data-ago': c.dueAt ?? '' }, M.ago(c.dueAt, now))));
+            })),
+          o.waiting.length ? h('p', { class: 'empty' }, o.overdue.length
+            ? 'A deadline passed after the last recorded check. The order may or may not exist now; nothing is known until the checker runs again. This page never runs it.'
+            : 'This is the last recorded check. The incident opens only if the checker runs again after the deadline and still finds no order.') : null),
         h('section', { class: 'panel', 'aria-labelledby': 'read-h' },
           h('div', { class: 'ph' }, h('h2', { id: 'read-h' }, 'How to read the evidence')),
           h('ul', { class: 'legend-list' },
@@ -268,7 +294,7 @@ function renderIncidents() {
     const f = (['open', 'resolved', 'all'] as const).find(x => x === params().get('filter')) ?? 'open', query = (params().get('q') ?? '').toLowerCase().trim();
     const rows = state.incidents.filter(i => f === 'all' || i.state === f).filter(i => !query || [i.id, M.incidentRef(i.id), i.title, M.KIND_LABEL[i.kind], byIntent.get(i.intentId)?.sku, i.paypalOrderId, i.captureId, i.intentId].join(' ').toLowerCase().includes(query))
       .toSorted((a, b) => Date.parse(b.openedAt) - Date.parse(a.openedAt));
-    clear(body, rows.length === 0 ? h('tr', {}, h('td', { colspan: '5', class: 'empty' }, query ? `No incidents match “${query}”.` : f === 'open' ? 'No open incidents. Every checked payment matches its order, or is still inside its grace period.' : f === 'resolved' ? 'No resolved incidents yet. Resolved incidents appear here after a repair and re-check.' : 'No incidents have been opened for this organization.')) :
+    clear(body, rows.length === 0 ? h('tr', {}, h('td', { colspan: '5', class: 'empty' }, query ? `No incidents match “${query}”.` : f === 'open' ? 'No open incidents. Payments that are waiting, past a deadline without a re-check, undecided or not captured are listed under Checkouts.' : f === 'resolved' ? 'No resolved incidents yet. Resolved incidents appear here after a repair and re-check.' : 'No incidents have been opened for this organization.')) :
       rows.map(i => {
         const c = byIntent.get(i.intentId), href = `/console/incidents/${i.id}`;
         return h('tr', { class: 'go', onclick: (e: Event) => { if (!(e.target as Element).closest('a')) navigate(href); } },
@@ -385,9 +411,14 @@ async function renderIncident(id: string) {
   title(`${M.incidentRef(id)} ${M.KIND_LABEL[d.kind]}`);
   const lens: Lens = M.lensFrom(location.search);
 
-  const headline = d.kind === 'missing' ? 'Payment captured. No order created.' : d.state === 'resolved' ? 'Extra order voided. One payment, one order.' : `One payment captured. ${d.orders.length} orders created.`;
+  const mNow = M.missingNow(d), providerOk = v.provider.trust.startsWith('PAYPAL_API_READBACK');
+  const grace = M.graceLabel(d.missing?.graceMs ?? null);
+  const headline = d.kind === 'missing' ? (mNow === 'late_order' ? 'Order arrived late. Incident kept open.' : 'Payment captured. No order created.') : d.state === 'resolved' ? 'Extra order voided. One payment, one order.' : `One payment captured. ${d.orders.length} orders created.`;
   const lede = d.kind === 'missing'
-    ? `PayPal confirmed ${amount} for ${sku}, and the store still had no order when the grace period ended${d.missing?.dueAt ? ` at ${M.clock(d.missing.dueAt)}` : ''}. Fulfillment may be delayed; this is not proof of a lost payment.`
+    ? `${providerOk ? `A stored PayPal readback confirmed ${amount}` : `The capture of ${amount} is not backed by consistent PayPal evidence`} for ${sku}, and the store had no order when the ${grace} ended${d.missing?.dueAt ? ` at ${M.clock(d.missing.dueAt)}` : ''}. ${mNow === 'late_order'
+      ? `A later check (#${v.latest.seq}) found an order. The incident stays open: a late order does not erase it, and nobody has resolved it.`
+      : mNow === 'still_missing' ? 'The latest check still found no order. Fulfillment may be delayed; this is not proof of a lost payment.'
+      : 'The latest check is inconclusive; re-check before acting. This is not proof of a lost payment.'}`
     : d.state === 'resolved' ? `The buyer paid ${amount} once for ${sku}. The store had created ${d.orders.length} orders; the extra one was voided and OrderTruth re-checked the payment.`
     : `The buyer paid ${amount} once for ${sku}, but the store created ${d.orders.length} live orders. If every order ships, ${d.orders.length - 1 === 1 ? 'one is an extra order' : `${d.orders.length - 1} are extra orders`}.`;
   const pill = d.state === 'resolved' ? statusPill('Resolved and re-checked', 'hold') : st.stage === 'awaiting_approval' ? statusPill('Awaiting approval', 'wait') : st.stage === 'approved' ? statusPill('Approved, not run', 'wait') : statusPill('Open', 'break');
@@ -439,7 +470,7 @@ function ribbon(t: Timeline, d: Detail, live: number, amount: string) {
   grid.append(h('div', { class: 'rb-lane axis' }, 'Time'));
   t.columns.forEach(c => grid.append(h('div', { class: 'rb-cell axis' }, h('b', {}, M.clock(c.at)),
     h('span', { class: `delta${c.delta !== null && c.delta < 1000 ? ' fast' : ''}` }, c.delta === null ? M.day(c.at) : `+${M.duration(c.delta)}`))));
-  const observed = d.kind === 'missing' ? h('span', {}, h('b', {}, 'Observed '), h('span', { class: 'bad' }, 'no store order after the grace period'))
+  const observed = d.kind === 'missing' ? h('span', {}, h('b', {}, 'Observed '), h('span', { class: 'bad' }, 'no store order after the grace period'), M.missingNow(d) === 'late_order' ? '; a later check found one' : null)
     : d.state === 'resolved' ? h('span', {}, h('b', {}, 'Now '), h('span', { class: 'ok' }, `${live} live order after repair`))
     : h('span', {}, h('b', {}, 'Observed '), h('span', { class: 'bad' }, `${live} live orders${d.orders.length > 1 && d.orders[1]!.createdAt && d.orders[0]!.createdAt ? `, created ${M.duration(Date.parse(d.orders[1]!.createdAt) - Date.parse(d.orders[0]!.createdAt))} apart` : ''}`));
   const providerOk = d.view.provider.trust.startsWith('PAYPAL_API_READBACK');
@@ -452,7 +483,7 @@ function ribbon(t: Timeline, d: Detail, live: number, amount: string) {
     h('div', { class: 'rb-foot' },
       h('span', {}, h('b', {}, 'Expected '), 'one live order per capture'),
       observed,
-      h('span', {}, h('b', {}, 'PayPal '), providerOk ? `one completed capture of ${amount}, unchanged` : 'capture evidence unavailable or inconsistent'),
+      h('span', {}, h('b', {}, 'PayPal '), providerOk ? `one completed capture of ${amount} in stored readbacks, not re-read here` : 'capture evidence unavailable or inconsistent'),
       h('span', { class: 'muted' }, 'Columns follow time order; gaps are labelled, not drawn to scale.')));
 }
 function storyPanel(t: Timeline) {
@@ -466,10 +497,13 @@ function ordersPanel(d: Detail, st: Stage, live: number, amount: string) {
   if (d.kind === 'missing') {
     return h('section', { class: 'panel ops', 'aria-labelledby': 'ord-h' },
       h('div', { class: 'ph' }, h('h2', { id: 'ord-h' }, 'Expected order'), h('span', { class: 'sub' }, 'Checked against the store database')),
-      h('p', { class: 'empty' }, 'The store has no order for this payment. OrderTruth will not create one; recovery needs a separate, authorized decision.'),
+      h('p', { class: 'empty' }, M.missingNow(d) === 'late_order'
+        ? 'The store had no order when the grace period ended. A later check found one, so the order now exists, but the incident stays open until someone investigates and records a decision.'
+        : M.missingNow(d) === 'still_missing' ? 'The store had no order for this payment at the latest check. OrderTruth will not create one; recovery needs a separate, authorized decision.'
+        : 'The latest check could not confirm whether an order exists. Re-check before acting. OrderTruth will not create an order.'),
       h('div', { class: 'facts' },
-        h('div', {}, h('small', {}, 'Paid by buyer'), h('b', {}, amount), h('em', {}, 'confirmed by PayPal')),
-        h('div', {}, h('small', {}, 'Store orders'), h('b', {}, String(d.orders.length)), h('em', {}, 'expected 1')),
+        h('div', {}, h('small', {}, 'Paid by buyer'), h('b', {}, amount), h('em', {}, d.view.provider.trust.startsWith('PAYPAL_API_READBACK') ? 'in a stored PayPal readback' : 'PayPal evidence unavailable or inconsistent')),
+        h('div', {}, h('small', {}, 'Store orders now'), h('b', {}, String(d.orders.length)), h('em', {}, 'expected 1')),
         h('div', {}, h('small', {}, 'Latest check'), h('b', {}, d.missing?.lastChecked === 'ORDER_PRESENT' ? 'Order present' : d.missing?.lastChecked === 'MISSING_AFTER_GRACE' ? 'Still missing' : 'Re-check needed'))));
   }
   const extra = Math.max(live - 1, 0);
@@ -488,7 +522,7 @@ function ordersPanel(d: Detail, st: Stage, live: number, amount: string) {
           h('td', {}, decision));
       })))),
     h('div', { class: 'facts' },
-      h('div', {}, h('small', {}, 'Paid by buyer'), h('b', {}, amount), h('em', {}, 'once')),
+      h('div', {}, h('small', {}, 'Paid by buyer'), h('b', {}, amount), h('em', {}, d.view.provider.trust.startsWith('PAYPAL_API_READBACK') ? 'one capture, per stored readback' : 'PayPal evidence unavailable or inconsistent')),
       h('div', {}, h('small', {}, 'Live orders now'), h('b', {}, String(live)), h('em', {}, 'should be 1')),
       h('div', {}, h('small', {}, extra ? 'Duplicated order value' : 'Duplicated order value'), h('b', {}, M.money(extra * (d.amountMinor ?? 0), d.currency)), h('em', {}, extra ? 'if every order ships' : 'nothing extra live'))));
 }
@@ -505,7 +539,7 @@ function contractPanel(d: Detail) {
   return h('section', { class: 'panel eng', 'aria-labelledby': 'con-h' },
     h('div', { class: 'ph' }, h('h2', { id: 'con-h' }, 'Contract check'), h('span', { class: 'sub mono' }, d.view.contract), h('div', { class: 'r' }, evChip('DETERMINISTIC_EVALUATION', `#${o.seq}`))),
     h('div', { class: 'contract' },
-      h('div', {}, h('h3', {}, 'Expected'), h('div', { class: 'big' }, '1 live order'), h('p', {}, 'per completed capture, after a 5 minute grace')),
+      h('div', {}, h('h3', {}, 'Expected'), h('div', { class: 'big' }, '1 live order'), h('p', {}, d.kind === 'missing' ? `per completed capture, after the ${M.graceLabel(d.missing?.graceMs ?? null)}` : 'per completed capture')),
       h('div', {}, h('h3', {}, `At detection · check #${o.seq}`), h('div', { class: 'big bad' }, count(o.count)), h('p', { title: M.utc(o.at) }, `${o.result} · ${M.utc(o.at)}`)),
       h('div', {}, h('h3', {}, `Latest · check #${l.seq || '–'}`), h('div', { class: `big ${l.result === 'HOLDS' ? 'ok' : l.result === 'VIOLATED' ? 'bad' : ''}` }, count(l.count)), h('p', {}, `${l.result} · ${M.utc(l.seq ? l.at : null)}`))),
     h('ul', { class: 'reasons', 'aria-label': 'Rule reasons at detection' }, o.reasons.map(r => h('li', {}, r))));

@@ -2,6 +2,7 @@ import { readFileSync, existsSync } from 'node:fs';
 import { resolve, join } from 'node:path';
 import type { FastifyInstance } from 'fastify';
 import fastifyStatic from '@fastify/static';
+import { ORG_ID } from './repo.ts';
 
 export const CONSOLE_CSP = "default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'";
 const INCIDENT = /^inc_[0-9a-f-]{36}$/;
@@ -27,8 +28,13 @@ export async function mountConsole(app: FastifyInstance, root = resolve('dist/co
   app.get('/console/*', missing);
   // The retired /investigation screen now lives in the console's Engineering lens. Old links keep working.
   const legacyList = async (_req: unknown, reply: import('fastify').FastifyReply) => reply.redirect('/console/incidents');
-  const legacyIncident = async (req: import('fastify').FastifyRequest<{ Params: { id: string } }>, reply: import('fastify').FastifyReply) =>
-    INCIDENT.test(req.params.id) ? reply.redirect(`/console/incidents/${req.params.id}?lens=eng`) : missing(req, reply);
+  // An org in the old link is carried into the console. A malformed or repeated org is rejected, never replaced by a default.
+  const legacyIncident = async (req: import('fastify').FastifyRequest<{ Params: { id: string } }>, reply: import('fastify').FastifyReply) => {
+    if (!INCIDENT.test(req.params.id)) return missing(req, reply);
+    const orgs = new URLSearchParams(req.url.split('?')[1] ?? '').getAll('org');
+    if (orgs.length > 1 || (orgs.length === 1 && !ORG_ID.test(orgs[0]!))) return reply.status(400).type('text/html; charset=utf-8').send(html());
+    return reply.redirect(`/console/incidents/${req.params.id}?lens=eng${orgs.length ? `&org=${orgs[0]}` : ''}`);
+  };
   app.get('/investigation', legacyList);
   app.get('/investigation/', legacyList);
   app.get<{ Params: { id: string } }>('/investigation/:id', legacyIncident);

@@ -4,12 +4,14 @@
 // correlation id. Historical databases are refused, and an existing output is never overwritten.
 //   pnpm console:demo                       seed .work/console-demo/console.sqlite
 //   pnpm console:demo --recheck             re-run the invariant checker on that database (grace can elapse)
-import { existsSync, mkdirSync, realpathSync } from "node:fs";
+import { closeSync, existsSync, lstatSync, mkdirSync, openSync, readSync, realpathSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { randomUUID } from "node:crypto";
 import { parseArgs } from "node:util";
-import { fileURLToPath } from "node:url";
-import { Store } from "../db/store.ts";
+import { fileURLToPath, pathToFileURL } from "node:url";
+import { DatabaseSync } from "node:sqlite";
+import { MIGRATIONS, Store } from "../db/store.ts";
+import { DEFAULT_MISSING_ORDER_GRACE_MS } from "./missing-order.ts";
 import { InvariantChecker, type IntentCheck } from "./checker.ts";
 import { injectDuplicateOrderRace } from "./fault-injection.ts";
 import { ReferenceMerchant } from "./reference-merchant.ts";
@@ -61,18 +63,59 @@ export async function seedConsoleDemo(store: Store, now = Date.now(), scenarios 
 
 function refuse(m: string): never { console.error(`console demo refused: ${m}`); process.exit(2); }
 
+const PROTECTED_PATHS = () => PROTECTED.map(x => resolve(x));
+const same = (a: string, b: string) => a.toLowerCase() === b.toLowerCase();
+const real = (p: string) => { try { return realpathSync(p); } catch { return null; } };
+function isProtected(p: string, protectedPaths: string[]) {
+  const rp = real(p);
+  return protectedPaths.some(x => same(resolve(p), resolve(x)) || (rp !== null && real(x) !== null && same(rp, real(x)!)));
+}
+const identity = (p: string) => { const s = lstatSync(p); return `${s.dev}:${s.ino}:${s.size}:${s.mtimeMs}`; };
+export type RecheckPreflight = { ok: true; path: string; identity: string } | { ok: false; reason: string };
+/** Strictly read-only gate for --recheck. Runs before anything opens the file for writing (Store migrates
+ * on open), and fails closed on any target that is not a current, synthetic console demo database. */
+export function preflightDemoRecheck(target: string, protectedPaths = PROTECTED_PATHS()): RecheckPreflight {
+  const no = (reason: string): RecheckPreflight => ({ ok: false, reason });
+  const path = resolve(target);
+  if (isProtected(path, protectedPaths)) return no("refusing protected historical database");
+  let st; try { st = lstatSync(path); } catch { return no("database not found; seed it first"); }
+  if (st.isSymbolicLink() || !st.isFile()) return no("target is not a regular file (directories and links are refused)");
+  const head = Buffer.alloc(16), fd = openSync(path, "r");
+  try { if (readSync(fd, head, 0, 16, 0) < 16) return no("target is not a SQLite database"); } finally { closeSync(fd); }
+  if (head.toString("latin1") !== "SQLite format 3\0") return no("target is not a SQLite database");
+  // A live WAL pair is opened read-only as is; otherwise immutable=1 so SQLite creates no -wal or -shm file.
+  const wal = existsSync(`${path}-wal`), shm = existsSync(`${path}-shm`);
+  if (wal !== shm) return no("database has a partial write-ahead log; stop other processes and retry");
+  const url = pathToFileURL(path); url.searchParams.set(wal ? "mode" : "immutable", wal ? "ro" : "1");
+  let db: DatabaseSync;
+  try { db = new DatabaseSync(url, { readOnly: true }); } catch { return no("database is malformed or unreadable"); }
+  try {
+    const one = <T>(sql: string, ...args: string[]) => db.prepare(sql).get(...args) as T;
+    if (one<{ quick_check: string }>("PRAGMA quick_check").quick_check !== "ok") return no("database is malformed or unreadable");
+    const tables = new Set((db.prepare("SELECT name FROM sqlite_master WHERE type='table'").all() as Array<{ name: string }>).map(r => r.name));
+    if (!["schema_migrations", "checkout_intents", "payment_attempts", "evidence"].every(t => tables.has(t))) return no("not an OrderTruth database; recheck only runs on a console demo database");
+    const v = one<{ n: number; v: number | null }>("SELECT COUNT(*) n, MAX(version) v FROM schema_migrations");
+    if (v.n !== MIGRATIONS.length || v.v !== MIGRATIONS.length) return no(`schema version ${v.v ?? 0} does not match this build (${MIGRATIONS.length}); refusing to migrate`);
+    if (one<{ n: number }>("SELECT COUNT(*) n FROM checkout_intents").n === 0) return no("database has no checkouts; recheck only runs on a seeded console demo database");
+    if (one<{ n: number }>("SELECT COUNT(*) n FROM checkout_intents WHERE correlation_id <> ?", CONSOLE_DEMO_CORRELATION).n > 0) return no("database holds a non-demo checkout; recheck only runs on a console demo database");
+    if (one<{ n: number }>("SELECT COUNT(*) n FROM payment_attempts WHERE (paypal_order_id IS NOT NULL AND paypal_order_id NOT GLOB 'DEMO*') OR (capture_id IS NOT NULL AND capture_id NOT GLOB 'DEMOCAP*')").n > 0) return no("database holds a non-demo PayPal identifier; refusing");
+    if (one<{ n: number }>("SELECT COUNT(*) n FROM evidence WHERE evidence_class IN ('PAYPAL_API_READBACK','PAYPAL_API_RESPONSE','PAYPAL_VERIFIED_WEBHOOK') AND correlation_id <> ?", CONSOLE_DEMO_CORRELATION).n > 0) return no("database holds non-demo PayPal evidence; refusing");
+    if (tables.has("webhook_deliveries") && one<{ n: number }>("SELECT COUNT(*) n FROM webhook_deliveries").n > 0) return no("database holds webhook deliveries; not a console demo database");
+  } catch { return no("database is malformed or unreadable"); } finally { db.close(); }
+  return { ok: true, path, identity: identity(path) };
+}
+
 async function main() {
   const { values: a } = parseArgs({ options: { out: { type: "string", default: ".work/console-demo/console.sqlite" }, recheck: { type: "boolean", default: false } } });
   const out = resolve(a.out!);
-  const isProtected = (p: string) => PROTECTED.some(x => p.toLowerCase() === resolve(x).toLowerCase() || (existsSync(p) && existsSync(resolve(x)) && realpathSync(p).toLowerCase() === realpathSync(resolve(x)).toLowerCase()));
-  if (isProtected(out)) refuse("refusing protected historical database");
+  if (isProtected(out, PROTECTED_PATHS())) refuse("refusing protected historical database");
   if (a.recheck) {
-    if (!existsSync(out)) refuse("database not found; seed it first");
+    const pre = preflightDemoRecheck(out);
+    if (!pre.ok) refuse(pre.reason);
+    // Narrow the gap between the read-only check and the writable open: the file must be the one just checked.
+    if (identity(out) !== pre.identity) refuse("database changed during preflight; retry");
     const store = new Store(out);
-    try {
-      if (!new MerchantRepo(store).listIntentIds(REFERENCE_ORG).every(id => store.db.prepare("SELECT correlation_id c FROM checkout_intents WHERE id=?").get(id)?.c === CONSOLE_DEMO_CORRELATION)) refuse("recheck only runs on a console demo database");
-      report(out, new InvariantChecker(store).evaluateAll(REFERENCE_ORG).checks);
-    } finally { store.close(); }
+    try { report(out, new InvariantChecker(store).evaluateAll(REFERENCE_ORG).checks); } finally { store.close(); }
     return;
   }
   for (const p of [out, `${out}-wal`, `${out}-shm`]) if (existsSync(p)) refuse(`${p} exists; refusing to overwrite (move it away or pass --out)`);
@@ -93,7 +136,7 @@ function report(out: string, checks: IntentCheck[]) {
   console.log(`  pnpm repair plan --db "${out}" --org org_reference --incident <inc_id> --requester "<your name>"`);
   console.log(`  pnpm repair approve --db "${out}" --org org_reference --plan <rp_id> --plan-sha256 <sha> --operator "<your name>"`);
   console.log(`  pnpm repair execute --db "${out}" --org org_reference --plan <rp_id>`);
-  console.log(`\nRe-run checks after the 5 minute grace: pnpm console:demo --recheck --out "${out}"`);
+  console.log(`\nRe-run checks after the ${DEFAULT_MISSING_ORDER_GRACE_MS / MIN} min grace period: pnpm console:demo --recheck --out "${out}"`);
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) await main();

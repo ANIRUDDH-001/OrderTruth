@@ -1,6 +1,6 @@
 /** Pure console model: parsing, derivation and formatting. No DOM and no network here, so it is unit-tested directly. */
 import { mapIncident, object, type View } from './evidence.ts';
-import { INCIDENT_PATTERN } from './api.ts';
+import { INCIDENT_PATTERN, ORG_PATTERN } from './api.ts';
 
 type Obj = Record<string, unknown>;
 const list = (v: unknown): unknown[] => Array.isArray(v) && v.length <= 1000 ? v : [];
@@ -67,6 +67,10 @@ export type Checkout = {
   intentId: string; seq: number; sku: string; amountMinor: number | null; currency: string; createdAt: string | null;
   result: Result; outcome: Outcome; orders: number; orderIds: string[]; paypalOrderId: string | null; captureId: string | null;
   attemptState: string | null; evaluatedAt: string; dueAt: string | null; confirmedAt: string | null; reasons: string[]; incidentId: string | null;
+  /** Grace the checker actually applied, from the stored evaluation facts. Null when none was stored. */
+  graceMs: number | null;
+  /** True only when the stored rule check relied on a persisted PayPal readback confirming this capture. */
+  readbackConfirmed: boolean;
 };
 export function outcomeOf(result: Result, orders: number, attemptState: string | null, dueAt: string | null): Outcome {
   if (result === 'HOLDS') return 'matched';
@@ -84,10 +88,12 @@ export function parseCheckouts(raw: unknown, org: string): Checkout[] {
     const att = object(object(f.repairFacts).attempt);
     const seq = int(e.seq), orders = int(e.activeOrderCount), evaluatedAt = validTime(e.evaluatedAt), intentId = str(e.intentId);
     if (seq === null || orders === null || orders < 0 || !evaluatedAt || !intentId || !/^ci_[0-9a-f-]{36}$/.test(intentId) || !RESULTS.includes(e.result as Result)) return [];
-    const result = e.result as Result, attemptState = str(f.attemptState) ?? str(att.state), dueAt = validTime(mo.dueAt);
+    const result = e.result as Result, attemptState = str(f.attemptState) ?? str(att.state), dueAt = validTime(mo.dueAt), graceMs = int(mo.graceMs);
+    // HOLDS and VIOLATED are only reachable when the newest readback confirms the capture; a waiting check lists its confirming readbacks.
+    const readbackConfirmed = result === 'HOLDS' || result === 'VIOLATED' || list(f.confirmingReadbackSeqs).length > 0;
     return [{ intentId, seq, sku: str(c.sku) ?? 'Unknown item', amountMinor: int(amount.minor), currency: str(amount.currency) ?? 'USD', createdAt: validTime(c.createdAt),
       result, outcome: outcomeOf(result, orders, attemptState, dueAt), orders, orderIds: strs(f.matchingOrderIds), paypalOrderId: str(f.paypalOrderId) ?? str(att.paypal_order_id), captureId: str(f.captureId) ?? str(att.capture_id),
-      attemptState, evaluatedAt, dueAt, confirmedAt: validTime(mo.confirmedAt), reasons: strs(e.reasons), incidentId: null }];
+      attemptState, evaluatedAt, dueAt, confirmedAt: validTime(mo.confirmedAt), reasons: strs(e.reasons), incidentId: null, graceMs: graceMs !== null && graceMs > 0 ? graceMs : null, readbackConfirmed }];
   });
 }
 
@@ -115,27 +121,76 @@ export function linkIncidents(checkouts: Checkout[], incidents: IncidentSummary[
   });
 }
 
+/* ---------------- grace ---------------- */
+/** "5 min grace period", from the grace the checker stored. Never assumes the default. */
+export const graceLabel = (ms: number | null) => ms === null ? 'grace period' : `${duration(ms)} grace period`;
+export type GracePhase = 'inside' | 'overdue_unchecked' | 'rechecked_after_deadline';
+export type Grace = { phase: GracePhase; dueAt: string; graceMs: number | null; label: string; note: string };
+/** Where a paid checkout stands against its persisted deadline, judged from the latest stored check. Never runs a check. */
+export function graceStatus(c: Checkout, now: number): Grace | null {
+  if (!c.dueAt) return null;
+  const due = Date.parse(c.dueAt), grace = graceLabel(c.graceMs);
+  if (c.outcome === 'waiting') return now < due
+    ? { phase: 'inside', dueAt: c.dueAt, graceMs: c.graceMs, label: `Inside the ${grace}`, note: 'No order yet. The last recorded check was inside the grace period.' }
+    : { phase: 'overdue_unchecked', dueAt: c.dueAt, graceMs: c.graceMs, label: 'Deadline passed, not re-checked', note: 'The deadline passed after the last recorded check. Nothing is known about the order until the checker runs again.' };
+  if (Date.parse(c.evaluatedAt) >= due) return { phase: 'rechecked_after_deadline', dueAt: c.dueAt, graceMs: c.graceMs, label: 'Re-checked after the deadline', note: c.outcome === 'missing' ? 'Checked after the deadline: still no order.' : 'Checked after the deadline.' };
+  return null;
+}
+
 /* ---------------- overview ---------------- */
 export type Overview = {
-  checked: number; capturedMinor: number; matched: number; open: IncidentSummary[]; resolved: number; atRiskMinor: number;
-  waiting: Checkout[]; unpaid: number; unclear: number; lastCheckedAt: string | null; strip: Array<{ intentId: string; outcome: Outcome; label: string; href: string | null }>;
+  checked: number; capturedMinor: number; capturedConfirmed: number; capturedUnconfirmed: number; matched: number; open: IncidentSummary[]; resolved: number; atRiskMinor: number;
+  waiting: Checkout[]; insideGrace: Checkout[]; overdue: Checkout[]; unpaid: number; unclear: number; contradictory: Checkout[]; lastCheckedAt: string | null;
+  strip: Array<{ intentId: string; outcome: Outcome; label: string; href: string | null }>;
 };
-export function overview(checkouts: Checkout[], incidents: IncidentSummary[]): Overview {
+export function overview(checkouts: Checkout[], incidents: IncidentSummary[], now = Date.now()): Overview {
   const byIntent = new Map(checkouts.map(c => [c.intentId, c]));
   const open = incidents.filter(i => i.state === 'open').toSorted((a, b) => Date.parse(b.openedAt) - Date.parse(a.openedAt));
+  const openIntents = new Set(open.map(i => i.intentId));
+  const waiting = checkouts.filter(c => c.outcome === 'waiting').toSorted((a, b) => Date.parse(a.dueAt!) - Date.parse(b.dueAt!));
+  const overdue = waiting.filter(c => graceStatus(c, now)?.phase === 'overdue_unchecked');
+  const confirmed = checkouts.filter(c => c.readbackConfirmed);
   return {
     checked: checkouts.length,
-    capturedMinor: checkouts.filter(c => c.attemptState === 'captured').reduce((n, c) => n + (c.amountMinor ?? 0), 0),
+    // Only captures that a stored PayPal readback confirmed. Local attempt state alone is not counted.
+    capturedMinor: confirmed.reduce((n, c) => n + (c.amountMinor ?? 0), 0),
+    capturedConfirmed: confirmed.length,
+    capturedUnconfirmed: checkouts.filter(c => c.attemptState === 'captured' && !c.readbackConfirmed).length,
     matched: checkouts.filter(c => c.outcome === 'matched').length,
     open, resolved: incidents.filter(i => i.state === 'resolved').length,
     atRiskMinor: open.reduce((n, i) => n + (byIntent.get(i.intentId)?.amountMinor ?? 0), 0),
-    waiting: checkouts.filter(c => c.outcome === 'waiting').toSorted((a, b) => Date.parse(a.dueAt!) - Date.parse(b.dueAt!)),
+    waiting, overdue, insideGrace: waiting.filter(c => !overdue.includes(c)),
     unpaid: checkouts.filter(c => c.outcome === 'unpaid').length,
     unclear: checkouts.filter(c => c.outcome === 'unclear').length,
+    // The latest check says the rule is broken, yet no open incident exists for it: the two records disagree.
+    contradictory: checkouts.filter(c => (c.outcome === 'duplicate' || c.outcome === 'missing') && !openIntents.has(c.intentId)),
     lastCheckedAt: checkouts.map(c => c.evaluatedAt).toSorted().at(-1) ?? null,
     strip: checkouts.toSorted((a, b) => Date.parse(a.createdAt ?? a.evaluatedAt) - Date.parse(b.createdAt ?? b.evaluatedAt))
-      .map(c => ({ intentId: c.intentId, outcome: c.outcome, label: `${c.sku}, ${money(c.amountMinor, c.currency)}: ${OUTCOME[c.outcome].label}`, href: c.incidentId ? `/console/incidents/${c.incidentId}` : null })),
+      .map(c => ({ intentId: c.intentId, outcome: c.outcome, label: `${c.sku}, ${money(c.amountMinor, c.currency)}: ${overdue.includes(c) ? 'Deadline passed, not re-checked' : OUTCOME[c.outcome].label}`, href: c.incidentId ? `/console/incidents/${c.incidentId}` : null })),
   };
+}
+const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
+const be = (n: number) => n === 1 ? 'is' : 'are';
+export type Verdict = { tone: Tone; headline: string; notes: string[] };
+/** The Overview headline. An all-clear is only claimed when every checked checkout matched. */
+export function verdict(o: Overview): Verdict {
+  const notes: string[] = [];
+  const n = o.open.length;
+  if (o.contradictory.length) notes.push(`${plural(o.contradictory.length, 'checkout')} ${o.contradictory.length === 1 ? 'fails' : 'fail'} the rule but ${o.contradictory.length === 1 ? 'has' : 'have'} no open incident. The records disagree; investigate before trusting this page.`);
+  if (o.overdue.length) notes.push(`${plural(o.overdue.length, 'payment')} passed the grace deadline after the last check. Whether an order arrived is unknown until the checker runs again.`);
+  if (o.insideGrace.length) notes.push(`${plural(o.insideGrace.length, 'payment')} ${be(o.insideGrace.length)} still inside the grace period with no order yet.`);
+  if (o.unclear) notes.push(`${plural(o.unclear, 'check')} could not decide. Read the reasons under Checkouts.`);
+  if (o.unpaid) notes.push(`${plural(o.unpaid, 'checkout')} ${o.unpaid === 1 ? 'was' : 'were'} not captured, so no order is expected.`);
+  if (o.capturedUnconfirmed) notes.push(`${plural(o.capturedUnconfirmed, 'capture')} ${be(o.capturedUnconfirmed)} recorded locally without a confirming PayPal readback and ${be(o.capturedUnconfirmed)} not counted as checked value.`);
+  if (o.resolved) notes.push(`${plural(o.resolved, 'incident')} resolved earlier ${o.resolved === 1 ? 'stays' : 'stay'} on record under Incidents.`);
+  if (n) return { tone: 'break', headline: `${plural(n, 'payment')} need${n === 1 ? 's' : ''} attention.`, notes };
+  if (o.contradictory.length) return { tone: 'break', headline: 'Rule checks and incidents disagree.', notes };
+  if (o.overdue.length) return { tone: 'wait', headline: `No open incidents, but ${plural(o.overdue.length, 'payment')} ${be(o.overdue.length)} overdue for a re-check.`, notes };
+  if (o.insideGrace.length) return { tone: 'wait', headline: `No open incidents. ${plural(o.insideGrace.length, 'payment')} ${be(o.insideGrace.length)} still waiting for an order.`, notes };
+  if (o.unclear) return { tone: 'neutral', headline: `No open incidents, but ${plural(o.unclear, 'check')} could not decide.`, notes };
+  if (o.matched === 0) return { tone: 'neutral', headline: 'No captured payments to match yet.', notes };
+  if (o.matched === o.checked) return { tone: 'hold', headline: 'Every checked payment matches its order.', notes };
+  return { tone: 'hold', headline: `Every captured payment matches its order (${o.matched} of ${o.checked} checkouts).`, notes };
 }
 
 /* ---------------- incident detail ---------------- */
@@ -149,7 +204,7 @@ export type Resolution = { executionId: string; at: string; postcondition: { res
 export type Detail = {
   view: View; kind: IncidentKind; state: 'open' | 'resolved'; amountMinor: number | null; currency: string; orders: OrderRow[]; evidence: EvidenceRow[];
   plans: Plan[]; approvals: Approval[]; executions: Execution[]; resolutions: Resolution[]; records: RepairRecord[];
-  missing: { dueAt: string | null; confirmedAt: string | null; impact: string; nextAction: string; lastChecked: string } | null;
+  missing: { dueAt: string | null; confirmedAt: string | null; graceMs: number | null; impact: string; nextAction: string; lastChecked: string } | null;
   reproduction: { cause: string; mechanism: string | null; reproduce: string[]; note: string | null };
   separationOfDuties: boolean;
 };
@@ -186,11 +241,15 @@ export function parseDetail(raw: unknown, org: string): Detail {
   const reproduce = str(rep.reproduce);
   return {
     view, kind: kindOf(r.class), state: r.state === 'resolved_verified' && resolutions.length > 0 ? 'resolved' : 'open', amountMinor, currency: 'USD', orders, evidence, plans, approvals, executions, resolutions, records: repairRecords(history),
-    missing: mo ? { dueAt: validTime(opening.dueAt), confirmedAt: validTime(opening.confirmedAt), impact: str(object(mo.impact).description) ?? '', nextAction: str(mo.nextAction) ?? '', lastChecked: str(mo.lastCheckedCondition) ?? 'RECHECK_REQUIRED' } : null,
+    missing: mo ? { dueAt: validTime(opening.dueAt), confirmedAt: validTime(opening.confirmedAt), graceMs: (int(opening.graceMs) ?? 0) > 0 ? int(opening.graceMs) : null, impact: str(object(mo.impact).description) ?? '', nextAction: str(mo.nextAction) ?? '', lastChecked: str(mo.lastCheckedCondition) ?? 'RECHECK_REQUIRED' } : null,
     reproduction: { cause: str(rep.cause) ?? 'UNKNOWN', mechanism: str(rep.mechanism), reproduce: reproduce ? reproduce.split(/\s+or\s+/).map(x => x.replace(/\s*\([^)]*\)\s*$/, '').trim()).filter(Boolean) : [], note: str(rep.note) },
     separationOfDuties: history.separationOfDutiesEnforced === true,
   };
 }
+
+/** For a missing-order incident: what the latest stored check says now. The incident itself stays open either way. */
+export type MissingNow = 'late_order' | 'still_missing' | 'recheck';
+export const missingNow = (d: Detail): MissingNow | null => !d.missing ? null : d.missing.lastChecked === 'ORDER_PRESENT' ? 'late_order' : d.missing.lastChecked === 'MISSING_AFTER_GRACE' ? 'still_missing' : 'recheck';
 
 /* ---------------- evidence scope and stored repair records ---------------- */
 /** What each evidence class can and cannot establish. Shown beside every record so nobody over-reads it. */
@@ -295,7 +354,7 @@ export function buildTimeline(d: Detail, checkout: Checkout | null): Timeline {
       story: extra ? `The store created a second order, ${shortId(o.id)}, for the same payment via the ${pathPhrase(o.path)}.` : `The store created order ${shortId(o.id)} via the ${pathPhrase(o.path)}.` });
     if (o.voidedAt) push({ key: `void:${o.id}`, at: o.voidedAt, lane: 'store', title: 'Extra order voided', detail: shortId(o.id), mark: 'hold', tag: tag('LOCAL_REPAIR_RECORD'), story: `Order ${shortId(o.id)} was voided in the store. PayPal was not contacted.` });
   });
-  if (d.missing?.dueAt) push({ key: 'due', at: d.missing.dueAt, lane: 'store', title: 'Grace period ended', detail: 'Still no order', mark: 'break', tag: null, story: 'The five-minute grace period ended and the store still had no order for this payment.' });
+  if (d.missing?.dueAt) push({ key: 'due', at: d.missing.dueAt, lane: 'store', title: 'Grace period ended', detail: 'Still no order', mark: 'break', tag: null, story: `The ${graceLabel(d.missing.graceMs)} ended and the store still had no order for this payment.` });
   const o = d.view.opening;
   push(o.seq > 0 && { key: 'open', at: o.at, lane: 'ordertruth', title: d.kind === 'missing' ? 'Rule broken: paid, no order' : `Rule broken: 1 capture, ${o.count ?? '?'} orders`, detail: `Incident opened · check #${o.seq}`, mark: 'break', tag: tag('DETERMINISTIC_EVALUATION', `#${o.seq}`),
     story: d.kind === 'missing' ? 'OrderTruth opened an incident: the payment was captured but no order exists.' : `OrderTruth opened an incident: the store allows one order per payment and found ${o.count ?? 'several'}.` });
@@ -317,7 +376,9 @@ export function buildTimeline(d: Detail, checkout: Checkout | null): Timeline {
   }
   if (d.kind === 'missing') {
     const from = ev.findIndex(e => e.lane === 'paypal');
-    if (from >= 0) breaks.push({ from, to: null, label: 'No store order' });
+    // A late order ends the gap in the store lane; the incident itself stays open.
+    const late = ev.findIndex((e, i) => i > from && e.lane === 'store' && e.key.startsWith('o'));
+    if (from >= 0) breaks.push({ from, to: late >= 0 ? late : null, label: 'No store order' });
   }
   return { events: ev, columns, breaks, healedAt: healIdx >= 0 ? healIdx : null, start: ev[0]?.at ?? null, end: ev.at(-1)?.at ?? null };
 }
@@ -366,4 +427,12 @@ export function parseAdvisory(raw: unknown, incidentId: string, org: string): Ad
 }
 export type Lens = 'ops' | 'eng';
 export const lensFrom = (search: string): Lens => new URLSearchParams(search).get('lens') === 'eng' ? 'eng' : 'ops';
+export type UrlScope = { kind: 'none' } | { kind: 'valid'; org: string } | { kind: 'invalid'; reason: string };
+/** The organization a link asks for. Malformed or repeated values are rejected, never replaced by a default. */
+export function scopeFromUrl(search: string): UrlScope {
+  const all = new URLSearchParams(search).getAll('org');
+  if (all.length === 0) return { kind: 'none' };
+  if (all.length > 1) return { kind: 'invalid', reason: 'The link names more than one organization.' };
+  return ORG_PATTERN.test(all[0]!) ? { kind: 'valid', org: all[0]! } : { kind: 'invalid', reason: 'The organization in the link is not a valid scope. Expected org_ followed by lowercase letters, digits or underscores.' };
+}
 export { type View, object, type Obj };
