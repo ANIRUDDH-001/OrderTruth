@@ -53,6 +53,12 @@ describe("verifyCaptureReadback (deterministic verdict)", () => {
   it("pending is not captured", () => {
     expect(verifyCaptureReadback(rb({ id: "C1", status: "PENDING", amount: { currency_code: "USD", value: "1.00" }, status_details: { reason: "RECEIVING_PREFERENCE_MANDATES_MANUAL_ACTION" } }), expected).state).toBe("pending");
   });
+  it.each([undefined, "", "   "])("refuses a completed capture without a usable identity (%j)", id => {
+    const cap = { ...(id === undefined ? {} : { id }), status: "COMPLETED", amount: { currency_code: "USD", value: "1.00" } };
+    const verdict = verifyCaptureReadback(rb(cap), expected);
+    expect(verdict.state).toBe("mismatch");
+    expect(verdict.reasons).toContain("capture id missing or blank");
+  });
   it("declined is denied", () => {
     expect(verifyCaptureReadback(rb({ id: "C1", status: "DECLINED", amount: { currency_code: "USD", value: "1.00" } }), expected).state).toBe("denied");
   });

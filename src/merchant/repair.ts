@@ -1,4 +1,6 @@
-import { createHash, randomUUID } from 'node:crypto';
+import { randomUUID } from 'node:crypto';
+import { canonical, sha256 } from '../domain/canonical.ts';
+export { canonical, sha256 } from '../domain/canonical.ts';
 import { stdin, stdout } from 'node:process';
 import { createInterface } from 'node:readline/promises';
 import type { Store } from '../db/store.ts';
@@ -7,14 +9,6 @@ import { MerchantRepo } from './repo.ts';
 import type { EventRow, DeliveryRow } from '../webhooks/inbox.ts';
 import type { EventSummary } from '../webhooks/event.ts';
 
-/** Sorted keys recursively; arrays retain their deliberately defined order. */
-export function canonical(v: unknown): string {
- if (v === null || typeof v !== 'object') return JSON.stringify(v);
- if (Array.isArray(v)) return `[${v.map(canonical).join(',')}]`;
- const o=v as Record<string,unknown>;
- return `{${Object.keys(o).sort().map(k=>`${JSON.stringify(k)}:${canonical(o[k])}`).join(',')}}`;
-}
-export const sha256=(v:string)=>createHash('sha256').update(v).digest('hex');
 export type RepairPlan = {
  id:string; organization_id:string; incident_id:string; intent_id:string; contract:string; evaluation_seq:number;
  keep_order_id:string; void_order_ids_json:string; cause_at_plan:string; facts_json:string; facts_sha256:string;

@@ -109,6 +109,7 @@ export function verifyCaptureReadback(
   }
   if (captures.length > 1) reasons.push(`multiple captures (${captures.length}) for one intent`);
   const cap = captures[0]!;
+  if (typeof cap.id !== "string" || cap.id.trim().length === 0) reasons.push("capture id missing or blank");
   const captured = parseProviderValue(cap.amount?.value, cap.amount?.currency_code ?? "");
   if (!captured || captured.minor !== expected.amount.minor || captured.currency !== expected.amount.currency) {
     reasons.push("captured amount/currency differs from server-owned intent");

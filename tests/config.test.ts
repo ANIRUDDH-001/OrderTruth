@@ -56,4 +56,10 @@ describe("config", () => {
     expect(errOf({ ...good, AI_PROVIDER: "GEMINI" }).keys).toEqual(["AI_API_KEY"]);
     expect(loadConfig({ ...good, AI_PROVIDER: "GEMINI", AI_API_KEY: "k-123456" }).ai.provider).toBe("gemini");
   });
+  it("never treats a PostgreSQL credential URL as a SQLite filename during migration", () => {
+    const e = errOf({ ...good, DATABASE_URL: "postgresql://owner:private-password@db.example.test/ordertruth" });
+    expect(e.keys).toEqual(["DATABASE_URL"]);
+    expect(e.message).toMatch(/PostgreSQL.*migration/i);
+    expect(e.message).not.toMatch(/private-password|db\.example/);
+  });
 });

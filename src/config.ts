@@ -132,6 +132,9 @@ export function loadConfig(env: Record<string, string | undefined>): AppConfig {
   }
 
   const dbUrl = e.DATABASE_URL;
+  if (/^postgres(?:ql)?:/i.test(dbUrl)) {
+    throw new ConfigError("PostgreSQL application migration is not complete; this legacy command accepts a SQLite file path only", ["DATABASE_URL"]);
+  }
   const databasePath = dbUrl.startsWith("file:") ? dbUrl.slice("file:".length) : dbUrl;
 
   return {
