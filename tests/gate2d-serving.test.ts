@@ -14,7 +14,9 @@ it('retired /investigation links redirect into the console; only dedicated asset
   const id='inc_00000000-0000-4000-8000-000000000024';
   try {
     await mountConsole(app,dir);
-    for(const url of [`/investigation/${id}/`,`/investigation/${id}`,`/investigation/${id}/?mode=local&org=org_reference`]) {const r=await app.inject(url);expect(r.statusCode).toBe(302);expect(r.headers.location).toBe(`/console/incidents/${id}?lens=eng`);}
+    for(const url of [`/investigation/${id}/`,`/investigation/${id}`]) {const r=await app.inject(url);expect(r.statusCode).toBe(302);expect(r.headers.location).toBe(`/console/incidents/${id}?lens=eng`);}
+    // Gate 3A: an org in a legacy link is kept (it was dropped before), never silently defaulted.
+    {const r=await app.inject(`/investigation/${id}/?mode=local&org=org_reference`);expect(r.statusCode).toBe(302);expect(r.headers.location).toBe(`/console/incidents/${id}?lens=eng&org=org_reference`);}
     for(const url of ['/investigation','/investigation/','/investigation/?mode=demo']) {const r=await app.inject(url);expect(r.statusCode).toBe(302);expect(r.headers.location).toBe('/console/incidents');}
     const deep=await app.inject(`/console/incidents/${id}`);expect(deep.statusCode).toBe(200);expect(deep.body).toContain('Console');expect(deep.headers['content-security-policy']).toContain("connect-src 'self'");
     expect((await app.inject('/console/assets/ui.js')).statusCode).toBe(200);
