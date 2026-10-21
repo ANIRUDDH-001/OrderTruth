@@ -93,7 +93,8 @@ export class PostgresCheckoutStore {
   }
   /** The provider call must finish before entering here. Observation and its accepted
    * interpretation commit together; this module never makes financial/provider calls. */
-  async recordReadback(attemptId: string, raw: OrderReadback, provenance: ObservationProvenance, meta?: Omit<PayPalCall<unknown>, "body">): Promise<{ accepted: boolean; attempt: AttemptRow }> {
+  async recordReadback(attemptId: string, raw: OrderReadback, provenance: ObservationProvenance, meta?: Omit<PayPalCall<unknown>, "body">,
+    webhook?: { refusal: string | null }): Promise<{ accepted: boolean; attempt: AttemptRow }> {
     if (!["SYNTHETIC_QUALIFICATION", "PAYPAL_SANDBOX_GET"].includes(provenance)) throw new Error("Explicit observation provenance required");
     if (provenance === "PAYPAL_SANDBOX_GET" && !meta) throw new Error("Sandbox readback requires observed HTTP metadata");
     if (meta && meta.httpStatus !== 200) throw new Error("Authoritative readback requires HTTP 200");
@@ -103,8 +104,9 @@ export class PostgresCheckoutStore {
       const at = new Date().toISOString();
       const verdict = verifyCaptureReadback(raw, { orderId: attempt.paypal_order_id,
         amount: { currency: intent.currency, minor: intent.amount_minor }, customId: intent.id });
-      await client.query("INSERT INTO evidence(attempt_id,evidence_class,operation,http_status,correlation_id,summary_json,created_at,paypal_debug_id,request_id,duration_ms) VALUES($1,'PAYPAL_API_READBACK','readback',200,$2,$3,$4,$5,$6,$7)",
-        [attemptId, intent.correlation_id, JSON.stringify({ ...summarizeOrder(raw), provenance }), at, meta?.debugId ?? null, meta?.requestId ?? null, meta?.durationMs ?? null]);
+      await client.query("INSERT INTO evidence(attempt_id,evidence_class,operation,http_status,correlation_id,summary_json,created_at,paypal_debug_id,request_id,duration_ms) VALUES($1,'PAYPAL_API_READBACK',$8,200,$2,$3,$4,$5,$6,$7)",
+        [attemptId, intent.correlation_id, JSON.stringify({ ...summarizeOrder(raw), provenance, ...(webhook ? { webhookAgreement: webhook.refusal ?? "AGREES" } : {}) }), at, meta?.debugId ?? null, meta?.requestId ?? null, meta?.durationMs ?? null, webhook ? "webhook_readback" : "readback"]);
+      if (webhook?.refusal) return { accepted: false, attempt };
       const conflictingIdentity = attempt.capture_id !== null && verdict.captureId !== null && verdict.captureId !== attempt.capture_id;
       const contradictsCapture = attempt.state === "captured" && (verdict.state !== "captured" || verdict.captured?.minor !== attempt.captured_minor || verdict.captured?.currency !== attempt.captured_currency);
       let accepted = false;

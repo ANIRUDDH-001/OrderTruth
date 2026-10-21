@@ -1,4 +1,4 @@
-import type { CheckoutService, Logger } from "../checkout-service.ts";
+import type { Logger } from "../checkout-service.ts";
 import type { OrderReadback } from "../domain/checkout.ts";
 import { PayPalError } from "../paypal/client.ts";
 import type { EventSummary } from "./event.ts";
@@ -24,6 +24,14 @@ export type ProcessorOptions = {
 };
 
 type Decision = { to: Exclude<EventState, "verified_pending" | "processing">; outcome: string; attemptId?: string | null; retry?: boolean };
+type ProcessorInbox = {
+  claimNext(nowMs: number, leaseMs: number): EventRow | undefined | Promise<EventRow | undefined>;
+  finishEvent: (...args: Parameters<WebhookInbox["finishEvent"]>) => boolean | Promise<boolean>;
+};
+type ProcessorCheckout = {
+  ownsOrder(id: string): { attemptId: string; intentId: string } | null | Promise<{ attemptId: string; intentId: string } | null>;
+  readbackIf(id: string, correlationId: string, accept: (raw: OrderReadback) => string | null): Promise<{ applied: boolean; reason: string | null; result: { state: string } }>;
+};
 
 /**
  * A capture event whose readback shows NO capture at all: PayPal may not have made the capture
@@ -72,8 +80,8 @@ export class WebhookProcessor {
   #again = false;
 
   constructor(
-    private readonly inbox: WebhookInbox,
-    private readonly checkout: CheckoutService,
+    private readonly inbox: ProcessorInbox,
+    private readonly checkout: ProcessorCheckout,
     private readonly opts: ProcessorOptions,
   ) {
     this.#now = opts.now ?? Date.now;
@@ -105,7 +113,7 @@ export class WebhookProcessor {
       let n = 0;
       while (n < max) {
         this.#again = false;
-        const row = this.inbox.claimNext(this.#now(), this.#leaseMs);
+        const row = await this.inbox.claimNext(this.#now(), this.#leaseMs);
         if (!row) {
           await Promise.resolve();
           if (this.#again) continue;
@@ -134,7 +142,7 @@ export class WebhookProcessor {
     const next = d.to === "retryable_failure" ? this.#now() + this.backoffMs(row.process_attempts) : 0;
     let ok = false;
     try {
-      ok = this.inbox.finishEvent(row.event_id, row.process_attempts, d.to, { outcome: d.outcome, attemptId: d.attemptId ?? null, nextAttemptAtMs: next });
+      ok = await this.inbox.finishEvent(row.event_id, row.process_attempts, d.to, { outcome: d.outcome, attemptId: d.attemptId ?? null, nextAttemptAtMs: next });
     } catch (err) {
       // Lease stays; it expires and the event is reclaimed. Readback is idempotent, so redoing it is safe.
       this.#log("error", { eventId: row.event_id, evt2: "finish_failed", errName: (err as Error)?.name });
@@ -149,7 +157,7 @@ export class WebhookProcessor {
     if (!HANDLED_TYPES.has(s.event_type)) return { to: "ignored", outcome: `event type ${s.event_type} not handled` };
     const orderId = s.resource.order_id;
     if (!orderId) return { to: "foreign", outcome: "event carries no order id" };
-    const ours = this.checkout.ownsOrder(orderId);
+    const ours = await this.checkout.ownsOrder(orderId);
     if (!ours) return { to: "foreign", outcome: "order not created by this merchant; no readback" };
     if (s.resource.custom_id !== null && s.resource.custom_id !== ours.intentId) {
       return { to: "disagreed", outcome: "event custom_id differs from local intent; no readback", attemptId: ours.attemptId };

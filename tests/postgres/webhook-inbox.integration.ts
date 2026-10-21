@@ -9,6 +9,9 @@ import { EventSchema, summarizeEvent } from "../../src/webhooks/event.ts";
 import { captureEvent, signedHeaders, TEST_WEBHOOK_ID } from "../helpers/webhook-fixtures.ts";
 import { WebhookIntake } from "../../src/webhooks/intake.ts";
 import { silentLogger } from "../fake-paypal.ts";
+import { PostgresCheckoutStore } from "../../src/db/postgres-checkout.ts";
+import { PostgresCheckoutService } from "../../src/postgres-checkout-service.ts";
+import { WebhookProcessor } from "../../src/webhooks/processor.ts";
 
 const env = parseEnv(readFileSync(new URL("../../.work/postgres/.env", import.meta.url), "utf8"));
 if (env.PGHOST !== "127.0.0.1" || env.PGPORT !== "55432" || env.PGDATABASE !== "ordertruth") throw new Error("Managed local PostgreSQL only");
@@ -65,4 +68,25 @@ it("awaits durable acceptance before returning success and returns 503 on a fail
     expect(await inbox.getEvent(failed.id)).toBeUndefined();
     expect((await inbox.getDelivery(result.body.delivery!))?.state).toBe("retryable_failure");
   } finally { await pool.query(`DROP TRIGGER qualification_reject_event ON ${schema}.webhook_events`); }
+});
+it("processes a verified event only after agreeing GET and preserves state on disagreement", async () => {
+  for (;;) { const row = await inbox.claimNext(Date.now(), 1000); if (!row) break; await inbox.finishEvent(row.event_id, row.process_attempts, "ignored", { outcome: "synthetic qualification" }); }
+  const store = new PostgresCheckoutStore(pool, schema);
+  for (const agrees of [true, false]) {
+    const { intent, attempt } = await store.createCheckout(`synthetic-webhook-${randomBytes(8).toString("hex")}`);
+    const order = randomBytes(9).toString("hex").toUpperCase(); const capture = randomBytes(9).toString("hex").toUpperCase();
+    await store.attachOrder(attempt.id, order);
+    const service = new PostgresCheckoutService({
+      createOrder: async () => { throw new Error("Unexpected financial operation"); },
+      captureOrder: async () => { throw new Error("Webhook must never capture"); },
+      getOrder: async () => ({ body: { id: order, intent: "CAPTURE", status: "COMPLETED", purchase_units: [{ custom_id: intent.id, amount: { currency_code: "USD", value: "1.00" },
+        payments: { captures: [{ id: capture, status: "COMPLETED", amount: { currency_code: "USD", value: "1.00" } }] } }] }, httpStatus: 200, debugId: null, requestId: null, correlationId: "synthetic", durationMs: 1 }),
+    }, store, "SYNTHETIC_QUALIFICATION");
+    const s = summarizeEvent(EventSchema.parse(captureEvent({ orderId: order, captureId: capture, customId: intent.id, value: agrees ? "1.00" : "2.00" })));
+    await inbox.acceptVerified(await delivery(s.id), s, { ms: 1, debugId: null }, "synthetic-processor");
+    const processor = new WebhookProcessor(inbox, service, { log: silentLogger() });
+    expect(await processor.drain()).toBe(1);
+    expect((await inbox.getEvent(s.id))?.state).toBe(agrees ? "processed" : "disagreed");
+    expect((await store.byOrder(order)).attempt.state).toBe(agrees ? "captured" : "awaiting_buyer_approval");
+  }
 });

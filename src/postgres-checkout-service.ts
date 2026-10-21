@@ -37,6 +37,14 @@ export class PostgresCheckoutService {
     return { intentId: intent.id, attemptId: attempt.id, orderId: response.body.id, state: "awaiting_buyer_approval" as const, amount, reused: false };
   }
   async readback(id: string) {
+    return (await this.readbackIf(id, "manual", () => null)).result;
+  }
+  async ownsOrder(id: string) {
+    if (!/^[A-Z0-9]{8,36}$/.test(id)) return null;
+    try { const { intent, attempt } = await this.store.byOrder(id); return { intentId: intent.id, attemptId: attempt.id }; }
+    catch (error) { if (error instanceof Error && error.message === "Payment attempt not found") return null; throw error; }
+  }
+  async readbackIf(id: string, correlationId: string, accept: (raw: OrderReadback) => string | null) {
     const { intent, attempt } = await this.store.byOrder(orderId(id));
     let response;
     try { response = await this.provider.getOrder(id, { correlationId: intent.correlation_id }); }
@@ -45,7 +53,10 @@ export class PostgresCheckoutService {
       throw error;
     }
     if (!response.body || typeof response.body !== "object") throw new CheckoutError("provider_mismatch", "Provider readback was not an order", 502);
-    return (await this.store.recordReadback(attempt.id, response.body as OrderReadback, this.provenance, response)).attempt;
+    const raw = response.body as OrderReadback;
+    const reason = accept(raw);
+    const result = await this.store.recordReadback(attempt.id, raw, this.provenance, response, correlationId === "manual" ? undefined : { refusal: reason });
+    return { applied: reason === null && result.accepted, reason: reason ?? (result.accepted ? null : "Conflicting accepted provider identity"), result: result.attempt };
   }
   async capture(id: string) {
     orderId(id);
