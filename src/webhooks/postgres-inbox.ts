@@ -16,6 +16,11 @@ export class PostgresWebhookInbox {
       return action(client);
     });
   }
+  private async lockPayment(client: PoolClient, orderId: string | null) {
+    if (!orderId) return;
+    const row = (await client.query("SELECT intent_id FROM payment_attempts WHERE paypal_order_id=$1 FOR UPDATE", [orderId])).rows[0];
+    if (row) await client.query("SELECT id FROM checkout_intents WHERE id=$1 FOR UPDATE", [row.intent_id]);
+  }
   async recordDelivery(d: { claimedEventId: string | null; claimedEventType: string | null; bodySha256: string; bodyBytes: number; correlationId: string; nowMs: number }): Promise<number> {
     return this.tx(async client => {
       // Bound unauthenticated storage across processes, not just inside one server.
@@ -39,6 +44,7 @@ export class PostgresWebhookInbox {
   }
   async acceptVerified(seq: number, summary: EventSummary, verify: { ms: number; debugId: string | null }, correlationId: string): Promise<"accepted" | "duplicate"> {
     return this.tx(async client => {
+      await this.lockPayment(client,summary.resource.order_id);
       // Serialize the event identity even when it has no row yet. Never reserve
       // an event ID before successful signature verification.
       await client.query("SELECT pg_advisory_xact_lock(hashtextextended($1,0))", [`${this.schema}:webhook:${summary.id}`]);
@@ -60,15 +66,25 @@ export class PostgresWebhookInbox {
   }
   async claimNext(nowMs: number, leaseMs: number): Promise<EventRow | undefined> {
     if (!Number.isSafeInteger(nowMs) || !Number.isSafeInteger(leaseMs) || leaseMs < 1 || !Number.isSafeInteger(nowMs + leaseMs)) throw new Error("Invalid webhook lease clock");
-    return this.tx(async client => (await client.query<EventRow>(`WITH candidate AS (
-      SELECT event_id FROM webhook_events WHERE (state IN('verified_pending','retryable_failure') AND next_attempt_at_ms<=$1)
-        OR (state='processing' AND lease_until_ms<=$1) ORDER BY first_delivery_seq FOR UPDATE SKIP LOCKED LIMIT 1)
-      UPDATE webhook_events e SET state='processing',process_attempts=e.process_attempts+1,lease_until_ms=$2,updated_at=$3
-      FROM candidate c WHERE e.event_id=c.event_id RETURNING e.*`, [nowMs,nowMs+leaseMs,new Date().toISOString()])).rows[0]);
+    return this.tx(async client => {
+      const candidate = (await client.query<EventRow>(`SELECT * FROM webhook_events WHERE (state IN('verified_pending','retryable_failure') AND next_attempt_at_ms<=$1)
+        OR (state='processing' AND lease_until_ms<=$1) ORDER BY first_delivery_seq LIMIT 1`, [nowMs])).rows[0];
+      if (!candidate) return undefined;
+      // Payment -> intent -> event, shared with repair. Recheck eligibility after
+      // taking the payment lock so a competing worker cannot steal a live lease.
+      await this.lockPayment(client,candidate.order_id);
+      return (await client.query<EventRow>(`UPDATE webhook_events SET state='processing',process_attempts=process_attempts+1,lease_until_ms=$2,updated_at=$3
+        WHERE event_id=$4 AND ((state IN('verified_pending','retryable_failure') AND next_attempt_at_ms<=$1) OR (state='processing' AND lease_until_ms<=$1)) RETURNING *`, [nowMs,nowMs+leaseMs,new Date().toISOString(),candidate.event_id])).rows[0];
+    });
   }
   async finishEvent(eventId: string, leaseAttempt: number, to: Exclude<EventState,"verified_pending" | "processing">, o: { outcome: string; attemptId?: string | null; nextAttemptAtMs?: number }): Promise<boolean> {
-    return this.tx(async client => (await client.query(`UPDATE webhook_events SET state=$1,outcome=$2,attempt_id=COALESCE($3,attempt_id),next_attempt_at_ms=$4,lease_until_ms=NULL,updated_at=$5
-      WHERE event_id=$6 AND state='processing' AND process_attempts=$7`, [to,o.outcome.slice(0,300),o.attemptId ?? null,o.nextAttemptAtMs ?? 0,new Date().toISOString(),eventId,leaseAttempt])).rowCount === 1);
+    return this.tx(async client => {
+      const event = (await client.query<EventRow>("SELECT * FROM webhook_events WHERE event_id=$1", [eventId])).rows[0];
+      if (!event) return false;
+      await this.lockPayment(client,event.order_id);
+      return (await client.query(`UPDATE webhook_events SET state=$1,outcome=$2,attempt_id=COALESCE($3,attempt_id),next_attempt_at_ms=$4,lease_until_ms=NULL,updated_at=$5
+        WHERE event_id=$6 AND state='processing' AND process_attempts=$7`, [to,o.outcome.slice(0,300),o.attemptId ?? null,o.nextAttemptAtMs ?? 0,new Date().toISOString(),eventId,leaseAttempt])).rowCount === 1;
+    });
   }
   async abandonStale(olderThanMs: number): Promise<number> {
     return this.tx(async client => (await client.query("UPDATE webhook_deliveries SET state='abandoned',reason='open at restart; provider must redeliver',updated_at=$1 WHERE state='received_unverified' AND received_at_ms<=$2", [new Date().toISOString(),olderThanMs])).rowCount ?? 0);

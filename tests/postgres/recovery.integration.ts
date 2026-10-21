@@ -8,6 +8,9 @@ import { PostgresCheckoutStore } from "../../src/db/postgres-checkout.ts";
 import { PostgresRecoveryService } from "../../src/merchant/postgres-recovery.ts";
 import Fastify from "fastify";
 import { registerPostgresRecoveryApi } from "../../src/merchant/postgres-api.ts";
+import { PostgresWebhookInbox } from "../../src/webhooks/postgres-inbox.ts";
+import { captureEvent } from "../helpers/webhook-fixtures.ts";
+import { EventSchema,summarizeEvent } from "../../src/webhooks/event.ts";
 
 const env = parseEnv(readFileSync(new URL("../../.work/postgres/.env", import.meta.url), "utf8"));
 if (env.PGHOST !== "127.0.0.1" || env.PGPORT !== "55432" || env.PGDATABASE !== "ordertruth") throw new Error("Managed local PostgreSQL only");
@@ -60,6 +63,35 @@ async function fixture() {
   await insert(`mo_${suffix}_1`); await insert(`mo_${suffix}_2`);
   return { intent, attempt, insert, suffix };
 }
+async function verifiedWebhook(f: Awaited<ReturnType<typeof fixture>>) {
+  const attempt = (await pool.query(`SELECT * FROM ${schema}.payment_attempts WHERE id=$1`, [f.attempt.id])).rows[0];
+  const inbox = new PostgresWebhookInbox(pool,schema,"SYNTHETIC_QUALIFICATION");
+  const summary = summarizeEvent(EventSchema.parse(captureEvent({ orderId: attempt.paypal_order_id,captureId: attempt.capture_id,customId: f.intent.id })));
+  const seq = await inbox.recordDelivery({ claimedEventId: summary.id,claimedEventType: summary.event_type,bodySha256: "b".repeat(64),bodyBytes: 100,correlationId: "synthetic-proof",nowMs: Date.now() });
+  await inbox.acceptVerified(seq,summary,{ ms: 1,debugId: "synthetic" },"synthetic-proof");
+  // Other tests in this file do not create webhook events; this is the only due one.
+  const leased = await inbox.claimNext(Date.now(),1000); expect(leased?.event_id).toBe(summary.id);
+  await inbox.finishEvent(summary.id,leased!.process_attempts,"processed",{ outcome: "synthetic agreeing readback",attemptId: f.attempt.id });
+  return { summary,seq };
+}
+it("preserves the complete verified webhook proof during merchant-only repair", async () => {
+  const f = await fixture(); await verifiedWebhook(f);
+  const incident = await recovery.check("org_reference",f.intent.id);
+  const plan = await recovery.plan("org_reference",incident.incidentId!,"qualification-actor");
+  await recovery.approveQualification("org_reference",plan.id,plan.plan_sha256);
+  const receipt = await recovery.execute("org_reference",plan.id);
+  expect(receipt.outcome).toBe("SUCCEEDED");
+  expect(receipt.provider_before_sha256).toBe(receipt.provider_after_sha256);
+  expect((await recovery.verify("org_reference",plan.id)).verifiedCurrent).toBe(true);
+});
+it("refuses a contradictory webhook evidence link instead of repairing through uncertainty", async () => {
+  const f = await fixture(); const event = await verifiedWebhook(f);
+  await pool.query(`ALTER TABLE ${schema}.evidence DISABLE TRIGGER evidence_no_update`);
+  try { await pool.query(`UPDATE ${schema}.evidence SET summary_json=jsonb_set(summary_json::jsonb,'{delivery_seq}','-1'::jsonb)::text WHERE evidence_class='PAYPAL_VERIFIED_WEBHOOK' AND summary_json::jsonb->'event'->>'id'=$1`, [event.summary.id]); }
+  finally { await pool.query(`ALTER TABLE ${schema}.evidence ENABLE TRIGGER evidence_no_update`); }
+  await expect(recovery.check("org_reference",f.intent.id)).rejects.toThrow(/provenance invalid/i);
+  expect((await pool.query(`SELECT count(*)::integer AS n FROM ${schema}.merchant_order_voids v JOIN ${schema}.merchant_orders m ON m.id=v.order_id WHERE m.intent_id=$1`, [f.intent.id])).rows[0].n).toBe(0);
+});
 it("detects a real persisted duplicate and corrects it once with immutable provider evidence", async () => {
   const f = await fixture();
   const incident = await recovery.check("org_reference", f.intent.id);

@@ -7,6 +7,8 @@
 **Audience:** Checkout/payment engineers are initial buyers; merchant operators are first-class users with a complete and independent workflow.  
 **Working thesis:** The payment provider can correctly process money while the merchant's order, inventory, access, or fulfillment state is incorrect.
 
+**Execution amendment — 2026-10-21:** The owner authorized a full hosted interactive application with reproducible local workflow, isolated controlled merchant scenarios referencing genuine immutable Sandbox observations, fresh useful AI, exact session approval and verified merchant-only repair. PostgreSQL must pass the bounded API/concurrency/recovery checkpoint; no payment cloning, paid fallback or hosted viewer substitution. November 7 feature freeze and November 9 video remain delivery checkpoints. See ADR-006 and `docs/POSTGRES_LOCAL.md` for current implementation boundaries; older SQLite/development-header descriptions below are historical design context, not public authentication or hosting claims.
+
 > The intent of this document is to make claims **testable**, risks visible **before coding**, and stop decisions explicit. An impressive but unverified dashboard is failure; a functioning but undifferentiated tester is also failure.
 
 ## 0. Hard facts, open claims, decisions

@@ -1,6 +1,6 @@
-# Local PostgreSQL migration checkpoint
+# Interactive PostgreSQL application
 
-The hosted execution plan is being implemented. This checkpoint does not replace the current application runtime yet. It uses synthetic qualification fixtures only and makes no PayPal or model calls.
+The assembled application runs with pnpm hosted:local (managed loopback database) or pnpm hosted:start (configured persistent PostgreSQL). The opt-in integration suite uses synthetic fixtures and makes no actual PayPal or model calls.
 
 ## Start an isolated database
 
@@ -32,13 +32,34 @@ The ordinary `pnpm check` remains offline. The opt-in PostgreSQL suite exercises
 - concurrent same-plan execution and competing plans;
 - stale facts, actual connection termination before commit, and actual TCP response loss after commit;
 - recurrence and a concurrent late merchant insert, preserving the prior receipt.
+- durable integrity refusals without following corrupted plan references;
+- synthetic provider orchestration with read-before-capture, one durable claim across service instances, and GET-only recovery after response loss;
+- concurrent verified-event deduplication, expired leases, stale-worker refusal, and PostgreSQL-backed webhook intake/processing;
+- maintained guest sessions, expiry/sign-out, origin checks, forged-header refusal and persistent sign-in limits.
 
-All financial observations in these fixtures are explicitly synthetic. Approvals persist `SIMULATED_TEST`; the qualification identity adapter is not real owner/judge authentication. The application has no public qualification/fault endpoint. PostgreSQL recovery routes are not mounted by the legacy runtime.
+All financial observations in these fixtures are explicitly synthetic. Lower-level fixtures label simulated approvals; judge API fixtures exercise maintained sessions and BROWSER_SESSION approval. The application has no public qualification/fault endpoint. PostgreSQL recovery routes are not mounted by the legacy runtime.
 
 ## Remaining migration boundaries
 
-The asynchronous checkout and duplicate-repair slice is under qualification. The real checkout gateway, webhook provenance/processing, scenario-run ownership, maintained session authentication, AI investigation and current console still need wiring and qualification. Webhook-linked recovery fails closed until its PostgreSQL provenance implementation is qualified.
+The asynchronous checkout, webhook and duplicate-repair paths now have local integration coverage. Better Auth 1.7.12 supplies anonymous judge identities and server-side sessions; its five generated tables are an explicit third migration. Authentication must initialize after migration, with its pool search path bound to the owned schema. Public email registration is disabled. Owner authorization requires an explicit server-side allowlist of non-anonymous user IDs; owner:local and owner:setup privately bootstrap a maintained password account with public signup disabled.
 
-Until the application runtime is migrated, legacy commands reject a PostgreSQL `DATABASE_URL` instead of treating credentials as a SQLite filename. For the existing offline console, continue using its explicit synthetic SQLite `--db` workflow documented in the README. Historical SQLite databases are never imported or modified by this checkpoint.
+The judge API now binds maintained sessions to immutable scenario-run ownership, exact browser approval and independently checked receipts. Runs reference the original observation and payment rows; they own only controlled merchant orders and case history. A reset creates a new run. Production admission refuses synthetic source evidence. Diagnostic records expose actual controlled-handler timing, deduplication keys and committed writes; model input excludes injected cause/oracle fields. AI reservations, completed results, usage and error states persist in PostgreSQL. Matching snapshots are explicitly cached, and unavailable AI retains labelled rules-based guidance.
 
-The migration retains explicit PostgreSQL SQL for review rather than translating SQLite statements at runtime. Its 23 base tables and 60 translated guards are followed by four PostgreSQL write-lock/identity guards. Every transaction binds one client; external PayPal/model requests must finish outside that transaction. Hosted correctness must be established separately on the final deployed application.
+Webhook-linked recovery now checks the persisted delivery, evidence and audit chain and binds that graph into its provider hash. Corrupt or contradictory links are refused. This is a consistency check of existing proof, not fresh signature verification. Webhook writers share the payment/intent lock order with repair.
+
+The interactive runtime and judge UI are assembled. Payment-provider tests remain synthetic; genuine Sandbox checkout/signature proof and all deployed-session qualification remain separate gates. Proxy trust and secure-cookie behaviour must be qualified on the actual host before public access.
+
+Legacy commands reject a PostgreSQL `DATABASE_URL` instead of treating credentials as a SQLite filename. For the existing offline console, continue using its explicit synthetic SQLite `--db` workflow documented in the README. Historical SQLite databases are never imported or modified by this checkpoint.
+
+The migration retains explicit PostgreSQL SQL for review rather than translating SQLite statements at runtime. The original 23 tables and 60 translated guards are followed by PostgreSQL identity/write locks, maintained auth tables, immutable scenario references, session approval and bounded investigation records. Every transaction binds one client; external PayPal/model requests must finish outside that transaction. Hosted correctness must be established separately on the final deployed application.
+
+
+## Interactive setup and deployment
+
+After starting the managed database, run `pnpm build:hosted`, `pnpm owner:local`, then `pnpm hosted:local`. Privately open `.work/local-app/.env` to obtain generated owner credentials. They never appear in command output. Local mode preserves the root Neon DSN and historical SQLite data. Do not run the older console on the same port.
+
+For hosting, configure the private Neon DATABASE_URL, HTTPS APP_ORIGIN, random AUTH_SECRET, Sandbox client credentials and free Gemini key/model. Run `pnpm owner:setup` against that database privately before assigning OWNER_USER_ID on the host. Build with `corepack enable && pnpm install --frozen-lockfile && pnpm build:hosted`; start with `pnpm hosted:start`. Use Node22 and Free compute only. No local filesystem is used for committed application records.
+
+AI defaults to60 application reservations/day,3/user/day,one in-flight request and15-second spacing. Account entitlement was user-reported15RPM/250KTPM/500RPD; no guarantee of provider availability is implied. Original model inputs and results are immutable records; reload history is cached and labelled, never fresh. Guest merchant mutations are limited to100/user/day,250/run lifetime and5000/day globally; read-only receipts remain available. Webhook intake has a pre-persistence global token bucket.
+
+Internal qualification boundary: owner capture interrupted after claim but before POST can remain pending; do not recapture through a new checkout or claim full capture crash recovery. Repair commit interruption/replay is independently tested. Genuine Sandbox checkout, genuine webhook verification, proxy behaviour and actual hosted qualification remain release gates. Free Render idle wake-up and shared workspace limits can affect availability; no artificial keep-alive is used.

@@ -6,6 +6,7 @@ import type { IncidentRow, MerchantOrderRow } from "./repo.ts";
 import { CONTRACT_ID, INCIDENT_CLASS, evaluateContract, readbackFact, type PaymentFacts } from "./contract.ts";
 import { canonical, sha256 } from "../domain/canonical.ts";
 import { withTransaction } from "../db/postgres.ts";
+import { postgresWebhookProof } from "../db/postgres-webhook-proof.ts";
 
 type Evidence = { seq: number; evidence_class: string; http_status: number | null; created_at: string; summary_json: string };
 type EffectiveOrder = MerchantOrderRow & { effective_status: string };
@@ -18,9 +19,9 @@ const printable = (value: string): string => {
 
 /** PostgreSQL duplicate-order vertical slice. No provider dependency and no financial actions.
  * Authorization is supplied by the HTTP/session boundary, never by an organization header.
- * Webhook-linked cases fail closed until their provenance port is qualified. */
+ * Webhook-linked cases require consistent persisted verification/evidence/audit proof. */
 export class PostgresRecoveryService {
-  constructor(readonly pool: Pool, readonly schema = "ordertruth") {
+  constructor(readonly pool: Pool, readonly schema = "ordertruth", private readonly scope?: { runId: string; userId: string }) {
     if (schema !== "ordertruth" && !/^qual_[a-f0-9]{20}$/.test(schema)) throw new Error("Invalid OrderTruth schema");
   }
   private transaction<T>(org: string, action: (client: PoolClient) => Promise<T>): Promise<T> {
@@ -35,17 +36,24 @@ export class PostgresRecoveryService {
       WHERE i.id=$1 AND i.organization_id=$2 FOR UPDATE OF a`, [intentId, org])).rows[0];
     if (!attempt) throw new Error("Intent not found for scope");
     await client.query("SELECT id FROM checkout_intents WHERE id=$1 FOR UPDATE", [intentId]);
+    if (this.scope) {
+      const run = await client.query("SELECT id FROM scenario_runs WHERE id=$1 AND user_id=$2 AND payment_attempt_id=$3 FOR UPDATE", [this.scope.runId,this.scope.userId,attempt.id]);
+      if (!run.rowCount) throw new Error("Scenario not found for scope");
+    }
   }
   private async incident(client: PoolClient, org: string, id: string): Promise<IncidentRow> {
-    const incident = (await client.query<IncidentRow>("SELECT * FROM incidents WHERE id=$1 AND organization_id=$2", [id, org])).rows[0];
+    const incident = (await client.query<IncidentRow>(`SELECT x.* FROM incidents x LEFT JOIN scenario_run_incidents r ON r.incident_id=x.id
+      WHERE x.id=$1 AND x.organization_id=$2 AND r.run_id IS NOT DISTINCT FROM $3::text`, [id, org,this.scope?.runId ?? null])).rows[0];
     if (!incident || incident.incident_class !== INCIDENT_CLASS || incident.contract !== CONTRACT_ID) throw new Error("Eligible incident not found for scope");
     await this.lock(client, org, incident.intent_id);
     await client.query("SELECT id FROM incidents WHERE id=$1 FOR UPDATE", [id]);
     return incident;
   }
   private async getPlan(client: PoolClient, org: string, id: string): Promise<RepairPlan> {
-    const p = (await client.query<RepairPlan>("SELECT * FROM repair_plans WHERE id=$1 AND organization_id=$2", [id, org])).rows[0];
+    const p = (await client.query<RepairPlan>(`SELECT p.* FROM repair_plans p LEFT JOIN scenario_run_plans r ON r.plan_id=p.id
+      WHERE p.id=$1 AND p.organization_id=$2 AND r.run_id IS NOT DISTINCT FROM $3::text`, [id, org,this.scope?.runId ?? null])).rows[0];
     if (!p) throw new Error("Plan not found for scope");
+    if (this.scope && !(await client.query("SELECT 1 FROM scenario_runs WHERE id=$1 AND user_id=$2", [this.scope.runId,this.scope.userId])).rowCount) throw new Error("Scenario not found for scope");
     // Corrupt references must not select or lock another case. The plan itself
     // remains the stable operation identity for a durable refusal and replay.
     if (intactPlan(p)) await this.incident(client, org, p.incident_id);
@@ -56,13 +64,12 @@ export class PostgresRecoveryService {
     const intent = (await client.query<IntentRow>("SELECT * FROM checkout_intents WHERE id=$1 AND organization_id=$2", [intentId, org])).rows[0]!;
     const attempt = (await client.query<AttemptRow>("SELECT * FROM payment_attempts WHERE intent_id=$1", [intentId])).rows[0]!;
     const evidence = (await client.query<Evidence>("SELECT * FROM evidence WHERE attempt_id=$1 ORDER BY seq", [attempt.id])).rows;
-    const webhook = await client.query("SELECT 1 FROM webhook_events WHERE attempt_id=$1 OR order_id=$2 LIMIT 1", [attempt.id, attempt.paypal_order_id]);
-    if (webhook.rowCount || evidence.some(e => e.evidence_class === "PAYPAL_VERIFIED_WEBHOOK")) {
-      throw new Error("Webhook-linked recovery is awaiting PostgreSQL provenance qualification");
-    }
+    const webhook = await postgresWebhookProof(client,attempt);
     const orders = (await client.query<EffectiveOrder>(`SELECT m.*,CASE WHEN v.order_id IS NULL THEN m.status ELSE 'voided_duplicate' END AS effective_status
-      FROM merchant_orders m LEFT JOIN merchant_order_voids v ON v.order_id=m.id WHERE m.organization_id=$1 AND m.intent_id=$2 ORDER BY m.created_at,m.id`, [org, intentId])).rows;
-    const voids = (await client.query(`SELECT v.* FROM merchant_order_voids v JOIN merchant_orders m ON m.id=v.order_id WHERE m.organization_id=$1 AND m.intent_id=$2 ORDER BY v.order_id`, [org, intentId])).rows;
+      FROM merchant_orders m LEFT JOIN merchant_order_voids v ON v.order_id=m.id LEFT JOIN scenario_run_orders r ON r.order_id=m.id
+      WHERE m.organization_id=$1 AND m.intent_id=$2 AND r.run_id IS NOT DISTINCT FROM $3::text ORDER BY m.created_at,m.id`, [org, intentId,this.scope?.runId ?? null])).rows;
+    const voids = (await client.query(`SELECT v.* FROM merchant_order_voids v JOIN merchant_orders m ON m.id=v.order_id LEFT JOIN scenario_run_orders r ON r.order_id=m.id
+      WHERE m.organization_id=$1 AND m.intent_id=$2 AND r.run_id IS NOT DISTINCT FROM $3::text ORDER BY v.order_id`, [org, intentId,this.scope?.runId ?? null])).rows;
     const resolution = incident ? (await client.query("SELECT * FROM incident_resolutions WHERE incident_id=$1", [incident.id])).rows[0] ?? null : null;
     const readbacks = evidence.filter(e => e.evidence_class === "PAYPAL_API_READBACK");
     const payment: PaymentFacts = { intentId, intentSku: intent.sku, intentCurrency: intent.currency, intentMinor: intent.amount_minor,
@@ -71,8 +78,8 @@ export class PostgresRecoveryService {
       readbacks: readbacks.map(readbackFact) };
     const evaluation = evaluateContract(payment, orders.map(o => ({ id: o.id, status: o.status, effectiveStatus: o.effective_status,
       attemptId: o.attempt_id, paypalOrderId: o.paypal_order_id, captureId: o.capture_id, sku: o.sku, currency: o.currency, amountMinor: o.amount_minor })));
-    const providerHash = sha256(canonical({ intent, attempt, evidence }));
-    const factsJson = canonical({ contract: CONTRACT_ID, intent, attempt, providerHash, orders, voids, incident, resolution });
+    const providerHash = sha256(canonical({ intent, attempt, evidence, ...(webhook ? { webhook } : {}) }));
+    const factsJson = canonical({ contract: CONTRACT_ID, intent, attempt, providerHash, orders, voids, incident, resolution, scenarioRunId: this.scope?.runId ?? null });
     return { intent, attempt, evidence, orders, resolution, evaluation, providerHash, factsJson };
   }
   private eligible(s: Awaited<ReturnType<PostgresRecoveryService["snapshot"]>>) {
@@ -94,14 +101,15 @@ export class PostgresRecoveryService {
       const s = await this.snapshot(client, org, intent);
       const seq = await this.evaluation(client, org, s, `check_${randomUUID()}`);
       if (s.evaluation.result !== "VIOLATED") return { incidentId: null, result: s.evaluation.result };
-      const active = (await client.query<IncidentRow>(`SELECT x.* FROM incidents x LEFT JOIN incident_resolutions r ON r.incident_id=x.id
-        WHERE x.organization_id=$1 AND x.intent_id=$2 AND x.incident_class=$3 AND r.incident_id IS NULL ORDER BY x.opened_at DESC LIMIT 1`, [org, intent, INCIDENT_CLASS])).rows[0];
+      const active = (await client.query<IncidentRow>(`SELECT x.* FROM incidents x LEFT JOIN incident_resolutions r ON r.incident_id=x.id LEFT JOIN scenario_run_incidents s ON s.incident_id=x.id
+        WHERE x.organization_id=$1 AND x.intent_id=$2 AND x.incident_class=$3 AND r.incident_id IS NULL AND s.run_id IS NOT DISTINCT FROM $4::text ORDER BY x.opened_at DESC LIMIT 1`, [org, intent, INCIDENT_CLASS,this.scope?.runId ?? null])).rows[0];
       if (active) return { incidentId: active.id, result: s.evaluation.result };
       const id = `inc_${randomUUID()}`;
       await client.query(`INSERT INTO incidents(id,organization_id,contract,dedup_key,severity,state,intent_id,attempt_id,paypal_order_id,capture_id,title,opened_by_evaluation_seq,reproduction_json,opened_at,incident_class)
         VALUES($1,$2,$3,$4,'high','open',$5,$6,$7,$8,$9,$10,$11,$12,$13)`, [id, org, CONTRACT_ID, `${org}|${CONTRACT_ID}|${intent}|${id}`, intent,
         s.attempt.id, s.attempt.paypal_order_id, s.attempt.capture_id, `${s.evaluation.activeOrderCount} merchant orders for one recorded capture`, seq,
         canonical({ cause: "UNKNOWN", note: "Merchant anomaly; provider observations retain their explicit provenance" }), new Date().toISOString(), INCIDENT_CLASS]);
+      if (this.scope) await client.query("INSERT INTO scenario_run_incidents(incident_id,run_id) VALUES($1,$2)", [id,this.scope.runId]);
       for (const e of s.evidence.filter(e => s.evaluation.confirmingReadbackSeqs.includes(e.seq))) {
         await client.query("INSERT INTO incident_evidence(incident_id,evidence_class,ref_type,ref_id,source_at,summary_json,linked_at) VALUES($1,'PAYPAL_API_READBACK','evidence',$2,$3,$4,$5)",
           [id, String(e.seq), e.created_at, e.summary_json, new Date().toISOString()]);
@@ -128,6 +136,7 @@ export class PostgresRecoveryService {
       p.plan_sha256 = hashPlan(p);
       const keys = Object.keys(p) as Array<keyof RepairPlan>;
       await client.query(`INSERT INTO repair_plans(${keys.join(",")}) VALUES(${keys.map((_, i) => `$${i + 1}`).join(",")})`, keys.map(k => p[k]));
+      if (this.scope) await client.query("INSERT INTO scenario_run_plans(plan_id,run_id) VALUES($1,$2)", [p.id,this.scope.runId]);
       await this.audit(client, p.id, "PLANNED", { requester: p.requester_name });
       return p;
     });
@@ -138,17 +147,30 @@ export class PostgresRecoveryService {
   /** Qualification fixture approval only. This is never a public authentication substitute. */
   async approveQualification(org: string, id: string, hash: string): Promise<void> {
     if (process.env.NODE_ENV !== "test") throw new Error("Qualification approval is test-only");
+    return this.approve(org,id,hash,false);
+  }
+  /** Caller constructs run scope from a currently validated server-side session. */
+  async approveSession(org: string, id: string, hash: string): Promise<void> {
+    if (!this.scope) throw new Error("Session approval requires an owned scenario");
+    return this.approve(org,id,hash,true);
+  }
+  private async approve(org: string, id: string, hash: string, browser: boolean): Promise<void> {
     return this.transaction(org, async client => {
       const p = await this.getPlan(client, org, id);
       if (hashPlan(p) !== hash || hash !== p.plan_sha256) throw new Error("Exact plan hash required");
+      const previous = (await client.query("SELECT * FROM repair_approvals WHERE plan_id=$1", [id])).rows[0];
+      if (previous) {
+        if (previous.plan_sha256 === hash && (browser ? previous.approval_mode === "BROWSER_SESSION" && previous.session_user_id === this.scope!.userId : previous.approval_mode === "SIMULATED_TEST")) return;
+        throw new Error("Exact plan hash or approval identity differs");
+      }
       if (Date.now() >= Date.parse(p.expires_at)) throw new Error("Plan expired");
       const incident = await this.incident(client, org, p.incident_id);
       const s = await this.snapshot(client, org, incident.intent_id, incident);
       this.eligible(s);
       if (sha256(s.factsJson) !== p.facts_sha256) throw new Error("Plan is stale");
-      await client.query("INSERT INTO repair_approvals(id,plan_id,plan_sha256,operator_name,identity_assurance,approval_mode,approved_at) VALUES($1,$2,$3,'qualification-actor','LOCAL_DEMO_DECLARED_OPERATOR','SIMULATED_TEST',$4)",
-        [`ra_${randomUUID()}`, id, hash, new Date().toISOString()]);
-      await this.audit(client, id, "APPROVED", { mode: "SIMULATED_TEST", authentication: "NONE" });
+      await client.query("INSERT INTO repair_approvals(id,plan_id,plan_sha256,operator_name,identity_assurance,approval_mode,approved_at,session_user_id) VALUES($1,$2,$3,$4,$5,$6,$7,$8)",
+        [`ra_${randomUUID()}`, id, hash, browser ? this.scope!.userId : "qualification-actor",browser ? "SESSION_AUTHENTICATED" : "LOCAL_DEMO_DECLARED_OPERATOR",browser ? "BROWSER_SESSION" : "SIMULATED_TEST",new Date().toISOString(),browser ? this.scope!.userId : null]);
+      await this.audit(client, id, "APPROVED", { mode: browser ? "BROWSER_SESSION" : "SIMULATED_TEST", authentication: browser ? "MAINTAINED_SESSION" : "NONE" });
     });
   }
   async execute(org: string, id: string): Promise<Outcome> {
@@ -182,8 +204,12 @@ export class PostgresRecoveryService {
       await client.query("INSERT INTO repair_transitions VALUES($1,'EXECUTING',$2)", [execution, new Date().toISOString()]);
       const approval = (await client.query("SELECT * FROM repair_approvals WHERE plan_id=$1", [id])).rows[0];
       let outcome: Outcome["outcome"] = "SUCCEEDED";
-      if (!approval || approval.plan_sha256 !== p.plan_sha256 || !["INTERACTIVE_TTY", "SIMULATED_TEST"].includes(approval.approval_mode)
-        || approval.identity_assurance !== "LOCAL_DEMO_DECLARED_OPERATOR" || approval.approved_at < p.created_at || approval.approved_at >= p.expires_at) outcome = "REJECTED_APPROVAL";
+      const browserApproval = approval?.approval_mode === "BROWSER_SESSION" && approval.identity_assurance === "SESSION_AUTHENTICATED"
+        && !!this.scope && approval.session_user_id === this.scope.userId && approval.operator_name === this.scope.userId;
+      const declaredApproval = !this.scope && approval && ["INTERACTIVE_TTY", "SIMULATED_TEST"].includes(approval.approval_mode) && approval.identity_assurance === "LOCAL_DEMO_DECLARED_OPERATOR";
+      if (!approval || approval.plan_sha256 !== p.plan_sha256 || !(browserApproval || declaredApproval)
+        || !Number.isFinite(Date.parse(approval.approved_at)) || Date.parse(approval.approved_at) > Date.now()
+        || approval.approved_at < p.created_at || approval.approved_at >= p.expires_at) outcome = "REJECTED_APPROVAL";
       if (outcome === "SUCCEEDED" && (Date.now() < Date.parse(p.created_at) || Date.now() >= Date.parse(p.expires_at))) outcome = "REJECTED_EXPIRED";
       if (outcome === "SUCCEEDED") {
         try {
@@ -234,11 +260,13 @@ export class PostgresRecoveryService {
           AND m.sku=i.sku AND m.amount_minor=i.amount_minor AND m.currency=i.currency)::integer AS keeper
         FROM merchant_orders m JOIN checkout_intents i ON i.id=m.intent_id JOIN payment_attempts a ON a.intent_id=i.id
         LEFT JOIN merchant_order_voids v ON v.order_id=m.id
-        WHERE m.organization_id=$1 AND m.intent_id=$2 AND m.status='placed' AND v.order_id IS NULL`, [org, p.intent_id, p.keep_order_id])).rows[0];
+        LEFT JOIN scenario_run_orders r ON r.order_id=m.id
+        WHERE m.organization_id=$1 AND m.intent_id=$2 AND m.status='placed' AND v.order_id IS NULL AND r.run_id IS NOT DISTINCT FROM $4::text`, [org, p.intent_id, p.keep_order_id,this.scope?.runId ?? null])).rows[0];
       const intent = (await client.query("SELECT * FROM checkout_intents WHERE id=$1", [p.intent_id])).rows[0];
       const attempt = (await client.query("SELECT * FROM payment_attempts WHERE intent_id=$1", [p.intent_id])).rows[0];
       const evidence = (await client.query("SELECT * FROM evidence WHERE attempt_id=$1 ORDER BY seq", [attempt.id])).rows;
-      const providerUnchanged = sha256(canonical({ intent, attempt, evidence })) === receipt.provider_after_sha256;
+      const webhook = await postgresWebhookProof(client,attempt as AttemptRow);
+      const providerUnchanged = sha256(canonical({ intent, attempt, evidence, ...(webhook ? { webhook } : {}) })) === receipt.provider_after_sha256;
       return { receipt, current: { activeOrders: count.active as number, matchingKeeper: count.keeper as number, providerUnchanged },
         verifiedCurrent: receipt.outcome === "SUCCEEDED" && count.active === 1 && count.keeper === 1 && providerUnchanged };
     });

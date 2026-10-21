@@ -2,7 +2,24 @@
 
 OrderTruth checks one rule for a merchant that takes PayPal payments: **one completed capture must produce exactly one live store order.** When the rule breaks, it opens an incident with linked evidence (a duplicate order, or a missing order after a grace period). For duplicates, it offers a narrow repair that needs an explicit approval and only changes the store's own records, never PayPal.
 
-This is a hackathon-stage local reference build, not a production service. Read [What is not proven](#what-is-not-proven) before relying on anything here.
+The interactive prototype combines isolated merchant scenarios, evidence-grounded AI investigation, exact browser approval and independently checked recovery receipts. Payment observations and controlled merchant faults are labelled separately. Merchant recovery never changes PayPal financial records.
+
+## Interactive application
+
+See [interactive setup](docs/POSTGRES_LOCAL.md) for the PostgreSQL workflow:
+
+```powershell
+pnpm db:local start
+pnpm build:hosted
+pnpm owner:local
+pnpm hosted:local
+```
+
+Open `http://127.0.0.1:3003`. Owner credentials are generated only in ignored `.work/local-app/.env`; open that file privately and use Owner access. Genuine Sandbox checkout requires the owner's manual approval through `/owner/`. Judge admission requires an authoritative captured Sandbox observation; synthetic fixtures cannot satisfy it. Judges work in their own controlled merchant run, with no capture or refund access.
+
+Fresh, cached and unavailable AI states are explicit. The configured free-model allowance is bounded; rules-based guidance and receipt access continue when inference is unavailable. Historical investigations retain the exact evidence originally supplied to the model. Deployment qualification is tracked separately from local tests.
+
+The older offline console below remains available for synthetic exploration; stop it before using the interactive application on the same port.
 
 ## Requirements
 

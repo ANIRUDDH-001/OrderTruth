@@ -98,7 +98,7 @@ const PRODUCTION_HOST_PATTERN = /(^|\.)(api-m\.paypal\.com|api\.paypal\.com|www\
  * Validate configuration from an env-like object. Fails closed on production hosts,
  * non-sandbox environments, and missing credentials. Error messages contain key names only.
  */
-export function loadConfig(env: Record<string, string | undefined>): AppConfig {
+function validateEnvironment(env: Record<string, string | undefined>) {
   const base = env.PAYPAL_API_BASE?.trim();
   if (base) {
     let host = "";
@@ -131,12 +131,19 @@ export function loadConfig(env: Record<string, string | undefined>): AppConfig {
     throw new ConfigError("AI_PROVIDER=gemini requires AI_API_KEY", ["AI_API_KEY"]);
   }
 
+  return e;
+}
+
+export function loadConfig(env: Record<string,string | undefined>): AppConfig {
+  const e = validateEnvironment(env);
   const dbUrl = e.DATABASE_URL;
   if (/^postgres(?:ql)?:/i.test(dbUrl)) {
     throw new ConfigError("PostgreSQL application migration is not complete; this legacy command accepts a SQLite file path only", ["DATABASE_URL"]);
   }
   const databasePath = dbUrl.startsWith("file:") ? dbUrl.slice("file:".length) : dbUrl;
-
+  return { ...sharedConfig(e),databasePath };
+}
+function sharedConfig(e: z.infer<typeof EnvSchema>): Omit<AppConfig,"databasePath"> {
   return {
     paypal: {
       env: "sandbox",
@@ -156,11 +163,28 @@ export function loadConfig(env: Record<string, string | undefined>): AppConfig {
     },
     webhookIngress: { ratePerMinute: e.WEBHOOK_RATE_PER_MIN, rateBurst: e.WEBHOOK_RATE_BURST, maxStoredUnverified: e.WEBHOOK_MAX_STORED_UNVERIFIED },
     ai: { provider: e.AI_PROVIDER, model: e.AI_MODEL, apiKey: e.AI_API_KEY, baseUrl: e.AI_BASE_URL },
-    databasePath,
     port: e.PORT,
     logLevel: e.LOG_LEVEL,
     secrets: [e.PAYPAL_CLIENT_SECRET, e.AI_API_KEY, e.PAYPAL_WEBHOOK_ID].filter((s): s is string => !!s),
   };
+}
+
+/** Explicit PostgreSQL entry point. Legacy callers still fail closed on DSNs. */
+export function loadPostgresConfig(env: Record<string,string | undefined>) {
+  const e = validateEnvironment(env);
+  let database: URL;
+  try { database = new URL(e.DATABASE_URL); } catch { throw new ConfigError("PostgreSQL configuration required",["DATABASE_URL"]); }
+  if (!["postgres:","postgresql:"].includes(database.protocol) || !database.hostname || !database.username || !database.password) throw new ConfigError("PostgreSQL credentials and host required",["DATABASE_URL"]);
+  const hosted = z.object({ APP_ORIGIN: z.string().url(),AUTH_SECRET: z.string().min(32),OWNER_USER_ID: optionalString,
+    APP_SOURCE_ATTEMPT_ID: optionalString,AI_DAILY_LIMIT: z.coerce.number().int().min(0).max(200).default(60),AI_USER_DAILY_LIMIT: z.coerce.number().int().min(0).max(10).default(3),
+  }).safeParse(env);
+  if (!hosted.success) { const keys = [...new Set(hosted.error.issues.map(i => String(i.path[0])))]; throw new ConfigError("Invalid hosted application configuration",keys); }
+  const origin = new URL(hosted.data.APP_ORIGIN);
+  if (!["http:","https:"].includes(origin.protocol) || origin.origin !== hosted.data.APP_ORIGIN || (!['127.0.0.1','localhost','[::1]'].includes(origin.hostname) && origin.protocol !== 'https:')) throw new ConfigError("Application origin must be HTTPS or loopback",["APP_ORIGIN"]);
+  return { ...sharedConfig(e),databaseUrl: e.DATABASE_URL,origin: origin.origin,authSecret: hosted.data.AUTH_SECRET,
+    ownerIds: new Set(hosted.data.OWNER_USER_ID ? [hosted.data.OWNER_USER_ID] : []),sourceAttemptId: hosted.data.APP_SOURCE_ATTEMPT_ID ?? null,
+    aiDailyLimit: hosted.data.AI_DAILY_LIMIT,aiUserDailyLimit: hosted.data.AI_USER_DAILY_LIMIT,
+    secrets: [...sharedConfig(e).secrets,e.DATABASE_URL,hosted.data.AUTH_SECRET] };
 }
 
 /** Load `.env` into process.env (Node built-in, no values printed) and validate. */

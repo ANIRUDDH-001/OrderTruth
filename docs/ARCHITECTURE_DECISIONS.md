@@ -2,6 +2,15 @@
 
 Store **only durable, non-sensitive** decisions here. Detailed local agent scratch notes belong in ignored `.work/ledger.md`. Each new ADR must include date, status (`proposed/accepted/reversed`), decision, alternatives, evidence, consequences and user approval when needed.
 
+## ADR-006 — Hosted PostgreSQL path and isolated merchant scenarios
+**Date:** 2026-10-21. **Status:** Implementation authorized by the product owner; hosted release qualification remains pending.
+
+- **Decision:** Keep TypeScript/Fastify/Vite and one asynchronous PostgreSQL shipping path. Explicit SQL migrations preserve transaction guards; no runtime SQLite translator or generic persistence framework. Historical SQLite databases remain untouched. Isolated judge runs reference one original immutable Sandbox observation rather than cloning payments. Runs own their merchant orders, cases, approvals and receipts. Reset creates a new run.
+- **Evidence:** `docs/POSTGRES_LOCAL.md` describes the reproducible API/concurrency/recovery checkpoint. Independent Neon connections have replayed a committed synthetic receipt, including after additive schema migration. These are database qualification results, not deployed-application certification or genuine payment proof.
+- **Authentication:** Self-managed Better Auth supplies maintained anonymous judge sessions on the existing backend. Managed Neon Auth's current plugin set does not provide anonymous accounts. Public email registration is disabled; owner permissions require explicitly configured non-anonymous user IDs. No external mailer or enterprise organization system is required.
+- **AI:** Persist quota reservations before inference, keep network calls outside transactions, validate evidence citations and implemented diagnostic names, and distinguish fresh/cached/unavailable results. Retain rules-based guidance on quota/provider failure. Actual configured capacity follows account verification; no automatic paid fallback.
+- **Alternatives/consequences:** Vercel + Neon remains technically preferred, subject to Hobby eligibility and no-charge configuration. Render + Neon is the full-app fallback, subject to actual shared workspace allowances. Turso remains a bounded compatibility fallback only if PostgreSQL exceeds the approved migration threshold; neither ephemeral hosted SQLite nor a viewer substitutes for the interactive product. Final host, genuine Sandbox proof, UI, hosted security and durability qualification remain release gates.
+
 ## ADR-001 — Two complete workspaces, shared incident domain
 **Status:** Accepted by product owner 2026-10-18. Engineers are the initial target buyers; merchant operators are full-featured secondary users, not a toy extension. Shared truth store; role-appropriate views/actions. Separate independent OrderTruth branding.
 

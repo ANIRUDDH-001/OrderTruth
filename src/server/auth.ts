@@ -13,7 +13,7 @@ export function createSessionAuth(pool: Pool, origin: string, secret: string) {
     trustedOrigins: [origin],
     emailAndPassword: { enabled: true, disableSignUp: true, minPasswordLength: 14 },
     user: { modelName: "ot_auth_user" },
-    session: { modelName: "ot_auth_session", expiresIn: 86400, updateAge: 3600, cookieCache: { enabled: false } },
+    session: { modelName: "ot_auth_session", expiresIn: 60*86400, updateAge: 86400, cookieCache: { enabled: false } },
     account: { modelName: "ot_auth_account" },
     verification: { modelName: "ot_auth_verification" },
     rateLimit: { enabled: true, storage: "database", modelName: "ot_auth_rate_limit", window: 60, max: 60,
