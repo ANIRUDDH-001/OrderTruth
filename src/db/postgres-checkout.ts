@@ -6,6 +6,7 @@ import { summarizeOrder } from "../paypal/summaries.ts";
 import { maskId } from "../redact.ts";
 import { withTransaction } from "./postgres.ts";
 import type { PayPalCall } from "../paypal/client.ts";
+import { PayPalError } from "../paypal/client.ts";
 export type ObservationProvenance = "SYNTHETIC_QUALIFICATION" | "PAYPAL_SANDBOX_GET";
 
 /** Asynchronous checkout persistence under qualification; not wired to public routes. */
@@ -74,14 +75,27 @@ export class PostgresCheckoutStore {
       const at = new Date().toISOString();
       await client.query(`INSERT INTO evidence(attempt_id,evidence_class,operation,http_status,paypal_debug_id,request_id,correlation_id,duration_ms,summary_json,created_at)
         VALUES($1,'PAYPAL_API_RESPONSE','create_order',$2,$3,$4,$5,$6,$7,$8)`,
-        [attemptId, call.httpStatus, call.debugId, attempt.create_request_id, intent.correlation_id, call.durationMs, JSON.stringify({ ...summarizeOrder(call.body), provenance }), at]);
+        [attemptId, call.httpStatus, call.debugId, attempt.create_request_id, intent.correlation_id, call.durationMs, JSON.stringify({ ...summarizeOrder(call.body), provenance: provenance === "PAYPAL_SANDBOX_GET" ? "PAYPAL_SANDBOX_API" : provenance }), at]);
       if (!attempt.paypal_order_id) await client.query("UPDATE payment_attempts SET paypal_order_id=$1,provider_order_status=$2,state='awaiting_buyer_approval',updated_at=$3 WHERE id=$4", [call.body.id, call.body.status, at, attemptId]);
+    });
+  }
+  async recordProviderResult(attemptId: string, operation: "create_order" | "capture_order" | "readback", result: PayPalCall<unknown> | PayPalError, provenance: ObservationProvenance): Promise<void> {
+    return this.transaction(async client => {
+      const { attempt, intent } = await this.lockAttempt(client, attemptId);
+      const failed = result instanceof PayPalError;
+      const summary = failed ? { kind: result.kind, issues: result.issues, outcomeUnknown: result.outcomeUnknown } : summarizeOrder(result.body);
+      await client.query(`INSERT INTO evidence(attempt_id,evidence_class,operation,http_status,paypal_debug_id,request_id,correlation_id,duration_ms,summary_json,created_at)
+        VALUES($1,'PAYPAL_API_RESPONSE',$2,$3,$4,$5,$6,$7,$8,$9)`,
+        [attemptId, operation + (failed ? "_error" : ""), result.httpStatus, result.debugId,
+          operation === "create_order" ? attempt.create_request_id : operation === "capture_order" ? attempt.capture_request_id : null,
+          intent.correlation_id, result.durationMs, JSON.stringify({ ...summary, provenance: provenance === "PAYPAL_SANDBOX_GET" ? "PAYPAL_SANDBOX_API" : provenance }), new Date().toISOString()]);
     });
   }
   /** The provider call must finish before entering here. Observation and its accepted
    * interpretation commit together; this module never makes financial/provider calls. */
   async recordReadback(attemptId: string, raw: OrderReadback, provenance: ObservationProvenance, meta?: Omit<PayPalCall<unknown>, "body">): Promise<{ accepted: boolean; attempt: AttemptRow }> {
     if (!["SYNTHETIC_QUALIFICATION", "PAYPAL_SANDBOX_GET"].includes(provenance)) throw new Error("Explicit observation provenance required");
+    if (provenance === "PAYPAL_SANDBOX_GET" && !meta) throw new Error("Sandbox readback requires observed HTTP metadata");
     if (meta && meta.httpStatus !== 200) throw new Error("Authoritative readback requires HTTP 200");
     return this.transaction(async client => {
       const { attempt, intent } = await this.lockAttempt(client, attemptId);
@@ -98,8 +112,8 @@ export class PostgresCheckoutStore {
         await client.query("UPDATE payment_attempts SET verdict_reasons=$1,updated_at=$2 WHERE id=$3",
           [JSON.stringify(["Conflicting provider observation; accepted capture identity retained. Investigation required."]), at, attemptId]);
       } else {
-        const approvedWithoutCapture = verdict.state === "uncertain" && raw.status === "APPROVED" && !raw.purchase_units?.[0]?.payments?.captures?.length && attempt.state === "awaiting_buyer_approval";
-        const next = approvedWithoutCapture ? "approved" : verdict.state;
+        const approvedWithoutCapture = verdict.state === "uncertain" && raw.status === "APPROVED" && !raw.purchase_units?.[0]?.payments?.captures?.length;
+        const next = approvedWithoutCapture ? (attempt.state === "awaiting_buyer_approval" ? "approved" : attempt.state) : verdict.state;
         if (canTransition(attempt.state, next)) {
           await client.query("UPDATE payment_attempts SET state=$1,provider_order_status=$2,capture_id=$3,capture_status=$4,captured_minor=$5,captured_currency=$6,payee_merchant_masked=$7,verdict_reasons=$8,updated_at=$9 WHERE id=$10",
             [next, verdict.orderStatus, verdict.captureId ?? attempt.capture_id, verdict.captureStatus ?? attempt.capture_status,

@@ -46,14 +46,14 @@ function fixture(options: { loseCaptureResponse?: boolean; failGetAfterCapture?:
       return call({ id: order, status: "COMPLETED", links: [] }, 201);
     },
   };
-  return { service: new PostgresCheckoutService(provider, store, "SYNTHETIC_QUALIFICATION"), order, requestIds,
+  return { service: new PostgresCheckoutService(provider, store, "SYNTHETIC_QUALIFICATION"), another: () => new PostgresCheckoutService(provider, store, "SYNTHETIC_QUALIFICATION"), order, requestIds,
     captures: () => captureCalls, reads: () => readCalls };
 }
 it("uses server pricing and one durable capture claim across independent service instances", async () => {
   const f = fixture(); const key = `synthetic-checkout-${randomBytes(8).toString("hex")}`;
   const created = await f.service.create(key);
   expect(created.amount).toEqual({ currency: "USD", value: "1.00" });
-  const outcomes = await Promise.all(Array.from({ length: 5 }, () => f.service.capture(f.order)));
+  const outcomes = await Promise.all(Array.from({ length: 5 }, () => f.another().capture(f.order)));
   expect(f.captures()).toBe(1);
   expect(outcomes.some(o => o.state === "captured")).toBe(true);
   expect((await f.service.readback(f.order)).state).toBe("captured");
@@ -64,6 +64,9 @@ it("settles a lost capture response by GET without issuing another capture", asy
   expect((await f.service.capture(f.order)).state).toBe("captured");
   expect((await f.service.capture(f.order)).state).toBe("captured");
   expect(f.captures()).toBe(1); expect(f.reads()).toBeGreaterThanOrEqual(2);
+  const errors = (await pool.query(`SELECT summary_json FROM ${schema}.evidence WHERE operation='capture_order_error' AND attempt_id=(SELECT id FROM ${schema}.payment_attempts WHERE paypal_order_id=$1)`, [f.order])).rows;
+  expect(errors).toHaveLength(1);
+  expect(JSON.parse(errors[0]!.summary_json)).toMatchObject({ kind: "timeout", outcomeUnknown: true, provenance: "SYNTHETIC_QUALIFICATION" });
 });
 it("never claims capture from a POST when authoritative GET is unavailable", async () => {
   const f = fixture({ failGetAfterCapture: true }); await f.service.create(`synthetic-checkout-${randomBytes(8).toString("hex")}`);
