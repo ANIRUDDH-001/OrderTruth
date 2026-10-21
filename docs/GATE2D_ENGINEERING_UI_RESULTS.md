@@ -1,5 +1,7 @@
 # Gate 2D — Engineering investigation results
 
+> **Superseded (21 October 2026).** The standalone `/investigation` screen, its build, `pnpm investigation` host and synthetic demo were retired and folded into the console's incident page (Engineering lens: Evidence with per-record scope and "Used by check" links, Repair record with stored columns). Old `/investigation/<id>/` links redirect to `/console/incidents/<id>?lens=eng`. The evidence boundary moved to `web/console/evidence.ts`; the Gate 2D tests now target it and the console loader. The record below is historical.
+
 STATUS: PASS for this scoped local Engineering vertical slice. Production readiness and authenticated access are NOT_TESTED.
 
 Starting commit: `2bb3438575f4f271c4d62bfae47471f484564569`. The delivery commit containing this report identifies the final implementation; delivery SHA and remote verification are recorded in the chat and ignored local ledger.
