@@ -10,6 +10,6 @@ The owners authorized the root MIT license and package metadata. This license ap
 - RECORDED_NOT_REPRODUCED: the owners confirmed rights to license original code jointly. This inspection cannot independently establish authorship of every prior contribution.
 - NOT_TESTED: final shipped dependency notices and bundled third-party license texts. Recheck the final dependency graph and retain required notices with distributed artifacts.
 - NOT_TESTED: current PayPal SDK/brand usage compliance. The SDK is remotely loaded, not owned by OrderTruth; retain approved SDK buttons and independent OrderTruth branding. Verify the actual script URL, usage terms and connectivity labels before release.
-- NOT_TESTED: GitHub license detection. The standard root `LICENSE` and SPDX package value `MIT` are now present locally. Confirm GitHub's reported SPDX identifier after an authorized publication; no publication is implied by this file.
+- VERIFIED: GitHub license detection returned HTTP200 and SPDX MIT for the public repository after the authorized push on October21,2026. The root LICENSE contains the jointly confirmed copyright notice.
 
 No unclear asset has been declared original or relicensed by assumption.
