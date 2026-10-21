@@ -52,5 +52,6 @@ it("runs migrations concurrently and replays them without re-seeding", async () 
   await Promise.all([migratePostgres(pool, schema), migratePostgres(pool, schema)]);
   expect((await pool.query(`SELECT count(*)::integer AS n FROM ${schema}.payment_attempts`)).rows[0].n).toBe(1);
   const triggers = await pool.query("SELECT count(*)::integer AS n FROM information_schema.triggers WHERE trigger_schema=$1", [schema]);
-  expect(triggers.rows[0].n).toBe(64);
+  // Original/PG guards, scenario maps, browser approval, handler and diagnostic events.
+  expect(triggers.rows[0].n).toBe(85);
 });
