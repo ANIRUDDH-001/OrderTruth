@@ -83,7 +83,7 @@ export class MerchantRepo {
 
   intentInOrg(orgId: string, intentId: string) {
     return this.db.prepare("SELECT * FROM checkout_intents WHERE id = ? AND organization_id = ?").get(intentId, orgId) as
-      | { id: string; sku: string; currency: string; amount_minor: number; organization_id: string }
+      | { id: string; sku: string; currency: string; amount_minor: number; organization_id: string; created_at: string }
       | undefined;
   }
 

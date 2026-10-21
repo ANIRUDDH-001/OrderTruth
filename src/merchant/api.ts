@@ -3,6 +3,7 @@ import type { Store } from "../db/store.ts";
 import { MerchantRepo, ORG_ID, type IncidentRow } from "./repo.ts";
 import { RepairService } from "./repair.ts";
 import { MISSING_INCIDENT_CLASS } from "./missing-order.ts";
+import { IncidentAdvisoryService } from "../ai/incident-advisory.ts";
 
 /**
  * DEV-ONLY ORGANIZATION SCOPE, NOT AUTHENTICATION. The caller names its organization in this
@@ -122,6 +123,17 @@ export async function buildIncidentApi(o: { store: Store; logger?: boolean }): P
     return incidentView(repo, i);
   });
 
+  // Rules-only: no provider is wired here, so no model call or credential can be reached from a browser.
+  const advisory = new IncidentAdvisoryService(repo);
+  app.get<{ Params: { id: string } }>("/api/incidents/:id/advisory", async (req, reply) => {
+    const id = org(req);
+    if (!id) return reply.status(401).send(deny);
+    if (!INCIDENT_ID.test(req.params.id)) return reply.status(400).send({ error: "invalid_incident_id" });
+    const result = await advisory.analyze(id, req.params.id);
+    if (!result) return reply.status(404).send({ error: "not_found" });
+    return { incidentId: req.params.id, organizationId: id, providerConfigured: false, ...result };
+  });
+
   app.get<{ Querystring: { intentId?: string } }>("/api/evaluations", async (req, reply) => {
     const id = org(req);
     if (!id) return reply.status(401).send(deny);
@@ -130,7 +142,11 @@ export async function buildIncidentApi(o: { store: Store; logger?: boolean }): P
     const rows = intent ? [repo.latestEvaluation(id, intent)].filter((r) => r !== undefined) : repo.latestEvaluations(id);
     return {
       organizationId: id,
-      evaluations: rows.map((e) => ({ seq: e.seq, contract: e.contract, intentId: e.intent_id, result: e.result, activeOrderCount: e.active_order_count, reasons: parse(e.reasons_json), facts: parse(e.facts_json), evaluatedAt: e.evaluated_at })),
+      evaluations: rows.map((e) => {
+        const ci = repo.intentInOrg(id, e.intent_id);
+        return { seq: e.seq, contract: e.contract, intentId: e.intent_id, result: e.result, activeOrderCount: e.active_order_count, reasons: parse(e.reasons_json), facts: parse(e.facts_json), evaluatedAt: e.evaluated_at,
+          checkout: ci ? { sku: ci.sku, amount: { currency: ci.currency, minor: ci.amount_minor }, createdAt: ci.created_at } : null };
+      }),
     };
   });
 

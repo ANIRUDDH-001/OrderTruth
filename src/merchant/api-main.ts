@@ -6,7 +6,7 @@ import { resolve } from "node:path";
 import { parseArgs } from "node:util";
 import { Store } from "../db/store.ts";
 import { buildIncidentApi } from "./api.ts";
-import { mountInvestigation } from './investigation-static.ts';
+import { mountConsole } from './console-static.ts';
 
 const { values: a } = parseArgs({ options: { db: { type: "string" }, port: { type: "string", default: "3003" } } });
 const fail = (m: string): never => {
@@ -24,7 +24,7 @@ if (!Number.isInteger(port) || port < 1024 || port > 65535) fail("invalid --port
 
 const store = new Store(db);
 const app = await buildIncidentApi({ store, logger: true });
-await mountInvestigation(app);
+await mountConsole(app);
 const stop = async () => {
   await app.close();
   store.close();
@@ -33,3 +33,4 @@ const stop = async () => {
 process.once("SIGINT", stop);
 process.once("SIGTERM", stop);
 await app.listen({ host: "127.0.0.1", port });
+console.log(`OrderTruth console: http://127.0.0.1:${port}/console/ (dev scope header, not authentication)`);
