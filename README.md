@@ -119,7 +119,7 @@ The tests cover:
 ## What is not proven
 
 - Real authentication, RBAC, multi-tenant isolation beyond a header, and CSRF/origin protection: **NOT_TESTED / not built**.
-- Hosted judge access, public deployment, the public repository and the license: **not established**. See `docs/RELEASE_CHECKLIST.md`.
+- Hosted judge access, public deployment and public repository availability: **not established**. See `docs/RELEASE_CHECKLIST.md`.
 - AI quality versus the rules baseline: **not measured**. The live model evaluation is blocked (`docs/GATE2C_AI_RESULTS.md`).
 - Screen-reader use, a full WCAG 2.2 audit, performance under load, and real users: **NOT_TESTED**.
 - Merchant checks are not wired into the live Sandbox checkout flow. Detection and repair are proven on local and synthetic data, plus one recorded real-evidence run (`docs/STAGE1D_RESULTS.md`).
@@ -143,4 +143,8 @@ The per-criterion status is in `docs/QUALITY_GATE_MATRIX.md`. The Gate 3A eviden
 
 ## License
 
-There is no license yet. One is pending the owner's decision; the options are in `docs/GATE3A_RESULTS.md`.
+Original OrderTruth code is licensed under [MIT](LICENSE).
+
+Copyright (c) 2026 Aniruddh Vijayvargia and Prachi Agarwalla.
+
+Dependencies and provider services retain their own licenses and terms. See [third-party rights verification](docs/THIRD_PARTY_RIGHTS.md).
