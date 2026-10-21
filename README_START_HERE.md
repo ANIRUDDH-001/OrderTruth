@@ -1,3 +1,5 @@
+> **HISTORICAL (Gate 0 starter pack, kept for the record).** Its setup steps describe the original instruction ZIP, not the current application. For setup, the demo, limits and tests, read [`README.md`](README.md). (Marked historical in Gate 3A, 2026-10-21.)
+
 # OrderTruth starter pack — begin here
 
 This is an **instructions-and-feasibility starter pack**, not a working application or successful Sandbox payment. Files were generated outside your Windows machine. Your required local directory is **`D:\Projects\OrderTruth`**; nothing has been remotely written there.
