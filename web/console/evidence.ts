@@ -1,4 +1,4 @@
-import { syntheticIncident } from './synthetic.ts';
+/** Evidence boundary for one incident: maps the API response into opening vs latest snapshots, provider proof and stored records. Fails closed on contradictions. Moved from the retired /investigation screen. */
 import { parseProviderValue,toProviderValue } from '../../src/domain/money.ts';
 
 type Obj = Record<string, unknown>;
@@ -85,15 +85,4 @@ export function selectEntity(v: View, moment: Moment, id: string): Entity {
     if(o) return { id:key,title:key,trust:'MERCHANT_DB_OBSERVED · current API projection',at:o.at,fields:[['Record ID',key],['Original row status',o.original],['Effective status',o.effective],['Creation path',o.path],['Amount',o.amount],['Timestamp meaning','Order created at; effective-status transition time unavailable here']],limit:'Original row and effective status are distinct. Current projection is separate from the latest evaluation; does not prove fulfillment.' };
   }
   return v.evidence.find(e=>e.id===id) ?? {id,title:'Record unavailable',trust:'UNVERIFIED',at:e.at,fields:[],limit:'No record supports this selection.'};
-}
-export type Source = {mode:'demo'|'local';id?:string;org?:string};
-export async function loadIncident(source: Source, fetcher: typeof fetch = fetch): Promise<View> {
-  if(source.mode==='demo') return mapIncident(syntheticIncident(),'org_reference');
-  if(!source.id || !/^inc_[0-9a-f-]{36}$/.test(source.id) || !source.org || !/^org_[a-z0-9_]{1,40}$/.test(source.org)) throw Error('Local mode requires an incident ID and developer organization scope.');
-  const response=await fetcher(`/api/incidents/${encodeURIComponent(source.id)}`,{method:'GET',headers:{'x-ordertruth-org':source.org},cache:'no-store',signal:AbortSignal.timeout(8000)});
-  if(!response.ok) throw Error(`Incident API HTTP ${response.status}. Check local service, incident ID and organization scope. Synthetic fallback is disabled.`);
-  const body=await response.text(); if(body.length>1000000) throw Error('Incident response exceeds the presentation limit.');
-  const view=mapIncident(JSON.parse(body),source.org);
-  if(view.id!==source.id)throw Error('Incident identity mismatch in API response.');
-  return view;
 }
