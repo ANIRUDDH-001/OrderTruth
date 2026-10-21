@@ -6,7 +6,9 @@ import { createPostgresPool } from "../../src/db/postgres.ts";
 import { migratePostgres } from "../../src/db/postgres-migrate.ts";
 import { PostgresWebhookInbox } from "../../src/webhooks/postgres-inbox.ts";
 import { EventSchema, summarizeEvent } from "../../src/webhooks/event.ts";
-import { captureEvent } from "../helpers/webhook-fixtures.ts";
+import { captureEvent, signedHeaders, TEST_WEBHOOK_ID } from "../helpers/webhook-fixtures.ts";
+import { WebhookIntake } from "../../src/webhooks/intake.ts";
+import { silentLogger } from "../fake-paypal.ts";
 
 const env = parseEnv(readFileSync(new URL("../../.work/postgres/.env", import.meta.url), "utf8"));
 if (env.PGHOST !== "127.0.0.1" || env.PGPORT !== "55432" || env.PGDATABASE !== "ordertruth") throw new Error("Managed local PostgreSQL only");
@@ -43,4 +45,24 @@ it("never creates an event or verified evidence from a rejected delivery", async
   await inbox.finishUnverified(id, "rejected", "synthetic invalid signature");
   await expect(inbox.acceptVerified(id, s, { ms: 1, debugId: null }, "synthetic-webhook")).rejects.toThrow();
   expect(await inbox.getEvent(s.id)).toBeUndefined();
+});
+it("awaits durable acceptance before returning success and returns 503 on a failed commit", async () => {
+  // Explicit verifier stub. This tests persistence, not genuine signatures.
+  const intake = new WebhookIntake(inbox, { verify: async () => ({ status: "SUCCESS", durationMs: 1, debugId: null }) }, {
+    webhookId: TEST_WEBHOOK_ID, maxTransmissionAgeMs: 300_000, maxFutureSkewMs: 30_000, log: silentLogger(),
+  });
+  const event = captureEvent({ orderId: "SYNTHETICORDER2", captureId: "SYNTHETICCAPTURE2" });
+  const raw = JSON.stringify(event);
+  const response = await intake.receive(Buffer.from(raw), signedHeaders(raw), "synthetic-intake");
+  expect(response.status).toBe(200);
+  expect((await inbox.getEvent(event.id))?.state).toBe("verified_pending");
+  await pool.query(`CREATE FUNCTION ${schema}.qualification_reject_event() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'synthetic event write failure'; END $$;
+    CREATE TRIGGER qualification_reject_event BEFORE INSERT ON ${schema}.webhook_events FOR EACH ROW EXECUTE FUNCTION ${schema}.qualification_reject_event()`);
+  const failed = captureEvent({ orderId: "SYNTHETICORDER3", captureId: "SYNTHETICCAPTURE3" }); const failedRaw = JSON.stringify(failed);
+  try {
+    const result = await intake.receive(Buffer.from(failedRaw), signedHeaders(failedRaw), "synthetic-intake-failure");
+    expect(result.status).toBe(503);
+    expect(await inbox.getEvent(failed.id)).toBeUndefined();
+    expect((await inbox.getDelivery(result.body.delivery!))?.state).toBe("retryable_failure");
+  } finally { await pool.query(`DROP TRIGGER qualification_reject_event ON ${schema}.webhook_events`); }
 });

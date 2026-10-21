@@ -28,6 +28,8 @@ export type IntakeOptions = {
 };
 
 const fatalUtf8 = new TextDecoder("utf-8", { fatal: true });
+type IntakeMethod = "recordDelivery" | "countStoredUnverified" | "noteTransmission" | "finishUnverified" | "acceptVerified";
+export type IntakeInbox = { [K in IntakeMethod]: (...args: Parameters<WebhookInbox[K]>) => ReturnType<WebhookInbox[K]> | Promise<ReturnType<WebhookInbox[K]>> };
 
 /**
  * One webhook delivery, start to finish. Order of operations:
@@ -47,7 +49,7 @@ export class WebhookIntake {
   readonly #ceiling: number;
 
   constructor(
-    private readonly inbox: WebhookInbox,
+    private readonly inbox: IntakeInbox,
     private readonly verifier: WebhookVerifier,
     private readonly opts: IntakeOptions,
   ) {
@@ -65,10 +67,10 @@ export class WebhookIntake {
     }
   }
 
-  #reject(seq: number, status: number, reason: string, verify?: { ms: number; debugId: string | null }): IntakeResponse {
+  async #reject(seq: number, status: number, reason: string, verify?: { ms: number; debugId: string | null }): Promise<IntakeResponse> {
     const to = status === 503 ? "retryable_failure" : "rejected";
     try {
-      this.inbox.finishUnverified(seq, to, reason, verify);
+      await this.inbox.finishUnverified(seq, to, reason, verify);
     } catch (err) {
       // The row stays received_unverified and is closed as abandoned at the next start. No 2xx either way.
       this.#log("warn", { seq, evt2: "delivery_close_failed", errName: (err as Error)?.name });
@@ -91,11 +93,11 @@ export class WebhookIntake {
 
     let seq: number;
     try {
-      if (this.inbox.countStoredUnverified() >= this.#ceiling) {
+      if (await this.inbox.countStoredUnverified() >= this.#ceiling) {
         this.#log("warn", { state: "not_recorded", reason: "inbox_ceiling", ceiling: this.#ceiling });
         return { status: 503, body: { ok: false, error: "inbox_ceiling" } };
       }
-      seq = this.inbox.recordDelivery({
+      seq = await this.inbox.recordDelivery({
         claimedEventId: claimed.id,
         claimedEventType: claimed.type,
         bodySha256: createHash("sha256").update(raw).digest("hex"),
@@ -114,7 +116,7 @@ export class WebhookIntake {
     const h = parseTransmissionHeaders(headers);
     if ("reason" in h) return this.#reject(seq, 400, h.reason);
     try {
-      this.inbox.noteTransmission(seq, h.transmissionId, h.transmissionTime);
+      await this.inbox.noteTransmission(seq, h.transmissionId, h.transmissionTime);
     } catch {
       return this.#reject(seq, 503, "inbox_write_failed");
     }
@@ -138,7 +140,7 @@ export class WebhookIntake {
     this.opts.afterVerify?.();
     let result: "accepted" | "duplicate";
     try {
-      result = this.inbox.acceptVerified(seq, summarizeEvent(ev.data), vm, correlationId);
+      result = await this.inbox.acceptVerified(seq, summarizeEvent(ev.data), vm, correlationId);
     } catch (err) {
       this.#log("error", { seq, reason: "persist_failed", errName: (err as Error)?.name });
       return this.#reject(seq, 503, "persist_failed", vm);

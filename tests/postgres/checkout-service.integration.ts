@@ -12,6 +12,9 @@ import type { OrderReadback } from "../../src/domain/checkout.ts";
 const env = parseEnv(readFileSync(new URL("../../.work/postgres/.env", import.meta.url), "utf8"));
 if (env.PGHOST !== "127.0.0.1" || env.PGPORT !== "55432" || env.PGDATABASE !== "ordertruth") throw new Error("Managed local PostgreSQL only");
 const pool = createPostgresPool(env.DATABASE_URL!);
+// With one connection, a provider callback can query only if orchestration has
+// released its transaction. This checks this pool, not unrelated parallel tests.
+pool.options.max = 1;
 const schema = `qual_${randomBytes(10).toString("hex")}`;
 const store = new PostgresCheckoutStore(pool, schema);
 beforeAll(() => migratePostgres(pool, schema));
@@ -38,8 +41,7 @@ function fixture(options: { loseCaptureResponse?: boolean; failGetAfterCapture?:
     },
     async captureOrder(_id: string, requestId: string) {
       // External calls must not run while this app's database transaction is open.
-      const active = await pool.query("SELECT count(*)::integer AS n FROM pg_stat_activity WHERE pid<>pg_backend_pid() AND state='idle in transaction' AND query LIKE '%payment_attempts%'");
-      expect(active.rows[0].n).toBe(0);
+      expect((await pool.query("SELECT 1 AS n")).rows[0].n).toBe(1);
       captureCalls++; requestIds.push(requestId); captured = true;
       if (options.loseCaptureResponse) throw new PayPalError("timeout", "Synthetic capture response lost", { httpStatus: null, debugId: null, issues: [], durationMs: 1 });
       // A POST result alone is never sufficient evidence of capture.
