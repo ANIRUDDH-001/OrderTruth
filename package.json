@@ -21,6 +21,7 @@
     "build:web": "vite build",
     "build": "pnpm build:web && pnpm build:console && pnpm build:hosted",
     "build:hosted": "vite build --config vite.judge.config.ts && vite build --config vite.owner.config.ts",
+    "build:frontend": "pnpm build:hosted && node scripts/package-frontend.mjs",
     "hosted:local": "tsx src/server/hosted-main.ts --local",
     "hosted:start": "tsx src/server/hosted-main.ts",
     "owner:local": "tsx scripts/owner-setup.ts --local",

@@ -18,6 +18,8 @@ const network = vi.spyOn(globalThis,"fetch").mockImplementation(async () => { th
 beforeAll(async () => { app = await buildHostedApp(config,{ schema,staticFiles: false }); await app.ready(); });
 afterAll(async () => { await app?.close(); await admin.query(`DROP SCHEMA ${schema} CASCADE`); await admin.end(); network.mockRestore(); });
 it("starts without provider calls and denies financial endpoints to a real guest session",async () => {
+  expect((await app.inject({ url: "/" })).statusCode).toBe(404);
+  expect((await app.inject({ url: "/owner/" })).statusCode).toBe(404);
   expect((await app.inject({ url: "/api/health" })).statusCode).toBe(200);
   const signed = await app.inject({ method: "POST",url: "/api/auth/sign-in/anonymous",headers: { origin },payload: {} });
   expect(signed.statusCode).toBe(200);
