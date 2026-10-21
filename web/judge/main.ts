@@ -82,8 +82,9 @@ function caseView() {
   if (state.detected) { const verdict = el("p",state.receipt?.verifiedCurrent ? "Verified recovery: one active merchant order." : active.length > 1 ? "Duplicate merchant orders detected." : "Recheck the current merchant outcome.","result-label"); verdict.setAttribute("role","status"); merchant.append(verdict); }
   for (const order of scenario.orders) merchant.append(record(order.id,order.effective_status === "placed" ? "Active" : "Voided duplicate"));
   const actions = el("div","","actions");
-  actions.append(button("Introduce duplicate",async () => { state.scenario = await api<Scenario>(path("duplicate"),{}); state.plan = null; state.approved = false; state.receipt = null; }),
-    button("Detect anomaly",async () => { const checked = await api<{ result: string }>(path("check"),{}); state.detected = checked.result === "VIOLATED"; if (!state.detected) state.error = "The current order state does not contain an actionable duplicate."; },true));
+  if (scenario.orders.length === 1) actions.append(button("Introduce duplicate",async () => { state.scenario = await api<Scenario>(path("duplicate"),{}); state.plan = null; state.approved = false; state.receipt = null; }));
+  if (!state.receipt?.verifiedCurrent) actions.append(button("Detect anomaly",async () => { const checked = await api<{ result: string }>(path("check"),{}); state.detected = checked.result === "VIOLATED"; if (!state.detected) state.error = "The current order state does not contain an actionable duplicate."; },true));
+  else actions.append(el("p","This case is recovered. Start a new isolated case to explore again; this receipt is preserved.","muted"));
   merchant.append(actions); grid.append(merchant);
   const investigation = section("Evidence-grounded investigation","AI proposes hypotheses. Read-only diagnostics supply new evidence; the model cannot execute repairs.");
   investigation.append(button("Investigate with AI",async () => { state.analysis = await api<Analysis>(path("investigate"),{}); }));
