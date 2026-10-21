@@ -17,5 +17,5 @@
     "allowImportingTsExtensions": true,
     "resolveJsonModule": true
   },
-  "include": ["src", "tests", "web", "vite.config.ts", "vite.console.config.ts", "vitest.config.ts"]
+  "include": ["src", "tests", "web", "scripts", "vite.config.ts", "vite.console.config.ts", "vitest.config.ts", "vitest.postgres.config.ts"]
 }
