@@ -4,21 +4,25 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Store } from '../src/db/store.ts';
 import { buildIncidentApi } from '../src/merchant/api.ts';
-import { mountInvestigation } from '../src/merchant/investigation-static.ts';
+import { mountConsole } from '../src/merchant/console-static.ts';
 import {createInvestigationFixture} from './helpers/gate2d-fixture.ts';
-import {mapIncident} from '../web/investigation/model.ts';
+import {mapIncident} from '../web/console/evidence.ts';
 
-it('serves only dedicated assets and valid deep links without exposing database paths or allowing writes', async () => {
-  const dir=mkdtempSync(join(tmpdir(),'ot-ui-'));mkdirSync(join(dir,'assets'));writeFileSync(join(dir,'index.html'),'<h1>Investigation</h1>');writeFileSync(join(dir,'assets','ui.js'),'// ui');writeFileSync(join(dir,'private.sqlite'),'not-public');
+it('retired /investigation links redirect into the console; only dedicated assets are served and nothing is writable', async () => {
+  const dir=mkdtempSync(join(tmpdir(),'ot-ui-'));mkdirSync(join(dir,'assets'));writeFileSync(join(dir,'index.html'),'<h1>Console</h1>');writeFileSync(join(dir,'assets','ui.js'),'// ui');writeFileSync(join(dir,'private.sqlite'),'not-public');
   const store=new Store(':memory:');const app=await buildIncidentApi({store});
+  const id='inc_00000000-0000-4000-8000-000000000024';
   try {
-    await mountInvestigation(app,dir);
-    for(const url of ['/investigation/','/investigation/inc_00000000-0000-4000-8000-000000000024/']) {const r=await app.inject(url);expect(r.statusCode).toBe(200);expect(r.body).toContain('Investigation');expect(r.headers['content-security-policy']).toContain("connect-src 'self'");}
-    expect((await app.inject('/investigation/assets/ui.js')).statusCode).toBe(200);
-    for(const url of ['/investigation/private.sqlite','/.env','/investigation/invalid/','/api/repair']) expect((await app.inject(url)).statusCode).toBe(404);
-    expect((await app.inject({method:'POST',url:'/investigation/'})).statusCode).toBe(405);
+    await mountConsole(app,dir);
+    for(const url of [`/investigation/${id}/`,`/investigation/${id}`,`/investigation/${id}/?mode=local&org=org_reference`]) {const r=await app.inject(url);expect(r.statusCode).toBe(302);expect(r.headers.location).toBe(`/console/incidents/${id}?lens=eng`);}
+    for(const url of ['/investigation','/investigation/','/investigation/?mode=demo']) {const r=await app.inject(url);expect(r.statusCode).toBe(302);expect(r.headers.location).toBe('/console/incidents');}
+    const deep=await app.inject(`/console/incidents/${id}`);expect(deep.statusCode).toBe(200);expect(deep.body).toContain('Console');expect(deep.headers['content-security-policy']).toContain("connect-src 'self'");
+    expect((await app.inject('/console/assets/ui.js')).statusCode).toBe(200);
+    for(const url of ['/investigation/invalid/','/investigation/assets/ui.js']) {const r=await app.inject(url);expect(r.statusCode).toBe(404);expect(r.headers['content-security-policy']).toContain("default-src 'self'");}
+    for(const url of ['/console/private.sqlite','/console/assets/../private.sqlite','/.env','/api/repair']) expect((await app.inject(url)).statusCode).toBe(404);
+    for(const method of ['POST','PUT','DELETE'] as const) expect((await app.inject({method,url:`/investigation/${id}/`})).statusCode).toBe(405);
     expect((await app.inject('/api/incidents')).statusCode).toBe(401);
-    expect((await app.inject('/investigation/')).headers['access-control-allow-origin']).toBeUndefined();
+    expect((await app.inject(`/investigation/${id}/`)).headers['access-control-allow-origin']).toBeUndefined();
   } finally {await app.close();store.close();rmSync(dir,{recursive:true,force:true});}
 });
 

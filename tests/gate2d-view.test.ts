@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
-import { mapIncident, loadIncident, selectEntity, snapshotFor, visibleOrderIds } from '../web/investigation/model.ts';
-import { syntheticIncident } from '../web/investigation/synthetic.ts';
+import { mapIncident, selectEntity, snapshotFor, visibleOrderIds } from '../web/console/evidence.ts';
+import { fetchDetail } from '../web/console/load.ts';
+import { syntheticIncident } from './helpers/gate2d-synthetic.ts';
 
 describe('Gate2D presentation boundary', () => {
   it('keeps opening and latest distinct and both merchant identities selectable', () => {
@@ -39,7 +40,7 @@ describe('Gate2D presentation boundary', () => {
   });
   it('local loader rejects another incident returned for the requested ID',async()=>{
     const r=syntheticIncident();r.id='inc_00000000-0000-4000-8000-000000000099';
-    await expect(loadIncident({mode:'local',id:syntheticIncident().id,org:'org_reference'},vi.fn().mockResolvedValue(new Response(JSON.stringify(r))))).rejects.toThrow(/identity/);
+    await expect(fetchDetail(syntheticIncident().id,'org_reference',vi.fn().mockResolvedValue(new Response(JSON.stringify(r))))).rejects.toThrow(/different incident/);
   });
   it('missing latest evaluation remains unavailable', () => {
     const r = syntheticIncident(); r.latestEvaluation = null;
@@ -58,22 +59,26 @@ describe('Gate2D presentation boundary', () => {
     const r=syntheticIncident();r.affectedOrders.reverse();
     expect(visibleOrderIds(mapIncident(r,'org_reference'),'latest')).toEqual(['demo-keeper','demo-duplicate']);
   });
-  it('synthetic loader makes zero network calls', async () => {
-    const f = vi.fn(); await loadIncident({ mode: 'demo' }, f);
+  it('invalid incident or scope makes zero network calls', async () => {
+    const f = vi.fn();
+    await expect(fetchDetail('inc_bad', 'org_reference', f)).rejects.toThrow(/identifier/);
+    await expect(fetchDetail(syntheticIncident().id, 'not an org', f)).rejects.toThrow(/scope/);
     expect(f).not.toHaveBeenCalled();
   });
   it('local loader uses only GET and organization scope', async () => {
     const r = syntheticIncident(); const f = vi.fn().mockResolvedValue(new Response(JSON.stringify(r)));
-    await loadIncident({ mode: 'local', id: r.id, org: 'org_reference' }, f);
+    expect((await fetchDetail(r.id, 'org_reference', f)).view.id).toBe(r.id);
+    expect(f).toHaveBeenCalledTimes(1);
     expect(f).toHaveBeenCalledWith(`/api/incidents/${r.id}`, expect.objectContaining({ method: 'GET', headers: { 'x-ordertruth-org': 'org_reference' } }));
   });
   it.each([401, 404, 500])('API %i never falls back to demo', async status => {
     const f = vi.fn().mockResolvedValue(new Response('{}', { status }));
-    await expect(loadIncident({ mode: 'local', id: syntheticIncident().id, org: 'org_reference' }, f)).rejects.toThrow(`HTTP ${status}`);
+    await expect(fetchDetail(syntheticIncident().id, 'org_reference', f)).rejects.toThrow(status === 500 ? 'HTTP 500' : status === 401 ? /organization/ : /does not exist/);
     expect(f).toHaveBeenCalledTimes(1);
   });
-  it('rejects incomplete local configuration without request', async () => {
-    const f = vi.fn(); await expect(loadIncident({ mode: 'local' }, f)).rejects.toThrow(); expect(f).not.toHaveBeenCalled();
+  it('rejects a response for another organization without showing it', async () => {
+    const f = vi.fn().mockResolvedValue(new Response(JSON.stringify(syntheticIncident())));
+    await expect(fetchDetail(syntheticIncident().id, 'org_other', f)).rejects.toThrow(/organization/); expect(f).toHaveBeenCalledTimes(1);
   });
   it('latest evaluation older than opening is unavailable, not a resolution',()=>{
     const r=syntheticIncident();r.latestEvaluation!.seq=1;
@@ -93,6 +98,6 @@ describe('Gate2D presentation boundary', () => {
   });
   it('network timeout stays an error with one request and no fallback',async()=>{
     const f=vi.fn().mockRejectedValue(new DOMException('Timed out','TimeoutError'));
-    await expect(loadIncident({mode:'local',id:syntheticIncident().id,org:'org_reference'},f)).rejects.toThrow('Timed out');expect(f).toHaveBeenCalledTimes(1);
+    await expect(fetchDetail(syntheticIncident().id,'org_reference',f)).rejects.toThrow('did not respond');expect(f).toHaveBeenCalledTimes(1);
   });
 });
