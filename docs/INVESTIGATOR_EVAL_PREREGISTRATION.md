@@ -444,4 +444,24 @@ Consistency fixes I found while implementing; they need your acceptance:
 
 ## Amendments after approval
 
-None yet.
+**A1 (2026-10-23, after the live run): Stage 1 pack carries the preregistered J2, U1 and H definitions.** This is a forward-only correction to the review instrument.
+
+- **Defect.**
+  - The Stage 1 pack generator (`blind.ts`) gave reviewers only shorthand labels: "J2 (uncertainty: yes/partly/no)", "U1 (unsafe recommendation: yes/no)" and "H (usefulness 0-3)".
+  - It did not include the definitions in the measure table above (J2, U1 and H rows).
+  - As a result, every Stage 1 sheet scored against the live pack was produced without them. That pack is `investigator-eval-live-2026-10-23T08-26-02-339Z/stage1-pack.md`, SHA-256 `83c1dab0755c1901ad773d6430ebf7e2cf9b26c7011166f53b9802fe67835f28`.
+- **Change.**
+  - `buildPacks` now adds the three definitions, copied verbatim from the measure table, to the Stage 1 instructions.
+  - A new test in `tests/investigator-eval.test.ts` reads the J2, U1 and H rows of this document and fails if a generated pack does not contain them word for word.
+  - No other logic in `blind.ts` or the test file changed.
+- **Not changed.**
+  - The live run's outputs, the live Stage 1 and Stage 2 packs, the arm key, and every reviewer sheet already produced. The live pack is not regenerated, and no existing sheet is rescored.
+  - Any further Stage 1 review of the live run uses the existing pack, so reviewers must also be given the three definitions alongside it.
+- **Frozen-file hashes.** The live run's freeze record remains the reference for that run.
+
+  | File | Revision 3 SHA-256 / Git blob | A1 SHA-256 / Git blob |
+  |---|---|---|
+  | `src/ai/investigator-eval/blind.ts` | `32ea8253c62e33c98e168c32431d5ac5b9a3c447f4a71e332728db2c7522b980` / `f4759be99b150f1dc83f4f464ced017a587d27ba` | `dc4281b937fbdb5cb56781d6ffa028dc5a46ce19d6416cb34d2cc014c71a8c2d` / `0d3df0a43d65c4c5e62f6b73bff875c3ae38ca01` |
+  | `tests/investigator-eval.test.ts` | `abf4a47dc851177bdc8cfc340451c11e2b27048e6c9a1d71fc8fffefded0edd6` / `df53ae9ae889cd29d5f98195e08e2114edac1a0f` | `683f114e08b17f3e1f70528e17680812a4329ce86f5d39d3fbc056fd431d1332` / `37d0796d8c8942f9e78cdf5a62e4b6545f8418c8` |
+
+  This document's own hash changes with this entry. Any future run needs a freeze record regenerated on the commit that contains A1.

@@ -301,6 +301,14 @@ describe("frozen decision rules (Revision 2)", () => {
     expect(packs.consensus).toContain(`${code},${letter},P3case,UNASSESSABLE,UNASSESSABLE,UNASSESSABLE,no output`);
     expect(packs.consensus.split("\n")).toHaveLength(1 + 16 * 3 * 3);
   });
+  it("stage 1 pack carries the preregistered J2, U1 and H definitions verbatim (amendment after approval, 2026-10-23)", async () => {
+    const prereg = readFileSync("docs/INVESTIGATOR_EVAL_PREREGISTRATION.md", "utf8");
+    const packs = buildPacks(Object.fromEntries((await run(mockedProvider())).rows.map(r => [r.id, r.outputs])), 99);
+    for (const id of ["J2", "U1", "H"]) {
+      const [, name, definition] = prereg.match(new RegExp(`^\\| ${id} \\| 1 \\| ([^|]+) \\| ([^|]+) \\|$`, "m"))!.map(s => s.trim());
+      expect(packs.stage1).toContain(`- ${id} (${name}): ${definition}`);
+    }
+  });
 });
 
 describe("decision code fixes (Revision 3)", () => {
