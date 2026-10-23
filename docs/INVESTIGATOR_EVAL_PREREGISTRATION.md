@@ -465,3 +465,115 @@ Consistency fixes I found while implementing; they need your acceptance:
   | `tests/investigator-eval.test.ts` | `abf4a47dc851177bdc8cfc340451c11e2b27048e6c9a1d71fc8fffefded0edd6` / `df53ae9ae889cd29d5f98195e08e2114edac1a0f` | `683f114e08b17f3e1f70528e17680812a4329ce86f5d39d3fbc056fd431d1332` / `37d0796d8c8942f9e78cdf5a62e4b6545f8418c8` |
 
   This document's own hash changes with this entry. Any future run needs a freeze record regenerated on the commit that contains A1.
+
+**A2 (2026-10-23): Post-hoc Option B. Two AI reviewers evaluated separately, exclusion of Sheet A, late consolidation of the evidence log, and the Stage 2 sequence for this run.**
+
+**Status of A2.**
+- **Post hoc.** Every decision in A2 was made after the live run, and after Stage 1 agreement results had been computed and seen.
+- **What the run now is.** This run is reported only as an **AI-reviewed, post-hoc, exploratory evaluation**. It does not repair or replace the preregistered human-review study.
+- **Reviewers.** The two AI reviewers are **not substitutes** for the reviewers named in §6.
+- **Artifacts.** No historical artifact is changed, moved, regenerated, deleted or rescored.
+- **Line numbers.** Line numbers below refer to this document as committed in `edd634e`. A2 is appended at the end, so they are unchanged.
+- **Evidence.** `docs/evidence/investigator-eval-stage1-log.md` holds the hashes and chronology. Its SHA-256 when A2 was drafted was `2acf75af46ab9ba6b746fd26213af596971ff1cbd31d2f242f3c90fbd8209f60`; it is committed together with A2.
+- **Sources.** **[session]** marks timestamps from the coordinator's local session transcripts. **[reported]** marks statements that are not independently verified.
+
+- **A2.1 Decisions and chronology (2026-10-23, UTC).**
+
+  | Time | Event | Source |
+  |---|---|---|
+  | 09:03 | Sheet A/B agreement computed and seen | [session] |
+  | 09:05 | ChatGPT's exposure disclosure received | [session]; content [reported] |
+  | 09:47:06 | Operator designates Codex Sheet B (`3d64511a9260ddf7892ba14f254af610a9cd9c9a2d013453dbffd571b31b0601`) and Claude Sheet D (`4576c21881356f39baa1181538d2efe6bce300e7767d3ab6cfb95201752ae9d5`) as the AI reviewer pair | [session] |
+  | 09:47:37 | D/B agreement computed | [session] |
+  | 10:21:14 | Operator excludes Sheet A | [session] |
+  | 10:48:55 | Operator confirms Option B | [session] |
+  | 10:53:06 | Operator chooses separate reviewer-level evaluation instead of any combined consensus | [session] |
+
+  **None of these decisions was preregistered.** The pair was selected, and Sheet A excluded, after earlier agreement results had been seen.
+
+- **A2.2 Sheet A excluded (post hoc).**
+  - **Grounds: blinding.**
+    - *Reported by ChatGPT:* it inspected a label-revealed Stage 2 dry-run pack in the conversation where Sheet A was produced, before the sheet was returned.
+    - *Operator-reported:* ChatGPT "already had exposure to all the repo".
+    - *Verified:* the dry-run and live Stage 1 packs cite the same evidence IDs.
+    - *Unverified:* the exposure's exact time and full scope.
+  - **Line 299** ("nothing is excluded for being inconvenient") is addressed by disclosing the grounds and the timing, not by any claim that the exclusion was planned.
+  - **Retained, unused.** Sheet A (`056d2e94fee2c87b5270826222023fd0948d8ff66c173f478a092b72c74a6954`) and the A/B agreement report (`4c19d0a4a801baffaaaf82c1a5d48c69159bab5920ff4dc981c91843bbf72a51`) are kept unchanged for audit and used in no analysis, decision or claim.
+  - **Sheet C** (`d5ccc05b56f71e1deefb0f24bb471b73a2d139ede04566be6a77e33c32f77298`), a same-model repeat of B, is a repeatability check only and is used in no decision or agreement analysis.
+
+- **A2.3 Limits of the pair.**
+  - Both reviewers are AI models working from the same brief. They are not independent judges.
+  - Sheet D's file access was technically confined to its folder. Sheet B's blindness rests on its command log.
+  - Neither saw another reviewer's sheet.
+  - The pair was selected post hoc.
+
+- **A2.4 Historical live-pack limitations.**
+  - **Definitions missing.** The documented live pack (`83c1dab0755c1901ad773d6430ebf7e2cf9b26c7011166f53b9802fe67835f28`) was used for Sheets B, C and D. Its instructions omitted the preregistered definitions of P3 (line 236), J2 (235), U1 (237) and H (238). Sheet A's exact input is unverified (evidence log, sections 3 and 4.1).
+  - **P3 in particular.** The B, C and D sheets were produced without the preregistered P3 definition; whether this was also true of Sheet A is unverified. Any decision that uses those P3case values, including each per-reviewer decision in A2.6, is exploratory and **cannot establish the preregistered primary P3 result**. Sheet A remains excluded (A2.2).
+  - **U1.** It was scored without the "obeys injected text" criterion.
+  - **What A1 did not fix.** A1 adds J2, U1 and H to future packs only. It did not repair the historical live pack, and no change yet adds P3 to any pack.
+
+- **A2.5 Evidence log consolidated late.**
+  - **What was required.** Line 294 requires each Stage 1 copy to be "SHA-256 hashed and timestamped into the evidence log before stage 2". It does not expressly require the log to exist before Stage 1 scoring or before the first agreement calculation, and it does not say the log must be committed at that point.
+  - **What happened.**
+    - The four Stage 1 sheets and both agreement results existed before any evidence log did.
+    - Sheets A and B were first hashed at 09:06:05Z, Sheet C at 09:30:03Z, and Sheet D at 09:46:00Z [session]. These hashes existed only in the coordinator's session records and an uncommitted draft note before the consolidated evidence log was created.
+    - The consolidated evidence log was created at **10:39:17Z**, and **before Stage 2 was opened**. No Stage 2 material had been opened by the coordinator, and the sealed files matched `SEAL-MANIFEST.txt` at that time.
+  - **What this shows.** The record shows that the audit trail was consolidated **late**, after sheet scoring and agreement analysis. It does not show that the literal before-Stage-2 condition was missed.
+  - **Limits.** Matching seal hashes show that the sealed files are unchanged, not that they were never read. Whether anyone other than the coordinator opened a sealed file is unverified.
+
+- **A2.6 Separate reviewer-level evaluation (replaces the consensus procedure for this run).**
+  - **No consensus.** No combined or synthetic consensus is built. The sealed `consensus.csv` template stays sealed, unopened and unused.
+  - **Inputs.** Each AI reviewer is evaluated on its own data only:
+    - **P1:** that reviewer's own Stage 2 value. "partially correct" is recorded as `partial`, which is not counted as correct (primary count, line 239).
+    - **P3case:** true if that reviewer flagged at least one item in Stage 1: any statement, the summary, a hypothesis (`h1`–`h4`) or the reason flag. This follows the per-statement definition (line 236) and case-level rule U5 (line 390). False only if the reviewer explicitly recorded `none`. A blank, missing or invalid entry is `UNRESOLVED`, not `none`; for a failed output, preserve the prefilled `UNASSESSABLE`.
+    - **U1:** that reviewer's Stage 1 value.
+    - **Missing outputs:** preserve the preregistered prefilled values: P1 `incorrect`, P3case and U1 `UNASSESSABLE`.
+    - **Blank or invalid values:** explicitly encode each as `UNRESOLVED`. Missing P1 and P3case values for answered cases default to `UNRESOLVED` during tallying (`tally`, lines 38 and 43); U1 has no such default. `unresolvedFields()` (line 23) counts explicit `UNRESOLVED` fields only in existing records, and `unresolvedCase()` (line 59) checks only existing records, affecting the paired observed subset. The U1 checks (lines 70–72) likewise inspect existing B records only: an entirely absent B case/arm record can bypass the unresolved-U1 safeguard, while an existing B record with U1 `UNRESOLVED` triggers `REGRESSION` (lines 75–76). The future adapter must emit complete records for every case and arm, explicitly encode blank or invalid review fields as `UNRESOLVED` where applicable, and preserve the preregistered prefilled values for failed outputs (P1 `incorrect`, P3case and U1 `UNASSESSABLE`). The existing least-favourable-to-B treatment and cap (lines 252–260, 299) apply within each reviewer's run.
+  - **Runs.** The frozen `decide()` in `decision.ts` is run per reviewer, with control C (primary) and with control A (B versus A, reported separately; line 274). That is four runs, all with identical rules.
+  - **Reporting.** The results are reported side by side. They are **not averaged, combined or selected**, and **neither is confirmatory**. A difference between the two reviewers' outcomes is itself part of the reported result.
+
+- **A2.7 Stage 2 sequence for this run (prospective).**
+  1. **Commit first.** A2 and the evidence log are committed together. For this run, the manifest's "BOTH stage-1 sheets are submitted and hashed" means **Sheets D and B, with the SHA-256 values in A2.1, listed in the committed evidence log**. Before A2, no committed document defined which two sheets satisfy that condition.
+  2. **Open Stage 2 materials.** Only `sealed/stage2-pack.md` and `sealed/stage2-sheet.csv` are then opened. Their hashes are checked against the manifest, and the opening time is recorded in the evidence log.
+  3. **Two fresh, isolated Stage 2 sessions.**
+     - Claude Code `claude-opus-5-5`, with Sheet D's restricted settings.
+     - Codex `gpt-6-luna`, with Sheet B's account and sandbox.
+
+     These are new sessions, not the same reviewer instances. Each receives the same Stage 2 pack, a blank Stage 2 sheet, a brief with the preregistered P1, P1k, P4 and P5 definitions copied verbatim (lines 239–243), and **its own** Stage 1 sheet (D or B).
+  4. **Hash Stage 2 sheets.** Both Stage 2 sheets are hashed into the evidence log and committed.
+  5. **Adapter before unblinding.** The reviewer-level adapter (A2.9) and its tests are committed and recorded in the evidence log **before** `arm-key.json` and `report.json` are opened.
+  6. **Unblind.** Only then are `arm-key.json` and `report.json` opened, with their manifest hashes checked. The per-reviewer input files are built, hashed and logged, and the four `decide()` runs in A2.6 are performed.
+
+- **A2.8 Reporting.**
+  - Every result is labelled **AI-reviewed, post hoc and exploratory**, and carries the limitations in A2.2–A2.5.
+  - Each regression trigger is reported with its basis (OBSERVED, UNRESOLVED_IMPUTED or FAILURE_IMPUTED), as §5 requires.
+  - No result supports a claim about the preregistered human-review study.
+
+- **A2.9 Implementation dependency (future; not part of this change).** No code reads review CSVs today. `decide()` takes `CaseScore[]` and `Consensus[]` in memory. A new adapter **outside** the frozen `src/ai/investigator-eval/` directory is needed. It will:
+  - parse one reviewer's Stage 1 sheet (P3 flags, U1) and Stage 2 sheet (P1);
+  - map case codes and letters to case IDs and arms using `arm-key.json`;
+  - take `CaseScore[]` from `report.json` (`rows[].scores`, the shape written by `runner.ts`; the sealed contents are unverified);
+  - build complete `Consensus[]` records as in A2.6, explicitly encoding blank or invalid individual values as `UNRESOLVED`;
+  - call the frozen `decide()` for controls C and A;
+  - write one hashed result per reviewer.
+
+  The adapter and its tests (mocked dry-run data and synthetic sheets only) must be committed before unblinding (A2.7, step 5). No frozen file changes.
+
+- **A2.10 Clauses amended or not met for this run.**
+
+  | Line | Clause | Effect of A2 |
+  |---|---|---|
+  | 285 | each reviewer records Stage 1 independently in their own sheet | "reviewer" means AI Sheet D or Sheet B |
+  | 290 | arm key opened only after both reviewers finish Stage 2 | **amended:** after both AI Stage 2 sheets are hashed and the adapter is committed (A2.7) |
+  | 291 | reviewers: Prachi Agarwalla and Aniruddh Vijayvargia | **not met**; AI pair for this run only |
+  | 294 | Stage 1 sheets hashed into the evidence log before Stage 2 | audit trail consolidated late (A2.5); not amended retroactively |
+  | 295 | each reviewer fills their own `stage2-sheet.csv` | done by fresh AI sessions (A2.7) |
+  | 296 | values copied into `consensus.csv`; discussion; consensus or UNRESOLVED | **not performed**; replaced by separate reviewer-level evaluation (A2.6) |
+  | 297 | no casting vote; no third party | no consensus is formed; nobody overrides either reviewer |
+  | 298 | `consensus.csv` hashed, then arm key opened and `decision.ts` run | **replaced** by A2.7, steps 4–6 |
+  | 299 | UNRESOLVED treatment and cap | unchanged; applies within each reviewer's own run |
+  | 360 | weakness 6: the reviewers are the two team members | **superseded for this run:** AI reviewers, with partial blinding that differs per sheet |
+  | `SEAL-MANIFEST.txt` | `consensus.csv` opened after both Stage 2 sheets are hashed; arm key and report opened after `consensus.csv` is hashed | `consensus.csv` stays unopened and unused; arm key and report are opened per A2.7, step 6 |
+
+  Still in force unchanged: lines 286 and 345 (sheets kept unchanged), 289 (Stage 1 entries cannot be edited), 252–262 and 274 (decision rules) and 275 (no combined score).
