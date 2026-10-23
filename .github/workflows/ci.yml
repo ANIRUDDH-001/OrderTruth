@@ -18,6 +18,8 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: 22.18.0
+          # v5 auto-caches for the packageManager field and needs pnpm first; corepack provides it below.
+          package-manager-cache: false
       - run: corepack enable
       - run: pnpm install --frozen-lockfile
       - run: pnpm typecheck
@@ -46,6 +48,8 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: 22.18.0
+          # v5 auto-caches for the packageManager field and needs pnpm first; corepack provides it below.
+          package-manager-cache: false
       - run: corepack enable
       - run: pnpm install --frozen-lockfile
       - name: Write the disposable database settings the suite expects
