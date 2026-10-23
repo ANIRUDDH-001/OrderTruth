@@ -281,6 +281,9 @@ it("v6 to v7 migration preserves synthetic duplicate incident, evidence, repair 
   new RepairService(x.s, ORG).plan(duplicate.incidentId!, "synthetic reviewer");
   const legacyPath = join(dir, `${++serial}-legacy.sqlite`);
   const legacy = new DatabaseSync(legacyPath);
+  // Fixture connection only, not persisted in the file: ~130 autocommitted DDL statements each
+  // created and synced a rollback journal, which exceeded 15 s on a GitHub Windows runner.
+  legacy.exec("PRAGMA journal_mode=MEMORY; PRAGMA synchronous=OFF");
   legacy.exec("CREATE TABLE schema_migrations(version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL)");
   for (let i = 0; i < 6; i++) { legacy.exec(MIGRATIONS[i]!); legacy.prepare("INSERT INTO schema_migrations VALUES (?, 'synthetic')").run(i + 1); }
   // Hydrate the synthetic v6 database without replaying business transitions; restore ALL

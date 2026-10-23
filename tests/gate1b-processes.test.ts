@@ -21,12 +21,14 @@ beforeAll(async () => {
   fake = new FakePayPal();
   served = await serveFakePayPal(fake);
 });
-afterEach(() => {
-  for (const c of children.splice(0)) if (c.exitCode === null && c.signalCode === null) c.kill("SIGKILL");
+afterEach(async () => {
+  // Wait for each kill to finish: on Windows a killed child can still hold the shared SQLite files.
+  await Promise.all(children.splice(0).map((c) => c.exitCode !== null || c.signalCode !== null ? undefined
+    : new Promise<void>((done) => { c.once("exit", () => done()); c.kill("SIGKILL"); })));
 });
 afterAll(async () => {
   await served.close();
-  // Windows can briefly keep a just-exited child process's files locked (EPERM/EBUSY).
+  // Children have exited; retries only cover brief scanner/indexer locks on Windows (EPERM/EBUSY).
   rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
 });
 
