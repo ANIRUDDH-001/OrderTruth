@@ -172,7 +172,7 @@ The tests cover:
 
 - A full judge rehearsal on the final deployed version, on desktop and mobile: **NOT_TESTED**. Startup, session and authorization checks on the live HTTPS deployment were recorded privately; the full browser journey has not been re-run on the final version.
 - Hosted webhook delivery (genuine signed event, duplicate retry, interruption): **NOT_TESTED**.
-- AI quality versus the rules-based baseline on identical evidence: **not measured**. Each hosted investigation shows the rules-based result next to the model's, but no scored comparison has been run. The earlier live evaluation was blocked (`docs/GATE2C_AI_RESULTS.md`).
+- AI value: **not demonstrated.** A preregistered live evaluation of the Gate 2C advisory path (10 cases, 10 Gemini calls, 2026-10-23) found 10/10 accepted outputs and 10/10 correct classifications. A no-model control built from the same candidate policy also scored 10/10, so the model added no measurable value there. The hosted judge investigator has **not** been scored against its rules-based baseline. Details: `docs/GATE2C_AI_RESULTS.md`.
 - Free-tier availability through the judging period (Render sleep and suspension, Neon and Gemini allowances): **not guaranteed**. Availability is checked manually; no keep-alive traffic is used.
 - Role-based access beyond owner/judge, and multi-tenant isolation beyond per-session run ownership: **not built**.
 - Screen-reader use, a full WCAG 2.2 audit, performance under load, and real users: **NOT_TESTED**.

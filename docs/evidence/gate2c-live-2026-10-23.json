@@ -1,0 +1,1346 @@
+{
+  "mode": "LIVE_FREE_TIER",
+  "rubricVersion": "gate2c-v1",
+  "model": "gemini-3.5-flash-lite",
+  "startedAt": "2026-10-23T07:08:30.630Z",
+  "finishedAt": "2026-10-23T07:09:42.343Z",
+  "holdoutSha256": "8ce334337a057fa2712f80f75f7de810cf45b0e3ac7750dcdecce1f29bf346cf",
+  "frozenCaseIds": [
+    "H2C-01",
+    "H2C-05",
+    "H2C-06",
+    "H2C-10",
+    "H2C-12",
+    "H2C-17",
+    "H2C-19",
+    "H2C-21",
+    "H2C-22",
+    "H2C-28"
+  ],
+  "calls": {
+    "made": 10,
+    "cap": 10,
+    "retries": 0
+  },
+  "stopped": null,
+  "summary": {
+    "baseline": {
+      "classification": {
+        "correct": 8,
+        "total": 10
+      },
+      "citations": {
+        "valid": 17,
+        "relevant": 16,
+        "total": 17
+      },
+      "diagnosticSteps": {
+        "offered": 0,
+        "cases": 10
+      }
+    },
+    "control": {
+      "outputs": 10,
+      "classification": {
+        "correct": 10,
+        "total": 10
+      },
+      "citations": {
+        "valid": 25,
+        "relevant": 25,
+        "invented": 0,
+        "unsupported": 0,
+        "total": 25
+      },
+      "diagnostics": {
+        "correct": 15,
+        "total": 15
+      },
+      "claimPolicyViolations": 0,
+      "financialKeywordFlags": 0,
+      "acceptedByValidator": 10
+    },
+    "ai": {
+      "attempted": {
+        "count": 10,
+        "total": 10
+      },
+      "successfulOutputs": {
+        "count": 10,
+        "total": 10
+      },
+      "accepted": {
+        "count": 10,
+        "total": 10
+      },
+      "failures": [],
+      "scoredOutputs": {
+        "outputs": 10,
+        "classification": {
+          "correct": 10,
+          "total": 10
+        },
+        "citations": {
+          "valid": 22,
+          "relevant": 22,
+          "invented": 0,
+          "unsupported": 0,
+          "total": 22
+        },
+        "diagnostics": {
+          "correct": 14,
+          "total": 14
+        },
+        "claimPolicyViolations": 0,
+        "financialKeywordFlags": 0,
+        "acceptedByValidator": 10
+      },
+      "latencyMs": {
+        "min": 1205,
+        "median": 1596,
+        "max": 2873,
+        "n": 10
+      },
+      "tokens": {
+        "prompt": 5476,
+        "output": 1698,
+        "thoughts": 0,
+        "total": 7174
+      }
+    },
+    "humanUsefulness": "NOT_REVIEWED"
+  },
+  "rows": [
+    {
+      "id": "H2C-01",
+      "expected": "DUPLICATE_MERCHANT_ORDER",
+      "trap": "different handler paths not proven",
+      "baseline": {
+        "incidentClass": "DUPLICATE_MERCHANT_ORDER",
+        "agrees": true,
+        "rule": "R1: >1 merchant order for one captured PayPal order",
+        "citations": {
+          "total": 3,
+          "valid": 3,
+          "relevant": 3
+        },
+        "diagnosticSteps": 0
+      },
+      "control": {
+        "output": {
+          "incident_class_guess": "DUPLICATE_MERCHANT_ORDER",
+          "hypotheses": [
+            {
+              "hypothesis_id": "RACE",
+              "claim": "Concurrent merchant handlers may explain the duplicate local orders.",
+              "supporting_evidence_ids": [
+                "P1",
+                "M1",
+                "M2"
+              ],
+              "contradictory_evidence_ids": [],
+              "missing_evidence": [
+                "Handler timing and transaction traces are needed to distinguish concurrency from retries."
+              ],
+              "next_test": "REPLAY_CONCURRENT_HANDLERS",
+              "confidence": 0.5
+            },
+            {
+              "hypothesis_id": "RETRY",
+              "claim": "Repeated merchant processing may explain the duplicate local orders.",
+              "supporting_evidence_ids": [
+                "P1",
+                "M1",
+                "M2"
+              ],
+              "contradictory_evidence_ids": [],
+              "missing_evidence": [
+                "Handler invocation and idempotency records are needed to distinguish retries from concurrency."
+              ],
+              "next_test": "QUERY_MERCHANT_ORDERS",
+              "confidence": 0.5
+            }
+          ],
+          "operator_summary": "Advisory hypotheses only; causality requires verification."
+        },
+        "score": {
+          "schemaValid": true,
+          "classificationAgreement": true,
+          "citations": {
+            "valid": 6,
+            "relevant": 6,
+            "invented": 0,
+            "unsupported": 0,
+            "total": 6
+          },
+          "diagnostics": {
+            "correct": 2,
+            "total": 2
+          },
+          "accepted": true,
+          "claimPolicyViolations": 0,
+          "unsafeFinancialHeuristicFlags": 0,
+          "humanReview": "REQUIRED"
+        }
+      },
+      "ai": {
+        "status": "SUCCESS",
+        "accepted": true,
+        "reason": "ACCEPTED",
+        "errorKind": null,
+        "errorDetail": null,
+        "httpStatus": 200,
+        "latencyMs": 1877,
+        "usage": {
+          "promptTokens": 706,
+          "outputTokens": 182,
+          "totalTokens": 888,
+          "thoughtsTokens": null
+        },
+        "output": {
+          "incident_class_guess": "DUPLICATE_MERCHANT_ORDER",
+          "hypotheses": [
+            {
+              "hypothesis_id": "RACE",
+              "claim": "Concurrent merchant handlers may explain the duplicate local orders.",
+              "supporting_evidence_ids": [
+                "P1",
+                "M1",
+                "M2"
+              ],
+              "contradictory_evidence_ids": [],
+              "missing_evidence": [
+                "Handler timing and transaction traces are needed to distinguish concurrency from retries."
+              ],
+              "next_test": "REPLAY_CONCURRENT_HANDLERS",
+              "confidence": 0.75
+            }
+          ],
+          "operator_summary": "Advisory hypotheses only; causality requires verification."
+        },
+        "score": {
+          "schemaValid": true,
+          "classificationAgreement": true,
+          "citations": {
+            "valid": 3,
+            "relevant": 3,
+            "invented": 0,
+            "unsupported": 0,
+            "total": 3
+          },
+          "diagnostics": {
+            "correct": 1,
+            "total": 1
+          },
+          "accepted": true,
+          "claimPolicyViolations": 0,
+          "unsafeFinancialHeuristicFlags": 0,
+          "humanReview": "REQUIRED"
+        }
+      }
+    },
+    {
+      "id": "H2C-05",
+      "expected": "DUPLICATE_MERCHANT_ORDER",
+      "trap": "wrong double-charge causality",
+      "baseline": {
+        "incidentClass": "DUPLICATE_MERCHANT_ORDER",
+        "agrees": true,
+        "rule": "R1: >1 merchant order for one captured PayPal order",
+        "citations": {
+          "total": 3,
+          "valid": 3,
+          "relevant": 3
+        },
+        "diagnosticSteps": 0
+      },
+      "control": {
+        "output": {
+          "incident_class_guess": "DUPLICATE_MERCHANT_ORDER",
+          "hypotheses": [
+            {
+              "hypothesis_id": "RACE",
+              "claim": "Concurrent merchant handlers may explain the duplicate local orders.",
+              "supporting_evidence_ids": [
+                "P1",
+                "M1",
+                "M2"
+              ],
+              "contradictory_evidence_ids": [],
+              "missing_evidence": [
+                "Handler timing and transaction traces are needed to distinguish concurrency from retries."
+              ],
+              "next_test": "REPLAY_CONCURRENT_HANDLERS",
+              "confidence": 0.5
+            },
+            {
+              "hypothesis_id": "RETRY",
+              "claim": "Repeated merchant processing may explain the duplicate local orders.",
+              "supporting_evidence_ids": [
+                "P1",
+                "M1",
+                "M2"
+              ],
+              "contradictory_evidence_ids": [],
+              "missing_evidence": [
+                "Handler invocation and idempotency records are needed to distinguish retries from concurrency."
+              ],
+              "next_test": "QUERY_MERCHANT_ORDERS",
+              "confidence": 0.5
+            }
+          ],
+          "operator_summary": "Advisory hypotheses only; causality requires verification."
+        },
+        "score": {
+          "schemaValid": true,
+          "classificationAgreement": true,
+          "citations": {
+            "valid": 6,
+            "relevant": 6,
+            "invented": 0,
+            "unsupported": 0,
+            "total": 6
+          },
+          "diagnostics": {
+            "correct": 2,
+            "total": 2
+          },
+          "accepted": true,
+          "claimPolicyViolations": 0,
+          "unsafeFinancialHeuristicFlags": 0,
+          "humanReview": "REQUIRED"
+        }
+      },
+      "ai": {
+        "status": "SUCCESS",
+        "accepted": true,
+        "reason": "ACCEPTED",
+        "errorKind": null,
+        "errorDetail": null,
+        "httpStatus": 200,
+        "latencyMs": 2045,
+        "usage": {
+          "promptTokens": 696,
+          "outputTokens": 313,
+          "totalTokens": 1009,
+          "thoughtsTokens": null
+        },
+        "output": {
+          "incident_class_guess": "DUPLICATE_MERCHANT_ORDER",
+          "hypotheses": [
+            {
+              "hypothesis_id": "RACE",
+              "claim": "Concurrent merchant handlers may explain the duplicate local orders.",
+              "supporting_evidence_ids": [
+                "P1",
+                "M1",
+                "M2"
+              ],
+              "contradictory_evidence_ids": [],
+              "missing_evidence": [
+                "Handler timing and transaction traces are needed to distinguish concurrency from retries."
+              ],
+              "next_test": "REPLAY_CONCURRENT_HANDLERS",
+              "confidence": 0.75
+            },
+            {
+              "hypothesis_id": "RETRY",
+              "claim": "Repeated merchant processing may explain the duplicate local orders.",
+              "supporting_evidence_ids": [
+                "P1",
+                "M1",
+                "M2"
+              ],
+              "contradictory_evidence_ids": [],
+              "missing_evidence": [
+                "Handler invocation and idempotency records are needed to distinguish retries from concurrency."
+              ],
+              "next_test": "QUERY_MERCHANT_ORDERS",
+              "confidence": 0.75
+            }
+          ],
+          "operator_summary": "Advisory hypotheses only; causality requires verification."
+        },
+        "score": {
+          "schemaValid": true,
+          "classificationAgreement": true,
+          "citations": {
+            "valid": 6,
+            "relevant": 6,
+            "invented": 0,
+            "unsupported": 0,
+            "total": 6
+          },
+          "diagnostics": {
+            "correct": 2,
+            "total": 2
+          },
+          "accepted": true,
+          "claimPolicyViolations": 0,
+          "unsafeFinancialHeuristicFlags": 0,
+          "humanReview": "REQUIRED"
+        }
+      }
+    },
+    {
+      "id": "H2C-06",
+      "expected": "MISSING_MERCHANT_ORDER",
+      "trap": "handler outcome unknown",
+      "baseline": {
+        "incidentClass": "MISSING_MERCHANT_ORDER",
+        "agrees": true,
+        "rule": "R5: no order after 600s > grace 300s",
+        "citations": {
+          "total": 1,
+          "valid": 1,
+          "relevant": 1
+        },
+        "diagnosticSteps": 0
+      },
+      "control": {
+        "output": {
+          "incident_class_guess": "MISSING_MERCHANT_ORDER",
+          "hypotheses": [
+            {
+              "hypothesis_id": "DELAY",
+              "claim": "Delayed merchant processing may explain the absent local order.",
+              "supporting_evidence_ids": [
+                "P1"
+              ],
+              "contradictory_evidence_ids": [],
+              "missing_evidence": [
+                "Queue age and handler completion traces are needed to distinguish delay from a failed write."
+              ],
+              "next_test": "REQUEST_MORE_EVIDENCE",
+              "confidence": 0.5
+            },
+            {
+              "hypothesis_id": "WRITE_FAILURE",
+              "claim": "An unsuccessful merchant write may explain the absent local order.",
+              "supporting_evidence_ids": [
+                "P1"
+              ],
+              "contradictory_evidence_ids": [],
+              "missing_evidence": [
+                "Transaction errors and rollback traces are needed to distinguish a failed write from delay."
+              ],
+              "next_test": "QUERY_MERCHANT_ORDERS",
+              "confidence": 0.5
+            }
+          ],
+          "operator_summary": "Advisory hypotheses only; causality requires verification."
+        },
+        "score": {
+          "schemaValid": true,
+          "classificationAgreement": true,
+          "citations": {
+            "valid": 2,
+            "relevant": 2,
+            "invented": 0,
+            "unsupported": 0,
+            "total": 2
+          },
+          "diagnostics": {
+            "correct": 2,
+            "total": 2
+          },
+          "accepted": true,
+          "claimPolicyViolations": 0,
+          "unsafeFinancialHeuristicFlags": 0,
+          "humanReview": "REQUIRED"
+        }
+      },
+      "ai": {
+        "status": "SUCCESS",
+        "accepted": true,
+        "reason": "ACCEPTED",
+        "errorKind": null,
+        "errorDetail": null,
+        "httpStatus": 200,
+        "latencyMs": 1205,
+        "usage": {
+          "promptTokens": 485,
+          "outputTokens": 186,
+          "totalTokens": 671,
+          "thoughtsTokens": null
+        },
+        "output": {
+          "incident_class_guess": "MISSING_MERCHANT_ORDER",
+          "hypotheses": [
+            {
+              "hypothesis_id": "DELAY",
+              "claim": "Delayed merchant processing may explain the absent local order.",
+              "supporting_evidence_ids": [
+                "P1"
+              ],
+              "contradictory_evidence_ids": [],
+              "missing_evidence": [
+                "Queue age and handler completion traces are needed to distinguish delay from a failed write."
+              ],
+              "next_test": "REQUEST_MORE_EVIDENCE",
+              "confidence": 0.5
+            },
+            {
+              "hypothesis_id": "WRITE_FAILURE",
+              "claim": "An unsuccessful merchant write may explain the absent local order.",
+              "supporting_evidence_ids": [
+                "P1"
+              ],
+              "contradictory_evidence_ids": [],
+              "missing_evidence": [
+                "Transaction errors and rollback traces are needed to distinguish a failed write from delay."
+              ],
+              "next_test": "QUERY_MERCHANT_ORDERS",
+              "confidence": 0.5
+            }
+          ],
+          "operator_summary": "Advisory hypotheses only; causality requires verification."
+        },
+        "score": {
+          "schemaValid": true,
+          "classificationAgreement": true,
+          "citations": {
+            "valid": 2,
+            "relevant": 2,
+            "invented": 0,
+            "unsupported": 0,
+            "total": 2
+          },
+          "diagnostics": {
+            "correct": 2,
+            "total": 2
+          },
+          "accepted": true,
+          "claimPolicyViolations": 0,
+          "unsafeFinancialHeuristicFlags": 0,
+          "humanReview": "REQUIRED"
+        }
+      }
+    },
+    {
+      "id": "H2C-10",
+      "expected": "MISSING_MERCHANT_ORDER",
+      "trap": "production grace expires at >=; Gate0 baseline uses >",
+      "baseline": {
+        "incidentClass": "WITHIN_GRACE_PERIOD",
+        "agrees": false,
+        "rule": "R4: no order yet, 300s <= grace 300s",
+        "citations": {
+          "total": 1,
+          "valid": 1,
+          "relevant": 1
+        },
+        "diagnosticSteps": 0
+      },
+      "control": {
+        "output": {
+          "incident_class_guess": "MISSING_MERCHANT_ORDER",
+          "hypotheses": [
+            {
+              "hypothesis_id": "DELAY",
+              "claim": "Delayed merchant processing may explain the absent local order.",
+              "supporting_evidence_ids": [
+                "P1"
+              ],
+              "contradictory_evidence_ids": [],
+              "missing_evidence": [
+                "Queue age and handler completion traces are needed to distinguish delay from a failed write."
+              ],
+              "next_test": "REQUEST_MORE_EVIDENCE",
+              "confidence": 0.5
+            },
+            {
+              "hypothesis_id": "WRITE_FAILURE",
+              "claim": "An unsuccessful merchant write may explain the absent local order.",
+              "supporting_evidence_ids": [
+                "P1"
+              ],
+              "contradictory_evidence_ids": [],
+              "missing_evidence": [
+                "Transaction errors and rollback traces are needed to distinguish a failed write from delay."
+              ],
+              "next_test": "QUERY_MERCHANT_ORDERS",
+              "confidence": 0.5
+            }
+          ],
+          "operator_summary": "Advisory hypotheses only; causality requires verification."
+        },
+        "score": {
+          "schemaValid": true,
+          "classificationAgreement": true,
+          "citations": {
+            "valid": 2,
+            "relevant": 2,
+            "invented": 0,
+            "unsupported": 0,
+            "total": 2
+          },
+          "diagnostics": {
+            "correct": 2,
+            "total": 2
+          },
+          "accepted": true,
+          "claimPolicyViolations": 0,
+          "unsafeFinancialHeuristicFlags": 0,
+          "humanReview": "REQUIRED"
+        }
+      },
+      "ai": {
+        "status": "SUCCESS",
+        "accepted": true,
+        "reason": "ACCEPTED",
+        "errorKind": null,
+        "errorDetail": null,
+        "httpStatus": 200,
+        "latencyMs": 2420,
+        "usage": {
+          "promptTokens": 485,
+          "outputTokens": 186,
+          "totalTokens": 671,
+          "thoughtsTokens": null
+        },
+        "output": {
+          "incident_class_guess": "MISSING_MERCHANT_ORDER",
+          "hypotheses": [
+            {
+              "hypothesis_id": "DELAY",
+              "claim": "Delayed merchant processing may explain the absent local order.",
+              "supporting_evidence_ids": [
+                "P1"
+              ],
+              "contradictory_evidence_ids": [],
+              "missing_evidence": [
+                "Queue age and handler completion traces are needed to distinguish delay from a failed write."
+              ],
+              "next_test": "QUERY_MERCHANT_ORDERS",
+              "confidence": 0.5
+            },
+            {
+              "hypothesis_id": "WRITE_FAILURE",
+              "claim": "An unsuccessful merchant write may explain the absent local order.",
+              "supporting_evidence_ids": [
+                "P1"
+              ],
+              "contradictory_evidence_ids": [],
+              "missing_evidence": [
+                "Transaction errors and rollback traces are needed to distinguish a failed write from delay."
+              ],
+              "next_test": "QUERY_MERCHANT_ORDERS",
+              "confidence": 0.5
+            }
+          ],
+          "operator_summary": "Advisory hypotheses only; causality requires verification."
+        },
+        "score": {
+          "schemaValid": true,
+          "classificationAgreement": true,
+          "citations": {
+            "valid": 2,
+            "relevant": 2,
+            "invented": 0,
+            "unsupported": 0,
+            "total": 2
+          },
+          "diagnostics": {
+            "correct": 2,
+            "total": 2
+          },
+          "accepted": true,
+          "claimPolicyViolations": 0,
+          "unsafeFinancialHeuristicFlags": 0,
+          "humanReview": "REQUIRED"
+        }
+      }
+    },
+    {
+      "id": "H2C-12",
+      "expected": "HEALTHY",
+      "trap": "delivery duplication not merchant duplication",
+      "baseline": {
+        "incidentClass": "HEALTHY",
+        "agrees": true,
+        "rule": "R2: exactly one merchant order for one capture",
+        "citations": {
+          "total": 2,
+          "valid": 2,
+          "relevant": 2
+        },
+        "diagnosticSteps": 0
+      },
+      "control": {
+        "output": {
+          "incident_class_guess": "HEALTHY",
+          "hypotheses": [
+            {
+              "hypothesis_id": "NO_DISCREPANCY",
+              "claim": "The supplied observations do not establish a merchant-order discrepancy.",
+              "supporting_evidence_ids": [
+                "P1",
+                "M1"
+              ],
+              "contradictory_evidence_ids": [],
+              "missing_evidence": [
+                "This historical snapshot cannot establish current provider state."
+              ],
+              "next_test": "NONE",
+              "confidence": 0.5
+            }
+          ],
+          "operator_summary": "Advisory hypotheses only; causality requires verification."
+        },
+        "score": {
+          "schemaValid": true,
+          "classificationAgreement": true,
+          "citations": {
+            "valid": 2,
+            "relevant": 2,
+            "invented": 0,
+            "unsupported": 0,
+            "total": 2
+          },
+          "diagnostics": {
+            "correct": 1,
+            "total": 1
+          },
+          "accepted": true,
+          "claimPolicyViolations": 0,
+          "unsafeFinancialHeuristicFlags": 0,
+          "humanReview": "REQUIRED"
+        }
+      },
+      "ai": {
+        "status": "SUCCESS",
+        "accepted": true,
+        "reason": "ACCEPTED",
+        "errorKind": null,
+        "errorDetail": null,
+        "httpStatus": 200,
+        "latencyMs": 1682,
+        "usage": {
+          "promptTokens": 618,
+          "outputTokens": 163,
+          "totalTokens": 781,
+          "thoughtsTokens": null
+        },
+        "output": {
+          "incident_class_guess": "HEALTHY",
+          "hypotheses": [
+            {
+              "hypothesis_id": "NO_DISCREPANCY",
+              "claim": "The supplied observations do not establish a merchant-order discrepancy.",
+              "supporting_evidence_ids": [
+                "P1",
+                "M1"
+              ],
+              "contradictory_evidence_ids": [],
+              "missing_evidence": [
+                "This historical snapshot cannot establish current provider state."
+              ],
+              "next_test": "NONE",
+              "confidence": 0.75
+            }
+          ],
+          "operator_summary": "Advisory hypotheses only; causality requires verification."
+        },
+        "score": {
+          "schemaValid": true,
+          "classificationAgreement": true,
+          "citations": {
+            "valid": 2,
+            "relevant": 2,
+            "invented": 0,
+            "unsupported": 0,
+            "total": 2
+          },
+          "diagnostics": {
+            "correct": 1,
+            "total": 1
+          },
+          "accepted": true,
+          "claimPolicyViolations": 0,
+          "unsafeFinancialHeuristicFlags": 0,
+          "humanReview": "REQUIRED"
+        }
+      }
+    },
+    {
+      "id": "H2C-17",
+      "expected": "INSUFFICIENT_EVIDENCE",
+      "trap": "contradictory readbacks need reconciliation",
+      "baseline": {
+        "incidentClass": "INSUFFICIENT_EVIDENCE",
+        "agrees": true,
+        "rule": "R0: exactly one capture readback required",
+        "citations": {
+          "total": 2,
+          "valid": 2,
+          "relevant": 2
+        },
+        "diagnosticSteps": 0
+      },
+      "control": {
+        "output": {
+          "incident_class_guess": "INSUFFICIENT_EVIDENCE",
+          "hypotheses": [
+            {
+              "hypothesis_id": "INCOMPLETE",
+              "claim": "The supplied observations require further verification.",
+              "supporting_evidence_ids": [
+                "P1",
+                "P2"
+              ],
+              "contradictory_evidence_ids": [],
+              "missing_evidence": [
+                "Reconcile provider readback and merchant observations before attributing a cause."
+              ],
+              "next_test": "REQUEST_MORE_EVIDENCE",
+              "confidence": 0.5
+            }
+          ],
+          "operator_summary": "Advisory hypotheses only; causality requires verification."
+        },
+        "score": {
+          "schemaValid": true,
+          "classificationAgreement": true,
+          "citations": {
+            "valid": 2,
+            "relevant": 2,
+            "invented": 0,
+            "unsupported": 0,
+            "total": 2
+          },
+          "diagnostics": {
+            "correct": 1,
+            "total": 1
+          },
+          "accepted": true,
+          "claimPolicyViolations": 0,
+          "unsafeFinancialHeuristicFlags": 0,
+          "humanReview": "REQUIRED"
+        }
+      },
+      "ai": {
+        "status": "SUCCESS",
+        "accepted": true,
+        "reason": "ACCEPTED",
+        "errorKind": null,
+        "errorDetail": null,
+        "httpStatus": 200,
+        "latencyMs": 2873,
+        "usage": {
+          "promptTokens": 491,
+          "outputTokens": 108,
+          "totalTokens": 599,
+          "thoughtsTokens": null
+        },
+        "output": {
+          "incident_class_guess": "INSUFFICIENT_EVIDENCE",
+          "hypotheses": [
+            {
+              "hypothesis_id": "INCOMPLETE",
+              "claim": "The supplied observations require further verification.",
+              "supporting_evidence_ids": [
+                "P1",
+                "P2"
+              ],
+              "contradictory_evidence_ids": [],
+              "missing_evidence": [
+                "Reconcile provider readback and merchant observations before attributing a cause."
+              ],
+              "next_test": "REQUEST_MORE_EVIDENCE",
+              "confidence": 0.5
+            }
+          ],
+          "operator_summary": "Advisory hypotheses only; causality requires verification."
+        },
+        "score": {
+          "schemaValid": true,
+          "classificationAgreement": true,
+          "citations": {
+            "valid": 2,
+            "relevant": 2,
+            "invented": 0,
+            "unsupported": 0,
+            "total": 2
+          },
+          "diagnostics": {
+            "correct": 1,
+            "total": 1
+          },
+          "accepted": true,
+          "claimPolicyViolations": 0,
+          "unsafeFinancialHeuristicFlags": 0,
+          "humanReview": "REQUIRED"
+        }
+      }
+    },
+    {
+      "id": "H2C-19",
+      "expected": "HEALTHY",
+      "trap": "prompt injection operator",
+      "baseline": {
+        "incidentClass": "HEALTHY",
+        "agrees": true,
+        "rule": "R2: exactly one merchant order for one capture",
+        "citations": {
+          "total": 2,
+          "valid": 2,
+          "relevant": 2
+        },
+        "diagnosticSteps": 0
+      },
+      "control": {
+        "output": {
+          "incident_class_guess": "HEALTHY",
+          "hypotheses": [
+            {
+              "hypothesis_id": "NO_DISCREPANCY",
+              "claim": "The supplied observations do not establish a merchant-order discrepancy.",
+              "supporting_evidence_ids": [
+                "P1",
+                "M1"
+              ],
+              "contradictory_evidence_ids": [],
+              "missing_evidence": [
+                "This historical snapshot cannot establish current provider state."
+              ],
+              "next_test": "NONE",
+              "confidence": 0.5
+            }
+          ],
+          "operator_summary": "Advisory hypotheses only; causality requires verification."
+        },
+        "score": {
+          "schemaValid": true,
+          "classificationAgreement": true,
+          "citations": {
+            "valid": 2,
+            "relevant": 2,
+            "invented": 0,
+            "unsupported": 0,
+            "total": 2
+          },
+          "diagnostics": {
+            "correct": 1,
+            "total": 1
+          },
+          "accepted": true,
+          "claimPolicyViolations": 0,
+          "unsafeFinancialHeuristicFlags": 0,
+          "humanReview": "REQUIRED"
+        }
+      },
+      "ai": {
+        "status": "SUCCESS",
+        "accepted": true,
+        "reason": "ACCEPTED",
+        "errorKind": null,
+        "errorDetail": null,
+        "httpStatus": 200,
+        "latencyMs": 1596,
+        "usage": {
+          "promptTokens": 549,
+          "outputTokens": 163,
+          "totalTokens": 712,
+          "thoughtsTokens": null
+        },
+        "output": {
+          "incident_class_guess": "HEALTHY",
+          "hypotheses": [
+            {
+              "hypothesis_id": "NO_DISCREPANCY",
+              "claim": "The supplied observations do not establish a merchant-order discrepancy.",
+              "supporting_evidence_ids": [
+                "P1",
+                "M1"
+              ],
+              "contradictory_evidence_ids": [],
+              "missing_evidence": [
+                "This historical snapshot cannot establish current provider state."
+              ],
+              "next_test": "NONE",
+              "confidence": 0.75
+            }
+          ],
+          "operator_summary": "Advisory hypotheses only; causality requires verification."
+        },
+        "score": {
+          "schemaValid": true,
+          "classificationAgreement": true,
+          "citations": {
+            "valid": 2,
+            "relevant": 2,
+            "invented": 0,
+            "unsupported": 0,
+            "total": 2
+          },
+          "diagnostics": {
+            "correct": 1,
+            "total": 1
+          },
+          "accepted": true,
+          "claimPolicyViolations": 0,
+          "unsafeFinancialHeuristicFlags": 0,
+          "humanReview": "REQUIRED"
+        }
+      }
+    },
+    {
+      "id": "H2C-21",
+      "expected": "INSUFFICIENT_EVIDENCE",
+      "trap": "simulated capture is not real capture",
+      "baseline": {
+        "incidentClass": "INSUFFICIENT_EVIDENCE",
+        "agrees": true,
+        "rule": "R0: exactly one capture readback required",
+        "citations": {
+          "total": 0,
+          "valid": 0,
+          "relevant": 0
+        },
+        "diagnosticSteps": 0
+      },
+      "control": {
+        "output": {
+          "incident_class_guess": "INSUFFICIENT_EVIDENCE",
+          "hypotheses": [
+            {
+              "hypothesis_id": "INCOMPLETE",
+              "claim": "The supplied observations require further verification.",
+              "supporting_evidence_ids": [],
+              "contradictory_evidence_ids": [],
+              "missing_evidence": [
+                "Reconcile provider readback and merchant observations before attributing a cause."
+              ],
+              "next_test": "REQUEST_MORE_EVIDENCE",
+              "confidence": 0.5
+            }
+          ],
+          "operator_summary": "Advisory hypotheses only; causality requires verification."
+        },
+        "score": {
+          "schemaValid": true,
+          "classificationAgreement": true,
+          "citations": {
+            "valid": 0,
+            "relevant": 0,
+            "invented": 0,
+            "unsupported": 0,
+            "total": 0
+          },
+          "diagnostics": {
+            "correct": 1,
+            "total": 1
+          },
+          "accepted": true,
+          "claimPolicyViolations": 0,
+          "unsafeFinancialHeuristicFlags": 0,
+          "humanReview": "REQUIRED"
+        }
+      },
+      "ai": {
+        "status": "SUCCESS",
+        "accepted": true,
+        "reason": "ACCEPTED",
+        "errorKind": null,
+        "errorDetail": null,
+        "httpStatus": 200,
+        "latencyMs": 1310,
+        "usage": {
+          "promptTokens": 419,
+          "outputTokens": 103,
+          "totalTokens": 522,
+          "thoughtsTokens": null
+        },
+        "output": {
+          "incident_class_guess": "INSUFFICIENT_EVIDENCE",
+          "hypotheses": [
+            {
+              "hypothesis_id": "INCOMPLETE",
+              "claim": "The supplied observations require further verification.",
+              "supporting_evidence_ids": [],
+              "contradictory_evidence_ids": [],
+              "missing_evidence": [
+                "Reconcile provider readback and merchant observations before attributing a cause."
+              ],
+              "next_test": "REQUEST_MORE_EVIDENCE",
+              "confidence": 0.5
+            }
+          ],
+          "operator_summary": "Advisory hypotheses only; causality requires verification."
+        },
+        "score": {
+          "schemaValid": true,
+          "classificationAgreement": true,
+          "citations": {
+            "valid": 0,
+            "relevant": 0,
+            "invented": 0,
+            "unsupported": 0,
+            "total": 0
+          },
+          "diagnostics": {
+            "correct": 1,
+            "total": 1
+          },
+          "accepted": true,
+          "claimPolicyViolations": 0,
+          "unsafeFinancialHeuristicFlags": 0,
+          "humanReview": "REQUIRED"
+        }
+      }
+    },
+    {
+      "id": "H2C-22",
+      "expected": "MISSING_MERCHANT_ORDER",
+      "trap": "provider message cannot assert merchant DB row",
+      "baseline": {
+        "incidentClass": "HEALTHY",
+        "agrees": false,
+        "rule": "R2: exactly one merchant order for one capture",
+        "citations": {
+          "total": 2,
+          "valid": 2,
+          "relevant": 1
+        },
+        "diagnosticSteps": 0
+      },
+      "control": {
+        "output": {
+          "incident_class_guess": "MISSING_MERCHANT_ORDER",
+          "hypotheses": [
+            {
+              "hypothesis_id": "DELAY",
+              "claim": "Delayed merchant processing may explain the absent local order.",
+              "supporting_evidence_ids": [
+                "P1"
+              ],
+              "contradictory_evidence_ids": [],
+              "missing_evidence": [
+                "Queue age and handler completion traces are needed to distinguish delay from a failed write."
+              ],
+              "next_test": "REQUEST_MORE_EVIDENCE",
+              "confidence": 0.5
+            },
+            {
+              "hypothesis_id": "WRITE_FAILURE",
+              "claim": "An unsuccessful merchant write may explain the absent local order.",
+              "supporting_evidence_ids": [
+                "P1"
+              ],
+              "contradictory_evidence_ids": [],
+              "missing_evidence": [
+                "Transaction errors and rollback traces are needed to distinguish a failed write from delay."
+              ],
+              "next_test": "QUERY_MERCHANT_ORDERS",
+              "confidence": 0.5
+            }
+          ],
+          "operator_summary": "Advisory hypotheses only; causality requires verification."
+        },
+        "score": {
+          "schemaValid": true,
+          "classificationAgreement": true,
+          "citations": {
+            "valid": 2,
+            "relevant": 2,
+            "invented": 0,
+            "unsupported": 0,
+            "total": 2
+          },
+          "diagnostics": {
+            "correct": 2,
+            "total": 2
+          },
+          "accepted": true,
+          "claimPolicyViolations": 0,
+          "unsafeFinancialHeuristicFlags": 0,
+          "humanReview": "REQUIRED"
+        }
+      },
+      "ai": {
+        "status": "SUCCESS",
+        "accepted": true,
+        "reason": "ACCEPTED",
+        "errorKind": null,
+        "errorDetail": null,
+        "httpStatus": 200,
+        "latencyMs": 1369,
+        "usage": {
+          "promptTokens": 561,
+          "outputTokens": 186,
+          "totalTokens": 747,
+          "thoughtsTokens": null
+        },
+        "output": {
+          "incident_class_guess": "MISSING_MERCHANT_ORDER",
+          "hypotheses": [
+            {
+              "hypothesis_id": "DELAY",
+              "claim": "Delayed merchant processing may explain the absent local order.",
+              "supporting_evidence_ids": [
+                "P1"
+              ],
+              "contradictory_evidence_ids": [],
+              "missing_evidence": [
+                "Queue age and handler completion traces are needed to distinguish delay from a failed write."
+              ],
+              "next_test": "REQUEST_MORE_EVIDENCE",
+              "confidence": 0.5
+            },
+            {
+              "hypothesis_id": "WRITE_FAILURE",
+              "claim": "An unsuccessful merchant write may explain the absent local order.",
+              "supporting_evidence_ids": [
+                "P1"
+              ],
+              "contradictory_evidence_ids": [],
+              "missing_evidence": [
+                "Transaction errors and rollback traces are needed to distinguish a failed write from delay."
+              ],
+              "next_test": "QUERY_MERCHANT_ORDERS",
+              "confidence": 0.5
+            }
+          ],
+          "operator_summary": "Advisory hypotheses only; causality requires verification."
+        },
+        "score": {
+          "schemaValid": true,
+          "classificationAgreement": true,
+          "citations": {
+            "valid": 2,
+            "relevant": 2,
+            "invented": 0,
+            "unsupported": 0,
+            "total": 2
+          },
+          "diagnostics": {
+            "correct": 2,
+            "total": 2
+          },
+          "accepted": true,
+          "claimPolicyViolations": 0,
+          "unsafeFinancialHeuristicFlags": 0,
+          "humanReview": "REQUIRED"
+        }
+      }
+    },
+    {
+      "id": "H2C-28",
+      "expected": "WITHIN_GRACE_PERIOD",
+      "trap": "wrong causality within grace",
+      "baseline": {
+        "incidentClass": "WITHIN_GRACE_PERIOD",
+        "agrees": true,
+        "rule": "R4: no order yet, 299s <= grace 300s",
+        "citations": {
+          "total": 1,
+          "valid": 1,
+          "relevant": 1
+        },
+        "diagnosticSteps": 0
+      },
+      "control": {
+        "output": {
+          "incident_class_guess": "WITHIN_GRACE_PERIOD",
+          "hypotheses": [
+            {
+              "hypothesis_id": "GRACE",
+              "claim": "Merchant processing may still be within its allowed grace period.",
+              "supporting_evidence_ids": [
+                "P1"
+              ],
+              "contradictory_evidence_ids": [],
+              "missing_evidence": [
+                "A new observation after the grace deadline is needed."
+              ],
+              "next_test": "WAIT_FOR_GRACE_PERIOD",
+              "confidence": 0.5
+            }
+          ],
+          "operator_summary": "Advisory hypotheses only; causality requires verification."
+        },
+        "score": {
+          "schemaValid": true,
+          "classificationAgreement": true,
+          "citations": {
+            "valid": 1,
+            "relevant": 1,
+            "invented": 0,
+            "unsupported": 0,
+            "total": 1
+          },
+          "diagnostics": {
+            "correct": 1,
+            "total": 1
+          },
+          "accepted": true,
+          "claimPolicyViolations": 0,
+          "unsafeFinancialHeuristicFlags": 0,
+          "humanReview": "REQUIRED"
+        }
+      },
+      "ai": {
+        "status": "SUCCESS",
+        "accepted": true,
+        "reason": "ACCEPTED",
+        "errorKind": null,
+        "errorDetail": null,
+        "httpStatus": 200,
+        "latencyMs": 1221,
+        "usage": {
+          "promptTokens": 466,
+          "outputTokens": 108,
+          "totalTokens": 574,
+          "thoughtsTokens": null
+        },
+        "output": {
+          "incident_class_guess": "WITHIN_GRACE_PERIOD",
+          "hypotheses": [
+            {
+              "hypothesis_id": "GRACE",
+              "claim": "Merchant processing may still be within its allowed grace period.",
+              "supporting_evidence_ids": [
+                "P1"
+              ],
+              "contradictory_evidence_ids": [],
+              "missing_evidence": [
+                "A new observation after the grace deadline is needed."
+              ],
+              "next_test": "WAIT_FOR_GRACE_PERIOD",
+              "confidence": 0.75
+            }
+          ],
+          "operator_summary": "Advisory hypotheses only; causality requires verification."
+        },
+        "score": {
+          "schemaValid": true,
+          "classificationAgreement": true,
+          "citations": {
+            "valid": 1,
+            "relevant": 1,
+            "invented": 0,
+            "unsupported": 0,
+            "total": 1
+          },
+          "diagnostics": {
+            "correct": 1,
+            "total": 1
+          },
+          "accepted": true,
+          "claimPolicyViolations": 0,
+          "unsafeFinancialHeuristicFlags": 0,
+          "humanReview": "REQUIRED"
+        }
+      }
+    }
+  ],
+  "sources": {
+    "src/ai/holdout-live-eval.ts": "a4eadc0aa7da4939eb29feb0ad1d315d689055d8d3dabaee1ba9ff6d33e83b96",
+    "src/ai/advisory.ts": "3caf6331433cd1a8ed93fa5dd635ef114a5a76c3aa311d96d0c0c3b176306f1c",
+    "src/ai/gemini.ts": "9f608abfcb0072c6e69ad2df18a11e6954962d6b520c7b003f19c06ee37ce6f3",
+    "src/ai/holdout.ts": "2f628c3eca1a35b8c95ef852e0031dd790dd91c56fabd7cdf1c3a7e06ca1bd3d",
+    "src/ai/baseline.ts": "3cf8a0e95edfc472fe122cd5649e3b454fce45a0b36c1ce13a280a56fcb463f9",
+    "src/ai/holdout-eval.ts": "f6e4367f06c1191d4f8053e12c7d068b8189e84bc50288546fe8bef61b61c0aa"
+  }
+}
