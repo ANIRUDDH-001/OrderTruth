@@ -1,0 +1,62 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  offline:
+    # Typecheck, offline test suite and the frontend build Vercel runs. No secrets,
+    # no PayPal or model calls: every test injects a fake fetch.
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.18.0
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm build:frontend
+
+  postgres:
+    # The opt-in PostgreSQL suite against a disposable container. It never sees the
+    # hosted Neon database: the tests refuse anything but 127.0.0.1:55432/ordertruth.
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_DB: ordertruth
+          POSTGRES_USER: ordertruth_ci
+          POSTGRES_PASSWORD: ci-disposable-container-only
+        ports:
+          - 55432:5432
+        options: >-
+          --health-cmd "pg_isready -U ordertruth_ci -d ordertruth"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.18.0
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile
+      - name: Write the disposable database settings the suite expects
+        run: |
+          mkdir -p .work/postgres
+          cat > .work/postgres/.env <<'EOF'
+          PGHOST=127.0.0.1
+          PGPORT=55432
+          PGDATABASE=ordertruth
+          PGUSER=ordertruth_ci
+          PGPASSWORD=ci-disposable-container-only
+          DATABASE_URL=postgresql://ordertruth_ci:ci-disposable-container-only@127.0.0.1:55432/ordertruth
+          EOF
+      - run: pnpm test:postgres

@@ -1,4 +1,5 @@
 import type { Investigation,InvestigationEvidence,DiagnosticKind } from "../../src/ai/investigation.ts";
+import { RequestError,requestJson,slowNotice } from "./request.ts";
 
 type Session = { authenticated: boolean; userId?: string; owner?: boolean };
 type Scenario = { run: { id: string; label: string }; orders: Array<{ id: string; effective_status: string; amount_minor: number; currency: string }>;
@@ -9,22 +10,22 @@ type Analysis = { status: "FRESH"|"CACHED"|"UNAVAILABLE"; freshModelExecution: b
 type Receipt = { receipt: { execution_id: string; outcome: string; completed_at: string; provider_before_sha256: string; provider_after_sha256: string }; verifiedCurrent: boolean; current: { activeOrders: number; matchingKeeper: number; providerUnchanged: boolean } };
 const root = document.querySelector<HTMLElement>("#app")!;
 const state = { session: { authenticated: false } as Session,scenario: null as Scenario|null,analysis: null as Analysis|null,plan: null as Plan|null,receipt: null as Receipt|null,
-  approved: false,detected: false,busy: "",error: "",role: "operations",ownerForm: false,diagnostics: [] as InvestigationEvidence[] };
+  approved: false,detected: false,busy: "",error: "",notice: "",role: "operations",ownerForm: false,diagnostics: [] as InvestigationEvidence[] };
 function el<K extends keyof HTMLElementTagNameMap>(tag: K,text = "",className = ""): HTMLElementTagNameMap[K] { const node = document.createElement(tag); node.textContent = text; node.className = className; return node; }
 function section(title: string,description: string) { const node = el("section","","panel"); node.append(el("h2",title),el("p",description,"muted")); return node; }
 function button(text: string,action: () => Promise<void>|void,secondary = false) {
   const node = el("button",text,secondary ? "button secondary" : "button"); node.type = "button"; node.disabled = !!state.busy;
   node.addEventListener("click",() => void run(text,action)); return node;
 }
-async function api<T>(path: string,body?: unknown): Promise<T> {
-  const response = await fetch(path,{ credentials: "same-origin",...(body !== undefined ? { method: "POST",headers: { "content-type": "application/json" },body: JSON.stringify(body) } : {}) });
-  const data = await response.json().catch(() => ({})) as T & { error?: string; message?: string };
-  if (!response.ok) throw new Error(data.message ?? data.error ?? `Request unavailable (${response.status})`); return data;
-}
+function api<T>(path: string,body?: unknown): Promise<T> { return requestJson<T>(path,body); }
 async function run(label: string,action: () => Promise<void>|void) {
-  state.busy = label; state.error = ""; render();
+  state.busy = label; state.error = ""; state.notice = ""; render();
+  // Update only the status text, so a slow cold start does not re-render the page or move focus.
+  const started = Date.now(); const timer = setInterval(() => {
+    const status = root.querySelector<HTMLElement>("p.notice[role=status]"); if (status) status.textContent = `${label}… ${slowNotice(Date.now()-started)}`.trim();
+  },5000);
   try { await action(); } catch (error) { state.error = error instanceof Error ? error.message : "Request unavailable. Your committed case is preserved."; }
-  finally { state.busy = ""; render(); const target = [...root.querySelectorAll("button")].find(b => b.textContent === label); target?.focus({ preventScroll: true }); }
+  finally { clearInterval(timer); state.busy = ""; render(); const target = [...root.querySelectorAll("button")].find(b => b.textContent === label); target?.focus({ preventScroll: true }); }
 }
 function path(action = "") { return `/api/scenarios/${encodeURIComponent(state.scenario!.run.id)}${action ? `/${action}` : ""}`; }
 async function refresh() { state.scenario = await api<Scenario>(path()); }
@@ -53,6 +54,7 @@ function render() {
   if (state.ownerForm) main.append(ownerForm());
   if (state.busy) { const progress = el("p",`${state.busy}…`,"notice"); progress.setAttribute("role","status"); progress.setAttribute("aria-live","polite"); main.append(progress); }
   if (state.error) { const error = el("p",state.error,"error"); error.setAttribute("role","alert"); main.append(error); }
+  else if (state.notice && !state.busy) { const notice = el("p",state.notice,"notice"); notice.setAttribute("role","status"); main.append(notice); }
   const toolbar = el("div","","toolbar");
   for (const role of ["operations","engineering"]) {
     const tab = button(role === "operations" ? "Operations" : "Engineering",() => { state.role = role; },true); tab.setAttribute("aria-pressed",String(state.role === role)); toolbar.append(tab);
@@ -148,7 +150,13 @@ async function boot() {
   state.session = await api<Session>("/api/session");
   let saved = new URL(location.href).searchParams.get("run"); try { saved ||= localStorage.getItem("ordertruth.judge.run"); } catch { /* Optional persistence. */ }
   if (saved && /^[a-zA-Z0-9_-]{1,100}$/.test(saved) && state.session.authenticated) {
-    state.scenario = await api<Scenario>(`/api/scenarios/${saved}`);
+    try { state.scenario = await api<Scenario>(`/api/scenarios/${saved}`); } catch (error) {
+      // A shared link or another browser session's case is not readable here; forget it rather than failing the page.
+      if (!(error instanceof RequestError) || ![400,404].includes(error.status)) throw error;
+      const url = new URL(location.href); url.searchParams.delete("run"); history.replaceState(null,"",url);
+      try { localStorage.removeItem("ordertruth.judge.run"); } catch { /* Optional persistence. */ }
+      state.notice = "That case belongs to another session, so it cannot be opened here. Start a new isolated case."; return;
+    }
     state.analysis = await api<Analysis|null>(path("investigation"));
     state.diagnostics = state.analysis?.evidence.filter(e => e.source === "MERCHANT_DIAGNOSTIC") ?? [];
     const latest = state.scenario.latestPlan;

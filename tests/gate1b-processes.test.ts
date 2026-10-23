@@ -26,7 +26,8 @@ afterEach(() => {
 });
 afterAll(async () => {
   await served.close();
-  rmSync(dir, { recursive: true, force: true });
+  // Windows can briefly keep a just-exited child process's files locked (EPERM/EBUSY).
+  rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
 });
 
 type Proc = { child: ChildProcess; port: number; abandoned: number; exited: Promise<number | null> };
