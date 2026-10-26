@@ -64,3 +64,15 @@ Optional history completion updates only its investigation panel. Active owner
 inputs and focus remain in place; passwords are never persisted for this purpose.
 If focus is inside the investigation panel itself, only its status text changes;
 the loaded history is displayed on the next explicit case-view update.
+
+Keyboard actions that replace their trigger move focus to the next meaningful
+case heading, detection/execution control, owner field or receipt heading. Errors
+receive focus as alerts; initial session discovery leaves the skip link first.
+Background history still preserves active owner inputs, selection and focus.
+Input boundaries retain at least 3:1 contrast in normal, focus, invalid and
+disabled styles; this component check does not establish WCAG certification.
+
+Only a currently verified receipt with terminal outcome `SUCCEEDED` removes
+approval and execution controls. Read-only case/receipt rechecks and export stay
+available. Rejected, expired and unverified outcomes retain review controls;
+server authorization, approval binding and execution idempotency are unchanged.

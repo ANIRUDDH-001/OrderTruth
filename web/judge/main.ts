@@ -38,7 +38,24 @@ async function run(label: string,action: () => Promise<void>|void) {
     const status = root.querySelector<HTMLElement>("p.notice[role=status]"); if (status) status.textContent = `${label}… ${slowNotice(Date.now()-started)}`.trim();
   },1000);
   try { await action(); } catch (error) { state.error = error instanceof Error ? error.message : "Request unavailable. Your committed case is preserved."; }
-  finally { clearInterval(timer); state.busy = ""; render(); const target = [...root.querySelectorAll("button")].find(b => b.textContent === label); target?.focus({ preventScroll: true }); }
+  finally { clearInterval(timer); state.busy = ""; render(); restoreActionFocus(label); }
+}
+function restoreActionFocus(label: string) {
+  if (label === "Loading your session") return; // Keep the initial skip link first in keyboard order.
+  const controls = [...root.querySelectorAll("button")];
+  const named = (name: string) => controls.find(b => b.textContent === name && !b.disabled);
+  // Actions can remove or rename their trigger. Move to the next meaningful step.
+  const next: Record<string,HTMLElement|null|undefined> = {
+    "Start judge experience": root.querySelector<HTMLElement>("#case-heading"),
+    "Start a new isolated case": root.querySelector<HTMLElement>("#case-heading"),
+    "Introduce duplicate": named("Detect anomaly"),
+    "Approve this exact merchant-only plan": named("Execute approved local repair"),
+    "Execute approved local repair": root.querySelector<HTMLElement>("#receipt-heading"),
+    "Owner access": root.querySelector<HTMLElement>("#owner-email") ?? root.querySelector<HTMLElement>("#owner-toggle"),
+    "Close owner sign-in": root.querySelector<HTMLElement>("#owner-toggle")
+  };
+  const target = root.querySelector<HTMLElement>("#action-error") ?? next[label] ?? named(label) ?? root.querySelector<HTMLElement>("#workspace");
+  target?.focus();
 }
 function path(action = "") { return `/api/scenarios/${encodeURIComponent(state.scenario!.run.id)}${action ? `/${action}` : ""}`; }
 function savedRun() {
@@ -134,14 +151,16 @@ function render() {
   root.replaceChildren();
   const header = el("header"); const brand = el("a","OrderTruth","brand"); brand.href = "/";
   const identity = el("span",state.sessionStatus === "AUTHENTICATED" ? (state.session.owner ? "Owner session" : "Private judge session") : state.sessionStatus === "SIGNED_OUT" ? "Signed out" : "Session access not yet confirmed","muted");
-  header.append(brand,identity,button(state.ownerForm ? "Close owner sign-in" : "Owner access",() => { state.ownerForm = !state.ownerForm; },true)); root.append(header);
+  const ownerToggle = button(state.ownerForm ? "Close owner sign-in" : "Owner access",() => { state.ownerForm = !state.ownerForm; },true);
+  ownerToggle.id = "owner-toggle"; ownerToggle.setAttribute("aria-expanded",String(state.ownerForm));
+  header.append(brand,identity,ownerToggle); root.append(header);
   const main = el("main"); main.id = "workspace"; main.tabIndex = -1;
   const intro = el("div","","intro"); intro.append(el("p","Investigate merchant outcomes. Verify recovery.","kicker"),el("h1",state.scenario ? "Follow the evidence to recovery." : "A payment can succeed. Its order can still be wrong."),
     el("p","Explore a controlled merchant anomaly against an original PayPal Sandbox observation. Investigate, approve a merchant-only repair, and independently check the result.","lead"));
   main.append(intro);
   if (state.ownerForm) main.append(ownerForm());
   if (state.busy) { const progress = el("p",`${state.busy}…`,"notice"); progress.setAttribute("role","status"); progress.setAttribute("aria-live","polite"); main.append(progress); }
-  if (state.error) { const error = el("p",state.error,"error"); error.setAttribute("role","alert"); main.append(error); }
+  if (state.error) { const error = el("p",state.error,"error"); error.id = "action-error"; error.tabIndex = -1; error.setAttribute("role","alert"); main.append(error); }
   else if (state.notice && !state.busy) { const notice = el("p",state.notice,"notice"); notice.setAttribute("role","status"); main.append(notice); }
   const toolbar = el("div","","toolbar");
   for (const role of ["operations","engineering"]) {
@@ -170,6 +189,7 @@ function caseView() {
   for (const [label,done] of stages) flow.append(el("li",label,done ? "done" : "")); container.append(flow);
   const grid = el("div","","case-grid");
   const merchant = section("Controlled merchant state","Each order below belongs to this run. The payment observation is shared by reference.");
+  const caseHeading = merchant.querySelector("h2")!; caseHeading.id = "case-heading"; caseHeading.tabIndex = -1;
   const active = scenario.orders.filter(o => o.effective_status === "placed");
   merchant.append(record("Active merchant orders",String(active.length)),record("Case",scenario.run.id));
   if (state.detected) { const verdict = el("p",state.receipt?.verifiedCurrent ? "Verified recovery: one active merchant order." : active.length > 1 ? "Duplicate merchant orders detected." : "Recheck the current merchant outcome.","result-label"); verdict.setAttribute("role","status"); merchant.append(verdict); }
@@ -182,16 +202,20 @@ function caseView() {
   grid.append(investigationView());
 
   const recovery = section("Approve, repair, verify","The plan preserves one merchant order and appends a local void for each duplicate. PayPal records remain unchanged.");
-  if (!state.approved || (state.receipt && !state.receipt.verifiedCurrent)) recovery.append(button("Review exact repair plan",() => mutateCase("plan"),false,true));
+  const completed = state.receipt?.verifiedCurrent === true && state.receipt.receipt.outcome === "SUCCEEDED";
+  if (!completed && (!state.approved || (state.receipt && !state.receipt.verifiedCurrent))) recovery.append(button("Review exact repair plan",() => mutateCase("plan"),false,true));
   if (state.plan) {
     const plan = state.plan;
     recovery.append(record("Keep",plan.keep_order_id),record("Void locally",(JSON.parse(plan.void_order_ids_json) as string[]).join(", ")),record("Exact plan hash",plan.plan_sha256),el("p",`Approval expires ${new Date(plan.expires_at).toLocaleTimeString()}`,"muted"));
-    recovery.append(button(state.approved ? "Exact plan approved" : "Approve this exact merchant-only plan",() => mutateCase("approve",{ planId: plan.id,planSha256: plan.plan_sha256 }),false,true));
-    if (state.approved) recovery.append(button("Execute approved local repair",() => mutateCase("execute",{ planId: plan.id }),false,true));
+    if (!completed) {
+      recovery.append(button(state.approved ? "Exact plan approved" : "Approve this exact merchant-only plan",() => mutateCase("approve",{ planId: plan.id,planSha256: plan.plan_sha256 }),false,true));
+      if (state.approved) recovery.append(button("Execute approved local repair",() => mutateCase("execute",{ planId: plan.id }),false,true));
+    }
   }
   if (state.receipt) {
     const receipt = state.receipt;
-    recovery.append(el("h3",receipt.verifiedCurrent ? "Recovery independently verified" : "Outcome needs review"),record("Terminal outcome",receipt.receipt.outcome),record("Active orders",String(receipt.current.activeOrders)),record("Expected surviving order",String(receipt.current.matchingKeeper)),record("Provider evidence unchanged",receipt.current.providerUnchanged ? "Verified" : "Not established"));
+    const heading = el("h3",receipt.verifiedCurrent ? "Recovery independently verified" : "Outcome needs review"); heading.id = "receipt-heading"; heading.tabIndex = -1;
+    recovery.append(heading,record("Terminal outcome",receipt.receipt.outcome),record("Active orders",String(receipt.current.activeOrders)),record("Expected surviving order",String(receipt.current.matchingKeeper)),record("Provider evidence unchanged",receipt.current.providerUnchanged ? "Verified" : "Not established"));
     recovery.append(button("Recheck committed receipt",resumeCase,true),button("Export receipt and evidence",() => {
       const blob = new Blob([JSON.stringify({ scenario,receipt: state.receipt,investigation: state.analysis,diagnostics: state.diagnostics },null,2)],{ type: "application/json" });
       const url = URL.createObjectURL(blob); const link = el("a"); link.href = url; link.download = `ordertruth-${scenario.run.id}.json`; link.click(); setTimeout(() => URL.revokeObjectURL(url),1000);
