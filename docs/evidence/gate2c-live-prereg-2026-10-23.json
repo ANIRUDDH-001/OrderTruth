@@ -1,0 +1,35 @@
+{
+  "frozenAt": "2026-10-23T07:08:23.714Z",
+  "rubricVersion": "gate2c-v1",
+  "frozenCaseIds": [
+    "H2C-01",
+    "H2C-05",
+    "H2C-06",
+    "H2C-10",
+    "H2C-12",
+    "H2C-17",
+    "H2C-19",
+    "H2C-21",
+    "H2C-22",
+    "H2C-28"
+  ],
+  "maxCalls": 10,
+  "retries": 0,
+  "spacingMs": 6000,
+  "timeoutMs": 30000,
+  "stopOn": [
+    "rate_limited",
+    "quota_exhausted",
+    "billing_required",
+    "http_4xx"
+  ],
+  "holdoutSha256": "8ce334337a057fa2712f80f75f7de810cf45b0e3ac7750dcdecce1f29bf346cf",
+  "sources": {
+    "src/ai/holdout-live-eval.ts": "a4eadc0aa7da4939eb29feb0ad1d315d689055d8d3dabaee1ba9ff6d33e83b96",
+    "src/ai/advisory.ts": "3caf6331433cd1a8ed93fa5dd635ef114a5a76c3aa311d96d0c0c3b176306f1c",
+    "src/ai/gemini.ts": "9f608abfcb0072c6e69ad2df18a11e6954962d6b520c7b003f19c06ee37ce6f3",
+    "src/ai/holdout.ts": "2f628c3eca1a35b8c95ef852e0031dd790dd91c56fabd7cdf1c3a7e06ca1bd3d",
+    "src/ai/baseline.ts": "3cf8a0e95edfc472fe122cd5649e3b454fce45a0b36c1ce13a280a56fcb463f9",
+    "src/ai/holdout-eval.ts": "f6e4367f06c1191d4f8053e12c7d068b8189e84bc50288546fe8bef61b61c0aa"
+  }
+}

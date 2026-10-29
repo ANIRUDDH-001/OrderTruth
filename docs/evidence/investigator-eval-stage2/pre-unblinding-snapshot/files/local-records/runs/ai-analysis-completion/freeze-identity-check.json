@@ -1,0 +1,67 @@
+[
+  {
+    "Path": "src/ai/investigation.ts",
+    "MatchesOriginalBlob": true,
+    "CurrentBlob": "7c2ccfce89858df6812e76e22fd1f8f70daeeb8d"
+  },
+  {
+    "Path": "src/ai/investigator-eval/fixtures.ts",
+    "MatchesOriginalBlob": true,
+    "CurrentBlob": "469062ee64f6d412bf7fb9dfc11b200cd6c73227"
+  },
+  {
+    "Path": "src/ai/investigator-eval/control.ts",
+    "MatchesOriginalBlob": true,
+    "CurrentBlob": "04a1538de575f12c44891315792c4a191077cdca"
+  },
+  {
+    "Path": "src/ai/investigator-eval/score.ts",
+    "MatchesOriginalBlob": true,
+    "CurrentBlob": "fd4fe9e1d510b631014a43daffe6ae6b02c52fc3"
+  },
+  {
+    "Path": "src/ai/investigator-eval/guard.ts",
+    "MatchesOriginalBlob": true,
+    "CurrentBlob": "826e53a82f2837fb24a12f0d0ad3dc6e5e909d47"
+  },
+  {
+    "Path": "src/ai/investigator-eval/runner.ts",
+    "MatchesOriginalBlob": true,
+    "CurrentBlob": "4a2ccd6ecbc7dbb4c8888426fc1cd9b20ea7decc"
+  },
+  {
+    "Path": "src/ai/investigator-eval/blind.ts",
+    "MatchesOriginalBlob": false,
+    "CurrentBlob": "0d3df0a43d65c4c5e62f6b73bff875c3ae38ca01"
+  },
+  {
+    "Path": "src/ai/investigator-eval/decision.ts",
+    "MatchesOriginalBlob": true,
+    "CurrentBlob": "95ddcb20b1d361316dcc1c63d735026ac507373e"
+  },
+  {
+    "Path": "tests/investigator-eval.test.ts",
+    "MatchesOriginalBlob": false,
+    "CurrentBlob": "37d0796d8c8942f9e78cdf5a62e4b6545f8418c8"
+  },
+  {
+    "Path": "docs/INVESTIGATOR_EVAL_PREREGISTRATION.md",
+    "MatchesOriginalBlob": false,
+    "CurrentBlob": "f83e66dcc094a85d89827e0ad3f998f8422cc243"
+  },
+  {
+    "Path": "package.json",
+    "MatchesOriginalBlob": true,
+    "CurrentBlob": "c0cf774a0bfe4aa55b2a4a47d17339eb1a3429bb"
+  },
+  {
+    "Path": "pnpm-lock.yaml",
+    "MatchesOriginalBlob": true,
+    "CurrentBlob": "40b9ca5636d1667ca07d83f3b9d632c7ddf2f874"
+  },
+  {
+    "Path": ".github/workflows/ci.yml",
+    "MatchesOriginalBlob": true,
+    "CurrentBlob": "0f7af933ade5a6c392faa247bfbda47ebcf0f4ab"
+  }
+]

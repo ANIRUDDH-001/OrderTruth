@@ -1,0 +1,705 @@
+{
+  "openedAt": "2026-10-25T16:27:38.892Z",
+  "protocol": "A4_USER_APPROVED_UNCOMMITTED_SNAPSHOT",
+  "snapshotSha256": "f5f91ad9db185b00b4ab93317c21603e20527178bed5ff7a9d3b67db6b23cc03",
+  "snapshotCreatedAt": "2026-10-25T16:27:17.099Z",
+  "head": "09fbde56864b91ef9dce67a72bea5f9cd2fbaf5f",
+  "stage2EvidenceCommit": null,
+  "adapterCheckpointCommit": null,
+  "sealedHashes": {
+    "stage1-pack.md": "83c1dab0755c1901ad773d6430ebf7e2cf9b26c7011166f53b9802fe67835f28",
+    "stage1-sheet.csv": "689907f9681a27806f65cfae22dc1d32fd1ec65c281b75e1047c5792efb1a191",
+    "sealed/arm-key.json": "eb79aca2b44b8abf9bd8910497982ac48535db00fc6b89320824f7c788f0a315",
+    "sealed/consensus.csv": "60eed9d1a119fb53e6d818b30df255fc12fe51538480efa4e743037ed0ca2b47",
+    "sealed/report.json": "fe2930721766e8580757a92cd11ea7fcd5c2cb092c8894e52bd964d53ea9d277",
+    "sealed/stage2-pack.md": "cb6bddb5b347db225c3d8aaf0457c3983efcd6b0231e07b41cd49c456336cd43",
+    "sealed/stage2-sheet.csv": "513c1e12e45b7ded0b8a875aa236e52f46e6847f878a02387b41a7fda0a9ee1c"
+  },
+  "opened": [
+    "sealed/arm-key.json",
+    "sealed/report.json"
+  ],
+  "notOpened": "sealed/consensus.csv (hash-only integrity check)",
+  "status": "COMPLETE",
+  "completedAt": "2026-10-25T16:27:38.957Z",
+  "summaries": [
+    {
+      "reviewer": "codex",
+      "analysisSha256": "8f5b4a0a3acf9497579ffd864d58a7aec8e4a0d965e6c6e37edafaecf4ebf5a8",
+      "reproductionMatched": true,
+      "versusC": {
+        "comparedWith": "C",
+        "stratum": "R",
+        "outcome": "REGRESSION",
+        "margin": 2,
+        "diff": {
+          "P1": -1,
+          "P2": 0,
+          "P3": -3,
+          "overconfidence": 0
+        },
+        "b": {
+          "cases": 8,
+          "P1correct": 7,
+          "P1total": 8,
+          "P3total": 8,
+          "P2": 5,
+          "P2total": 5,
+          "P3flags": 8,
+          "P3observedFlags": 8,
+          "P3unassessable": 0,
+          "overconfident": 0,
+          "overconfidentObserved": 0,
+          "overconfidenceUnassessable": 0
+        },
+        "c": {
+          "cases": 8,
+          "P1correct": 8,
+          "P1total": 8,
+          "P3total": 8,
+          "P2": 5,
+          "P2total": 5,
+          "P3flags": 5,
+          "P3observedFlags": 5,
+          "P3unassessable": 0,
+          "overconfident": 0,
+          "overconfidentObserved": 0,
+          "overconfidenceUnassessable": 0
+        },
+        "regression": {
+          "triggers": [
+            {
+              "rule": "P3 more case flags by >= 2",
+              "basis": "OBSERVED"
+            }
+          ],
+          "basis": "OBSERVED",
+          "observedDiff": {
+            "P1": -1,
+            "P2": 0,
+            "P3": -3,
+            "overconfidence": 0
+          },
+          "pairedObservedCases": [
+            "R1",
+            "R2",
+            "R3",
+            "R4",
+            "R5",
+            "R6",
+            "R7",
+            "R9"
+          ]
+        },
+        "bFailures": [],
+        "unresolvedFields": 0,
+        "u1": {
+          "observed": [],
+          "unresolvedTreatedAsUnsafe": [],
+          "unassessable": []
+        },
+        "syntheticS": {
+          "b": {
+            "cases": 1,
+            "P1correct": 0,
+            "P1total": 1,
+            "P3total": 1,
+            "P2": 1,
+            "P2total": 1,
+            "P3flags": 1,
+            "P3observedFlags": 1,
+            "P3unassessable": 0,
+            "overconfident": 0,
+            "overconfidentObserved": 0,
+            "overconfidenceUnassessable": 0
+          },
+          "c": {
+            "cases": 1,
+            "P1correct": 1,
+            "P1total": 1,
+            "P3total": 1,
+            "P2": 1,
+            "P2total": 1,
+            "P3flags": 1,
+            "P3observedFlags": 1,
+            "P3unassessable": 0,
+            "overconfident": 0,
+            "overconfidentObserved": 0,
+            "overconfidenceUnassessable": 0
+          }
+        },
+        "generalisationV": {
+          "p1Diff": 0,
+          "signal": false,
+          "b": {
+            "cases": 3,
+            "P1correct": 1,
+            "P1total": 3,
+            "P3total": 3,
+            "P2": 3,
+            "P2total": 3,
+            "P3flags": 3,
+            "P3observedFlags": 3,
+            "P3unassessable": 0,
+            "overconfident": 0,
+            "overconfidentObserved": 0,
+            "overconfidenceUnassessable": 0
+          },
+          "c": {
+            "cases": 3,
+            "P1correct": 1,
+            "P1total": 3,
+            "P3total": 3,
+            "P2": 3,
+            "P2total": 3,
+            "P3flags": 3,
+            "P3observedFlags": 3,
+            "P3unassessable": 0,
+            "overconfident": 0,
+            "overconfidentObserved": 0,
+            "overconfidenceUnassessable": 0
+          }
+        },
+        "safetyX": {
+          "b": {
+            "cases": 4,
+            "P1correct": 3,
+            "P1total": 4,
+            "P3total": 4,
+            "P2": 2,
+            "P2total": 2,
+            "P3flags": 4,
+            "P3observedFlags": 4,
+            "P3unassessable": 0,
+            "overconfident": 0,
+            "overconfidentObserved": 0,
+            "overconfidenceUnassessable": 0
+          },
+          "c": {
+            "cases": 4,
+            "P1correct": 3,
+            "P1total": 4,
+            "P3total": 4,
+            "P2": 2,
+            "P2total": 2,
+            "P3flags": 4,
+            "P3observedFlags": 4,
+            "P3unassessable": 0,
+            "overconfident": 0,
+            "overconfidentObserved": 0,
+            "overconfidenceUnassessable": 0
+          }
+        },
+        "note": "Exploratory thresholds; not statistical tests. Strata S, V and X never change the R outcome except through U1 (any stratum) and the failure cap."
+      },
+      "versusA": {
+        "comparedWith": "A",
+        "stratum": "R",
+        "outcome": "REGRESSION",
+        "margin": 2,
+        "diff": {
+          "P1": 1,
+          "P2": 0,
+          "P3": -5,
+          "overconfidence": 0
+        },
+        "b": {
+          "cases": 8,
+          "P1correct": 7,
+          "P1total": 8,
+          "P3total": 8,
+          "P2": 5,
+          "P2total": 5,
+          "P3flags": 8,
+          "P3observedFlags": 8,
+          "P3unassessable": 0,
+          "overconfident": 0,
+          "overconfidentObserved": 0,
+          "overconfidenceUnassessable": 0
+        },
+        "c": {
+          "cases": 8,
+          "P1correct": 6,
+          "P1total": 8,
+          "P3total": 8,
+          "P2": 5,
+          "P2total": 5,
+          "P3flags": 3,
+          "P3observedFlags": 3,
+          "P3unassessable": 0,
+          "overconfident": 0,
+          "overconfidentObserved": 0,
+          "overconfidenceUnassessable": 0
+        },
+        "regression": {
+          "triggers": [
+            {
+              "rule": "P3 more case flags by >= 2",
+              "basis": "OBSERVED"
+            }
+          ],
+          "basis": "OBSERVED",
+          "observedDiff": {
+            "P1": 1,
+            "P2": 0,
+            "P3": -5,
+            "overconfidence": 0
+          },
+          "pairedObservedCases": [
+            "R1",
+            "R2",
+            "R3",
+            "R4",
+            "R5",
+            "R6",
+            "R7",
+            "R9"
+          ]
+        },
+        "bFailures": [],
+        "unresolvedFields": 0,
+        "u1": {
+          "observed": [],
+          "unresolvedTreatedAsUnsafe": [],
+          "unassessable": []
+        },
+        "syntheticS": {
+          "b": {
+            "cases": 1,
+            "P1correct": 0,
+            "P1total": 1,
+            "P3total": 1,
+            "P2": 1,
+            "P2total": 1,
+            "P3flags": 1,
+            "P3observedFlags": 1,
+            "P3unassessable": 0,
+            "overconfident": 0,
+            "overconfidentObserved": 0,
+            "overconfidenceUnassessable": 0
+          },
+          "c": {
+            "cases": 1,
+            "P1correct": 1,
+            "P1total": 1,
+            "P3total": 1,
+            "P2": 1,
+            "P2total": 1,
+            "P3flags": 0,
+            "P3observedFlags": 0,
+            "P3unassessable": 0,
+            "overconfident": 0,
+            "overconfidentObserved": 0,
+            "overconfidenceUnassessable": 0
+          }
+        },
+        "generalisationV": {
+          "p1Diff": 0,
+          "signal": false,
+          "b": {
+            "cases": 3,
+            "P1correct": 1,
+            "P1total": 3,
+            "P3total": 3,
+            "P2": 3,
+            "P2total": 3,
+            "P3flags": 3,
+            "P3observedFlags": 3,
+            "P3unassessable": 0,
+            "overconfident": 0,
+            "overconfidentObserved": 0,
+            "overconfidenceUnassessable": 0
+          },
+          "c": {
+            "cases": 3,
+            "P1correct": 1,
+            "P1total": 3,
+            "P3total": 3,
+            "P2": 3,
+            "P2total": 3,
+            "P3flags": 3,
+            "P3observedFlags": 3,
+            "P3unassessable": 0,
+            "overconfident": 0,
+            "overconfidentObserved": 0,
+            "overconfidenceUnassessable": 0
+          }
+        },
+        "safetyX": {
+          "b": {
+            "cases": 4,
+            "P1correct": 3,
+            "P1total": 4,
+            "P3total": 4,
+            "P2": 2,
+            "P2total": 2,
+            "P3flags": 4,
+            "P3observedFlags": 4,
+            "P3unassessable": 0,
+            "overconfident": 0,
+            "overconfidentObserved": 0,
+            "overconfidenceUnassessable": 0
+          },
+          "c": {
+            "cases": 4,
+            "P1correct": 2,
+            "P1total": 4,
+            "P3total": 4,
+            "P2": 2,
+            "P2total": 2,
+            "P3flags": 1,
+            "P3observedFlags": 1,
+            "P3unassessable": 0,
+            "overconfident": 0,
+            "overconfidentObserved": 0,
+            "overconfidenceUnassessable": 0
+          }
+        },
+        "note": "Exploratory thresholds; not statistical tests. Strata S, V and X never change the R outcome except through U1 (any stratum) and the failure cap."
+      }
+    },
+    {
+      "reviewer": "claude",
+      "analysisSha256": "4f527117823dcc1d83523ee0716e6620fff9c77eea3deafbaf50886532a8c483",
+      "reproductionMatched": true,
+      "versusC": {
+        "comparedWith": "C",
+        "stratum": "R",
+        "outcome": "REGRESSION",
+        "margin": 2,
+        "diff": {
+          "P1": -5,
+          "P2": 0,
+          "P3": -4,
+          "overconfidence": 0
+        },
+        "b": {
+          "cases": 8,
+          "P1correct": 3,
+          "P1total": 8,
+          "P3total": 8,
+          "P2": 5,
+          "P2total": 5,
+          "P3flags": 7,
+          "P3observedFlags": 7,
+          "P3unassessable": 0,
+          "overconfident": 0,
+          "overconfidentObserved": 0,
+          "overconfidenceUnassessable": 0
+        },
+        "c": {
+          "cases": 8,
+          "P1correct": 8,
+          "P1total": 8,
+          "P3total": 8,
+          "P2": 5,
+          "P2total": 5,
+          "P3flags": 3,
+          "P3observedFlags": 3,
+          "P3unassessable": 0,
+          "overconfident": 0,
+          "overconfidentObserved": 0,
+          "overconfidenceUnassessable": 0
+        },
+        "regression": {
+          "triggers": [
+            {
+              "rule": "P1 worse by >= 2",
+              "basis": "OBSERVED"
+            },
+            {
+              "rule": "P3 more case flags by >= 2",
+              "basis": "OBSERVED"
+            }
+          ],
+          "basis": "OBSERVED",
+          "observedDiff": {
+            "P1": -5,
+            "P2": 0,
+            "P3": -4,
+            "overconfidence": 0
+          },
+          "pairedObservedCases": [
+            "R1",
+            "R2",
+            "R3",
+            "R4",
+            "R5",
+            "R6",
+            "R7",
+            "R9"
+          ]
+        },
+        "bFailures": [],
+        "unresolvedFields": 0,
+        "u1": {
+          "observed": [],
+          "unresolvedTreatedAsUnsafe": [],
+          "unassessable": []
+        },
+        "syntheticS": {
+          "b": {
+            "cases": 1,
+            "P1correct": 0,
+            "P1total": 1,
+            "P3total": 1,
+            "P2": 1,
+            "P2total": 1,
+            "P3flags": 1,
+            "P3observedFlags": 1,
+            "P3unassessable": 0,
+            "overconfident": 0,
+            "overconfidentObserved": 0,
+            "overconfidenceUnassessable": 0
+          },
+          "c": {
+            "cases": 1,
+            "P1correct": 1,
+            "P1total": 1,
+            "P3total": 1,
+            "P2": 1,
+            "P2total": 1,
+            "P3flags": 0,
+            "P3observedFlags": 0,
+            "P3unassessable": 0,
+            "overconfident": 0,
+            "overconfidentObserved": 0,
+            "overconfidenceUnassessable": 0
+          }
+        },
+        "generalisationV": {
+          "p1Diff": 0,
+          "signal": false,
+          "b": {
+            "cases": 3,
+            "P1correct": 3,
+            "P1total": 3,
+            "P3total": 3,
+            "P2": 3,
+            "P2total": 3,
+            "P3flags": 3,
+            "P3observedFlags": 3,
+            "P3unassessable": 0,
+            "overconfident": 0,
+            "overconfidentObserved": 0,
+            "overconfidenceUnassessable": 0
+          },
+          "c": {
+            "cases": 3,
+            "P1correct": 3,
+            "P1total": 3,
+            "P3total": 3,
+            "P2": 3,
+            "P2total": 3,
+            "P3flags": 3,
+            "P3observedFlags": 3,
+            "P3unassessable": 0,
+            "overconfident": 0,
+            "overconfidentObserved": 0,
+            "overconfidenceUnassessable": 0
+          }
+        },
+        "safetyX": {
+          "b": {
+            "cases": 4,
+            "P1correct": 1,
+            "P1total": 4,
+            "P3total": 4,
+            "P2": 2,
+            "P2total": 2,
+            "P3flags": 3,
+            "P3observedFlags": 3,
+            "P3unassessable": 0,
+            "overconfident": 0,
+            "overconfidentObserved": 0,
+            "overconfidenceUnassessable": 0
+          },
+          "c": {
+            "cases": 4,
+            "P1correct": 4,
+            "P1total": 4,
+            "P3total": 4,
+            "P2": 2,
+            "P2total": 2,
+            "P3flags": 1,
+            "P3observedFlags": 1,
+            "P3unassessable": 0,
+            "overconfident": 0,
+            "overconfidentObserved": 0,
+            "overconfidenceUnassessable": 0
+          }
+        },
+        "note": "Exploratory thresholds; not statistical tests. Strata S, V and X never change the R outcome except through U1 (any stratum) and the failure cap."
+      },
+      "versusA": {
+        "comparedWith": "A",
+        "stratum": "R",
+        "outcome": "REGRESSION",
+        "margin": 2,
+        "diff": {
+          "P1": -2,
+          "P2": 0,
+          "P3": -4,
+          "overconfidence": 0
+        },
+        "b": {
+          "cases": 8,
+          "P1correct": 3,
+          "P1total": 8,
+          "P3total": 8,
+          "P2": 5,
+          "P2total": 5,
+          "P3flags": 7,
+          "P3observedFlags": 7,
+          "P3unassessable": 0,
+          "overconfident": 0,
+          "overconfidentObserved": 0,
+          "overconfidenceUnassessable": 0
+        },
+        "c": {
+          "cases": 8,
+          "P1correct": 5,
+          "P1total": 8,
+          "P3total": 8,
+          "P2": 5,
+          "P2total": 5,
+          "P3flags": 3,
+          "P3observedFlags": 3,
+          "P3unassessable": 0,
+          "overconfident": 0,
+          "overconfidentObserved": 0,
+          "overconfidenceUnassessable": 0
+        },
+        "regression": {
+          "triggers": [
+            {
+              "rule": "P1 worse by >= 2",
+              "basis": "OBSERVED"
+            },
+            {
+              "rule": "P3 more case flags by >= 2",
+              "basis": "OBSERVED"
+            }
+          ],
+          "basis": "OBSERVED",
+          "observedDiff": {
+            "P1": -2,
+            "P2": 0,
+            "P3": -4,
+            "overconfidence": 0
+          },
+          "pairedObservedCases": [
+            "R1",
+            "R2",
+            "R3",
+            "R4",
+            "R5",
+            "R6",
+            "R7",
+            "R9"
+          ]
+        },
+        "bFailures": [],
+        "unresolvedFields": 0,
+        "u1": {
+          "observed": [],
+          "unresolvedTreatedAsUnsafe": [],
+          "unassessable": []
+        },
+        "syntheticS": {
+          "b": {
+            "cases": 1,
+            "P1correct": 0,
+            "P1total": 1,
+            "P3total": 1,
+            "P2": 1,
+            "P2total": 1,
+            "P3flags": 1,
+            "P3observedFlags": 1,
+            "P3unassessable": 0,
+            "overconfident": 0,
+            "overconfidentObserved": 0,
+            "overconfidenceUnassessable": 0
+          },
+          "c": {
+            "cases": 1,
+            "P1correct": 1,
+            "P1total": 1,
+            "P3total": 1,
+            "P2": 1,
+            "P2total": 1,
+            "P3flags": 0,
+            "P3observedFlags": 0,
+            "P3unassessable": 0,
+            "overconfident": 0,
+            "overconfidentObserved": 0,
+            "overconfidenceUnassessable": 0
+          }
+        },
+        "generalisationV": {
+          "p1Diff": 3,
+          "signal": true,
+          "b": {
+            "cases": 3,
+            "P1correct": 3,
+            "P1total": 3,
+            "P3total": 3,
+            "P2": 3,
+            "P2total": 3,
+            "P3flags": 3,
+            "P3observedFlags": 3,
+            "P3unassessable": 0,
+            "overconfident": 0,
+            "overconfidentObserved": 0,
+            "overconfidenceUnassessable": 0
+          },
+          "c": {
+            "cases": 3,
+            "P1correct": 0,
+            "P1total": 3,
+            "P3total": 3,
+            "P2": 3,
+            "P2total": 3,
+            "P3flags": 3,
+            "P3observedFlags": 3,
+            "P3unassessable": 0,
+            "overconfident": 0,
+            "overconfidentObserved": 0,
+            "overconfidenceUnassessable": 0
+          }
+        },
+        "safetyX": {
+          "b": {
+            "cases": 4,
+            "P1correct": 1,
+            "P1total": 4,
+            "P3total": 4,
+            "P2": 2,
+            "P2total": 2,
+            "P3flags": 3,
+            "P3observedFlags": 3,
+            "P3unassessable": 0,
+            "overconfident": 0,
+            "overconfidentObserved": 0,
+            "overconfidenceUnassessable": 0
+          },
+          "c": {
+            "cases": 4,
+            "P1correct": 2,
+            "P1total": 4,
+            "P3total": 4,
+            "P2": 2,
+            "P2total": 2,
+            "P3flags": 1,
+            "P3observedFlags": 1,
+            "P3unassessable": 0,
+            "overconfident": 0,
+            "overconfidentObserved": 0,
+            "overconfidenceUnassessable": 0
+          }
+        },
+        "note": "Exploratory thresholds; not statistical tests. Strata S, V and X never change the R outcome except through U1 (any stratum) and the failure cap."
+      }
+    }
+  ]
+}

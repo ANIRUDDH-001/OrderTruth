@@ -1,0 +1,13 @@
+{
+  "reviewer": "claude",
+  "validatedAt": "2026-10-24T12:19:25.266Z",
+  "sheetSha256": "f40daa0ae886d6641247ffb79173e87b5b23294f94fa5bb5990111e3f6043994",
+  "caseRows": 48,
+  "transitionRows": 12,
+  "missing": [],
+  "missingTransitions": [],
+  "wrongReviewer": 0,
+  "blankFields": [],
+  "unresolved": [],
+  "note": "Structural-only validation. No arm key, report or consensus opened, no scores changed."
+}

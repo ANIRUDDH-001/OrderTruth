@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { RequestError, requestJson, slowNotice } from "../web/judge/request.ts";
+import { afterEach,describe, expect, it,vi } from "vitest";
+import { RequestError, requestJson, slowNotice,REQUEST_BUDGET_MS } from "../web/judge/request.ts";
 
 type Call = { path: string; method: string };
 function fakeFetch(responses: Array<Response | Error>) {
@@ -75,9 +75,53 @@ describe("judge requests", () => {
 });
 
 describe("slow-request notice", () => {
-  it("stays quiet for quick requests and explains the free-tier wake-up after a few seconds", () => {
-    expect(slowNotice(4_999)).toBe("");
-    expect(slowNotice(5_000)).toMatch(/free-tier server.*up to a minute/i);
+  it("gives conditional status without promising a host startup ceiling", () => {
+    expect(slowNotice(1_999)).toBe("");
+    expect(slowNotice(2_000)).toMatch(/may be waking.*or busy/i);
+    expect(slowNotice(90_000)).not.toMatch(/up to a minute/);
     expect(slowNotice(23_400)).toContain("23 s");
+  });
+});
+
+describe("total request deadline and invalid responses",() => {
+  afterEach(() => vi.useRealTimers());
+  for (const body of [undefined,{}]) {
+    it(`bounds stalled headers and sends ${body === undefined ? "GET" : "POST"} once`,async () => {
+      vi.useFakeTimers(); let calls = 0; let signal: AbortSignal|undefined;
+      const fetchImpl = (async (_p: unknown,init?: RequestInit) => { calls++; signal = init?.signal as AbortSignal; return new Promise<Response>(() => {}); }) as typeof fetch;
+      const pending = expect(requestJson("/case",body,{ fetchImpl,deadlineMs: 100 })).rejects.toMatchObject({ kind: "TIMEOUT",outcomeUnknown: body !== undefined });
+      await vi.advanceTimersByTimeAsync(100); await pending;
+      expect(calls).toBe(1); expect(signal?.aborted).toBe(true); expect(vi.getTimerCount()).toBe(0);
+    });
+  }
+  it("bounds a stalled body even when the injected transport ignores abort",async () => {
+    vi.useFakeTimers();
+    const fetchImpl = (async () => ({ ok: true,status: 200,json: () => new Promise(() => {}) })) as unknown as typeof fetch;
+    const pending = expect(requestJson("/case",undefined,{ fetchImpl,deadlineMs: 100 })).rejects.toMatchObject({ kind: "TIMEOUT" });
+    await vi.advanceTimersByTimeAsync(100); await pending; expect(vi.getTimerCount()).toBe(0);
+  });
+  it("includes GET backoff in the same total deadline",async () => {
+    vi.useFakeTimers();const f = fakeFetch([json(503),json(200)]);
+    const pending = expect(requestJson("/case",undefined,{ fetchImpl: f.impl,deadlineMs: 100 })).rejects.toMatchObject({ kind: "TIMEOUT" });
+    await vi.advanceTimersByTimeAsync(100); await pending; expect(f.calls).toHaveLength(1); expect(vi.getTimerCount()).toBe(0);
+  });
+  for (const body of [undefined,{}]) {
+    it(`rejects malformed successful JSON without replaying ${body === undefined ? "GET" : "POST"}`,async () => {
+      const f = fakeFetch([new Response("not JSON",{ status: 200 })]);
+      await expect(requestJson("/case",body,{ fetchImpl: f.impl })).rejects.toMatchObject({ kind: "INVALID_RESPONSE",outcomeUnknown: body !== undefined });
+      expect(f.calls).toHaveLength(1);
+    });
+  }
+  it("clears the deadline after a normal response",async () => {
+    vi.useFakeTimers();const f = fakeFetch([json(200,{ ok: true })]);
+    await expect(requestJson("/case",undefined,{ fetchImpl: f.impl })).resolves.toEqual({ ok: true });expect(vi.getTimerCount()).toBe(0);
+  });
+  it("uses the documented finite default POST budget",async () => {
+    vi.useFakeTimers();const fetchImpl = (() => new Promise<Response>(() => {})) as typeof fetch;
+    const pending = expect(requestJson("/case",{}, { fetchImpl })).rejects.toMatchObject({ kind: "TIMEOUT" });
+    await vi.advanceTimersByTimeAsync(REQUEST_BUDGET_MS.write);await pending;
+  });
+  it("rejects an infinite deadline instead of creating an unbounded request",async () => {
+    await expect(requestJson("/case",undefined,{ deadlineMs: Infinity })).rejects.toThrow("Invalid request wait budget");
   });
 });

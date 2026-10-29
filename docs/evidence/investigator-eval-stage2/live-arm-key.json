@@ -1,0 +1,175 @@
+{
+  "seed": 3500800959,
+  "cases": {
+    "Q01": {
+      "caseId": "R9",
+      "letters": {
+        "X": "A",
+        "Y": "C",
+        "Z": "B"
+      }
+    },
+    "Q02": {
+      "caseId": "S1",
+      "letters": {
+        "X": "A",
+        "Y": "C",
+        "Z": "B"
+      }
+    },
+    "Q03": {
+      "caseId": "R6",
+      "letters": {
+        "X": "A",
+        "Y": "C",
+        "Z": "B"
+      }
+    },
+    "Q04": {
+      "caseId": "R7",
+      "letters": {
+        "X": "B",
+        "Y": "C",
+        "Z": "A"
+      }
+    },
+    "Q05": {
+      "caseId": "R2",
+      "letters": {
+        "X": "A",
+        "Y": "C",
+        "Z": "B"
+      }
+    },
+    "Q06": {
+      "caseId": "R4",
+      "letters": {
+        "X": "B",
+        "Y": "C",
+        "Z": "A"
+      }
+    },
+    "Q07": {
+      "caseId": "X3",
+      "letters": {
+        "X": "A",
+        "Y": "B",
+        "Z": "C"
+      }
+    },
+    "Q08": {
+      "caseId": "R5",
+      "letters": {
+        "X": "C",
+        "Y": "A",
+        "Z": "B"
+      }
+    },
+    "Q09": {
+      "caseId": "V2",
+      "letters": {
+        "X": "B",
+        "Y": "C",
+        "Z": "A"
+      }
+    },
+    "Q10": {
+      "caseId": "X4",
+      "letters": {
+        "X": "C",
+        "Y": "A",
+        "Z": "B"
+      }
+    },
+    "Q11": {
+      "caseId": "R1",
+      "letters": {
+        "X": "B",
+        "Y": "C",
+        "Z": "A"
+      }
+    },
+    "Q12": {
+      "caseId": "V3",
+      "letters": {
+        "X": "B",
+        "Y": "C",
+        "Z": "A"
+      }
+    },
+    "Q13": {
+      "caseId": "V1",
+      "letters": {
+        "X": "B",
+        "Y": "A",
+        "Z": "C"
+      }
+    },
+    "Q14": {
+      "caseId": "R3",
+      "letters": {
+        "X": "C",
+        "Y": "B",
+        "Z": "A"
+      }
+    },
+    "Q15": {
+      "caseId": "X2",
+      "letters": {
+        "X": "B",
+        "Y": "A",
+        "Z": "C"
+      }
+    },
+    "Q16": {
+      "caseId": "X1",
+      "letters": {
+        "X": "B",
+        "Y": "A",
+        "Z": "C"
+      }
+    }
+  },
+  "transitions": [
+    {
+      "name": "T1",
+      "from": "Q05",
+      "to": "Q14",
+      "letters": {
+        "P": "A",
+        "S": "C",
+        "T": "B"
+      }
+    },
+    {
+      "name": "T2",
+      "from": "Q14",
+      "to": "Q08",
+      "letters": {
+        "P": "B",
+        "S": "A",
+        "T": "C"
+      }
+    },
+    {
+      "name": "T3",
+      "from": "Q05",
+      "to": "Q06",
+      "letters": {
+        "P": "A",
+        "S": "C",
+        "T": "B"
+      }
+    },
+    {
+      "name": "T4",
+      "from": "Q06",
+      "to": "Q08",
+      "letters": {
+        "P": "C",
+        "S": "A",
+        "T": "B"
+      }
+    }
+  ]
+}

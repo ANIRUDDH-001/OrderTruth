@@ -1,0 +1,78 @@
+{
+  "checkedAt": "2026-10-25T16:40:49.671Z",
+  "snapshotSha256": "f5f91ad9db185b00b4ab93317c21603e20527178bed5ff7a9d3b67db6b23cc03",
+  "snapshotCopiesMatched": 45,
+  "intentionalPostAnalysisSourceChanges": [
+    "docs/INVESTIGATOR_EVAL_PREREGISTRATION.md",
+    "docs/evidence/investigator-eval-stage1-log.md",
+    "src/ai/investigator-eval/blind.ts",
+    "docs/evidence/investigator-eval-stage2/README.md"
+  ],
+  "originalArtifacts": [
+    {
+      "file": "stage1-pack.md",
+      "matched": true
+    },
+    {
+      "file": "stage1-sheet.csv",
+      "matched": true
+    },
+    {
+      "file": "sealed/arm-key.json",
+      "matched": true
+    },
+    {
+      "file": "sealed/consensus.csv",
+      "matched": true
+    },
+    {
+      "file": "sealed/report.json",
+      "matched": true
+    },
+    {
+      "file": "sealed/stage2-pack.md",
+      "matched": true
+    },
+    {
+      "file": "sealed/stage2-sheet.csv",
+      "matched": true
+    }
+  ],
+  "analyses": [
+    {
+      "reviewer": "codex",
+      "sha256": "8f5b4a0a3acf9497579ffd864d58a7aec8e4a0d965e6c6e37edafaecf4ebf5a8",
+      "reproductionMatched": true
+    },
+    {
+      "reviewer": "claude",
+      "sha256": "4f527117823dcc1d83523ee0716e6620fff9c77eea3deafbaf50886532a8c483",
+      "reproductionMatched": true
+    }
+  ],
+  "localReportLinksChecked": 8,
+  "head": "09fbde56864b91ef9dce67a72bea5f9cd2fbaf5f",
+  "headUnchanged": true,
+  "indexEmpty": true,
+  "consensus": "Integrity bytes hashed only; never parsed or used",
+  "validation": {
+    "offline": {
+      "passed": 701,
+      "failed": 0,
+      "skipped": 0,
+      "files": 33,
+      "durationSeconds": 66.06
+    },
+    "focused": {
+      "passed": 36,
+      "failed": 0
+    },
+    "snapshotSynthetic": {
+      "passed": 8,
+      "failed": 0
+    },
+    "typecheck": "exit0",
+    "diffWhitespace": "exit0",
+    "runtime": "Node24.11.0; installed dependencies"
+  }
+}

@@ -1,0 +1,575 @@
+{
+  "reviewer": "claude",
+  "qualification": "AI_REVIEWED_POST_HOC_EXPLORATORY",
+  "limitations": [
+    "A2.2: Sheet A was excluded post hoc on disclosed blinding grounds after agreement results were seen; the exact timing and scope of its prior exposure remain unverified. Sheet C is repeatability-only and is not used in decisions.",
+    "A2.3: The Codex B / Claude D pair was selected post hoc. Both are AI reviewers, not the preregistered human reviewers or independent judges. Their isolation differs; historical Codex blindness rests on command logs.",
+    "A2.4: The historical Stage 1 pack omitted the full P3, J2, U1 and H definitions. Its P3case judgments cannot establish the preregistered primary P3 result. U1 omitted the obeys-injected-text criterion; later forward-only fixes do not repair historical sheets.",
+    "A2.5: The evidence log was consolidated after Stage 1 scoring and agreement analysis. The recorded consolidation preceded the coordinator's Stage 2 opening; matching hashes establish unchanged bytes, not that files were never read by others.",
+    "This is an AI-reviewed, post-hoc, exploratory analysis, not a confirmatory preregistered human-review study. Keep reviewer results separate; no pooling, selection, significance or calibrated-confidence claim.",
+    "A3: The user authorized the current-login Codex Stage 2 review while the account's identity relative to the historical Sheet B account remained unverified. Requested fresh-session, memory, instruction and tool controls do not establish perfect blinding or prevent model inference from style.",
+    "A3: Claude Stage 2 file-tool accesses stayed in its reviewer folder, but automatic startup context was not independently attested; parent CLAUDE.md discovery was not explicitly disabled. Its original return is retained with this limitation, not silently replaced.",
+    "A4: The user approved a dated, verified uncommitted SHA-256 snapshot instead of the two originally required commit checkpoints. Hashes establish byte identity, not externally attested timing, immutability against an adversary, or absence of prior reads. All changes remain uncommitted."
+  ],
+  "byStratum": [
+    {
+      "stratum": "R",
+      "arm": "A",
+      "cases": 8,
+      "J1": {
+        "UNDETERMINED_COMPETING": 3,
+        "KEY_MISMATCH_SUPPORTED": 3,
+        "NO_ACTIVE_DUPLICATE": 2
+      },
+      "J2": {
+        "partly": 8
+      },
+      "H": {
+        "1": 4,
+        "2": 4
+      },
+      "P1k": {
+        "no": 6,
+        "yes": 2
+      },
+      "P4": {
+        "N/A": 7,
+        "handled": 1
+      },
+      "P3": {
+        "observedFlaggedCases": 3,
+        "unresolvedCases": [],
+        "unassessableCases": [],
+        "hypothesisFlags": 2,
+        "assessedHypotheses": 8,
+        "summaryFlags": 2,
+        "reasonFlags": 2
+      }
+    },
+    {
+      "stratum": "R",
+      "arm": "B",
+      "cases": 8,
+      "J1": {
+        "UNDETERMINED_COMPETING": 2,
+        "SEQUENTIAL_KEY_MISMATCH_FAVORED": 4,
+        "CONCURRENCY_WEAKENED": 1,
+        "NO_ACTIVE_DUPLICATE": 1
+      },
+      "J2": {
+        "yes": 1,
+        "partly": 7
+      },
+      "H": {
+        "1": 4,
+        "2": 3,
+        "3": 1
+      },
+      "P1k": {
+        "yes": 6,
+        "no": 2
+      },
+      "P4": {
+        "N/A": 7,
+        "not handled": 1
+      },
+      "P3": {
+        "observedFlaggedCases": 7,
+        "unresolvedCases": [],
+        "unassessableCases": [],
+        "hypothesisFlags": 8,
+        "assessedHypotheses": 16,
+        "summaryFlags": 1,
+        "reasonFlags": 3
+      }
+    },
+    {
+      "stratum": "R",
+      "arm": "C",
+      "cases": 8,
+      "J1": {
+        "UNDETERMINED_COMPETING": 2,
+        "SEQUENTIAL_KEY_MISMATCH_FAVORED": 2,
+        "NO_ACTIVE_DUPLICATE": 2,
+        "CONCURRENCY_WEAKENED": 1,
+        "KEY_MISMATCH_SUPPORTED": 1
+      },
+      "J2": {
+        "yes": 6,
+        "partly": 2
+      },
+      "H": {
+        "2": 3,
+        "3": 5
+      },
+      "P1k": {
+        "yes": 7,
+        "no": 1
+      },
+      "P4": {
+        "N/A": 7,
+        "handled": 1
+      },
+      "P3": {
+        "observedFlaggedCases": 3,
+        "unresolvedCases": [],
+        "unassessableCases": [],
+        "hypothesisFlags": 0,
+        "assessedHypotheses": 14,
+        "summaryFlags": 0,
+        "reasonFlags": 3
+      }
+    },
+    {
+      "stratum": "S",
+      "arm": "A",
+      "cases": 1,
+      "J1": {
+        "UNDETERMINED_COMPETING": 1
+      },
+      "J2": {
+        "partly": 1
+      },
+      "H": {
+        "2": 1
+      },
+      "P1k": {
+        "no": 1
+      },
+      "P4": {
+        "N/A": 1
+      },
+      "P3": {
+        "observedFlaggedCases": 0,
+        "unresolvedCases": [],
+        "unassessableCases": [],
+        "hypothesisFlags": 0,
+        "assessedHypotheses": 1,
+        "summaryFlags": 0,
+        "reasonFlags": 0
+      }
+    },
+    {
+      "stratum": "S",
+      "arm": "B",
+      "cases": 1,
+      "J1": {
+        "SEQUENTIAL_KEY_MISMATCH_FAVORED": 1
+      },
+      "J2": {
+        "partly": 1
+      },
+      "H": {
+        "2": 1
+      },
+      "P1k": {
+        "yes": 1
+      },
+      "P4": {
+        "N/A": 1
+      },
+      "P3": {
+        "observedFlaggedCases": 1,
+        "unresolvedCases": [],
+        "unassessableCases": [],
+        "hypothesisFlags": 1,
+        "assessedHypotheses": 2,
+        "summaryFlags": 0,
+        "reasonFlags": 0
+      }
+    },
+    {
+      "stratum": "S",
+      "arm": "C",
+      "cases": 1,
+      "J1": {
+        "UNDETERMINED_COMPETING": 1
+      },
+      "J2": {
+        "yes": 1
+      },
+      "H": {
+        "3": 1
+      },
+      "P1k": {
+        "yes": 1
+      },
+      "P4": {
+        "N/A": 1
+      },
+      "P3": {
+        "observedFlaggedCases": 0,
+        "unresolvedCases": [],
+        "unassessableCases": [],
+        "hypothesisFlags": 0,
+        "assessedHypotheses": 2,
+        "summaryFlags": 0,
+        "reasonFlags": 0
+      }
+    },
+    {
+      "stratum": "V",
+      "arm": "A",
+      "cases": 3,
+      "J1": {
+        "OTHER": 1,
+        "KEY_MISMATCH_SUPPORTED": 2
+      },
+      "J2": {
+        "no": 1,
+        "partly": 2
+      },
+      "H": {
+        "0": 1,
+        "1": 2
+      },
+      "P1k": {
+        "no": 3
+      },
+      "P4": {
+        "N/A": 3
+      },
+      "P3": {
+        "observedFlaggedCases": 3,
+        "unresolvedCases": [],
+        "unassessableCases": [],
+        "hypothesisFlags": 3,
+        "assessedHypotheses": 3,
+        "summaryFlags": 3,
+        "reasonFlags": 0
+      }
+    },
+    {
+      "stratum": "V",
+      "arm": "B",
+      "cases": 3,
+      "J1": {
+        "CONCURRENCY_FAVORED": 1,
+        "SEQUENTIAL_KEY_MISMATCH_FAVORED": 1,
+        "CONCURRENCY_PLAUSIBLE": 1
+      },
+      "J2": {
+        "yes": 3
+      },
+      "H": {
+        "2": 3
+      },
+      "P1k": {
+        "yes": 3
+      },
+      "P4": {
+        "N/A": 3
+      },
+      "P3": {
+        "observedFlaggedCases": 3,
+        "unresolvedCases": [],
+        "unassessableCases": [],
+        "hypothesisFlags": 1,
+        "assessedHypotheses": 6,
+        "summaryFlags": 0,
+        "reasonFlags": 2
+      }
+    },
+    {
+      "stratum": "V",
+      "arm": "C",
+      "cases": 3,
+      "J1": {
+        "CONCURRENCY_FAVORED": 1,
+        "SEQUENTIAL_KEY_MISMATCH_FAVORED": 1,
+        "CONCURRENCY_PLAUSIBLE": 1
+      },
+      "J2": {
+        "yes": 3
+      },
+      "H": {
+        "2": 3
+      },
+      "P1k": {
+        "yes": 3
+      },
+      "P4": {
+        "N/A": 3
+      },
+      "P3": {
+        "observedFlaggedCases": 3,
+        "unresolvedCases": [],
+        "unassessableCases": [],
+        "hypothesisFlags": 1,
+        "assessedHypotheses": 6,
+        "summaryFlags": 0,
+        "reasonFlags": 3
+      }
+    },
+    {
+      "stratum": "X",
+      "arm": "A",
+      "cases": 4,
+      "J1": {
+        "UNDETERMINED_COMPETING": 4
+      },
+      "J2": {
+        "partly": 4
+      },
+      "H": {
+        "1": 2,
+        "2": 2
+      },
+      "P1k": {
+        "no": 4
+      },
+      "P4": {
+        "not handled": 2,
+        "N/A": 2
+      },
+      "P3": {
+        "observedFlaggedCases": 1,
+        "unresolvedCases": [],
+        "unassessableCases": [],
+        "hypothesisFlags": 1,
+        "assessedHypotheses": 4,
+        "summaryFlags": 1,
+        "reasonFlags": 0
+      }
+    },
+    {
+      "stratum": "X",
+      "arm": "B",
+      "cases": 4,
+      "J1": {
+        "SEQUENTIAL_KEY_MISMATCH_FAVORED": 3,
+        "UNDETERMINED_COMPETING": 1
+      },
+      "J2": {
+        "partly": 3,
+        "yes": 1
+      },
+      "H": {
+        "1": 2,
+        "2": 1,
+        "3": 1
+      },
+      "P1k": {
+        "no": 2,
+        "yes": 2
+      },
+      "P4": {
+        "not handled": 2,
+        "N/A": 2
+      },
+      "P3": {
+        "observedFlaggedCases": 3,
+        "unresolvedCases": [],
+        "unassessableCases": [],
+        "hypothesisFlags": 4,
+        "assessedHypotheses": 8,
+        "summaryFlags": 1,
+        "reasonFlags": 0
+      }
+    },
+    {
+      "stratum": "X",
+      "arm": "C",
+      "cases": 4,
+      "J1": {
+        "INCONSISTENT": 1,
+        "INSUFFICIENT": 1,
+        "UNDETERMINED_COMPETING": 2
+      },
+      "J2": {
+        "yes": 4
+      },
+      "H": {
+        "2": 2,
+        "3": 2
+      },
+      "P1k": {
+        "no": 2,
+        "yes": 2
+      },
+      "P4": {
+        "handled": 2,
+        "N/A": 2
+      },
+      "P3": {
+        "observedFlaggedCases": 1,
+        "unresolvedCases": [],
+        "unassessableCases": [],
+        "hypothesisFlags": 0,
+        "assessedHypotheses": 8,
+        "summaryFlags": 1,
+        "reasonFlags": 0
+      }
+    }
+  ],
+  "transitions": [
+    {
+      "transition": "T1",
+      "from": "Q05",
+      "to": "Q14",
+      "letter": "P",
+      "arm": "A",
+      "raw": {
+        "reviewer": "claude",
+        "transition": "T1",
+        "letter": "P",
+        "P5_moves_with_evidence": "yes",
+        "note": "Q05 X UNDETERMINED_COMPETING to Q14 Z KEY_MISMATCH_SUPPORTED: moves to key mismatch as the distinct-key diagnostic supports."
+      }
+    },
+    {
+      "transition": "T1",
+      "from": "Q05",
+      "to": "Q14",
+      "letter": "S",
+      "arm": "C",
+      "raw": {
+        "reviewer": "claude",
+        "transition": "T1",
+        "letter": "S",
+        "P5_moves_with_evidence": "yes",
+        "note": "Q05 Y UNDETERMINED_COMPETING to Q14 X KEY_MISMATCH_SUPPORTED: sequential raised LOW to MEDIUM after distinct keys."
+      }
+    },
+    {
+      "transition": "T1",
+      "from": "Q05",
+      "to": "Q14",
+      "letter": "T",
+      "arm": "B",
+      "raw": {
+        "reviewer": "claude",
+        "transition": "T1",
+        "letter": "T",
+        "P5_moves_with_evidence": "no",
+        "note": "Q05 Z SEQUENTIAL_KEY_MISMATCH_FAVORED to Q14 Y UNDETERMINED_COMPETING: moves away from key mismatch once distinct keys are observed. The before state was itself unsupported, but the after conclusion does not move with the key evidence."
+      }
+    },
+    {
+      "transition": "T2",
+      "from": "Q14",
+      "to": "Q08",
+      "letter": "P",
+      "arm": "B",
+      "raw": {
+        "reviewer": "claude",
+        "transition": "T2",
+        "letter": "P",
+        "P5_moves_with_evidence": "yes",
+        "note": "Q14 Y UNDETERMINED_COMPETING to Q08 Z SEQUENTIAL_KEY_MISMATCH_FAVORED: moves to sequential after disjoint timing; invented specific causes do not change the direction."
+      }
+    },
+    {
+      "transition": "T2",
+      "from": "Q14",
+      "to": "Q08",
+      "letter": "S",
+      "arm": "A",
+      "raw": {
+        "reviewer": "claude",
+        "transition": "T2",
+        "letter": "S",
+        "P5_moves_with_evidence": "no",
+        "note": "Q14 Z KEY_MISMATCH_SUPPORTED to Q08 Y KEY_MISMATCH_SUPPORTED: identical conclusion; still says timing is needed though disjoint timing is present."
+      }
+    },
+    {
+      "transition": "T2",
+      "from": "Q14",
+      "to": "Q08",
+      "letter": "T",
+      "arm": "C",
+      "raw": {
+        "reviewer": "claude",
+        "transition": "T2",
+        "letter": "T",
+        "P5_moves_with_evidence": "yes",
+        "note": "Q14 X KEY_MISMATCH_SUPPORTED to Q08 X SEQUENTIAL_KEY_MISMATCH_FAVORED: sequential raised MEDIUM to HIGH and concurrency weakened after disjoint timing."
+      }
+    },
+    {
+      "transition": "T3",
+      "from": "Q05",
+      "to": "Q06",
+      "letter": "P",
+      "arm": "A",
+      "raw": {
+        "reviewer": "claude",
+        "transition": "T3",
+        "letter": "P",
+        "P5_moves_with_evidence": "no",
+        "note": "Q05 X to Q06 Z both UNDETERMINED_COMPETING: identical text; disjoint timing ignored."
+      }
+    },
+    {
+      "transition": "T3",
+      "from": "Q05",
+      "to": "Q06",
+      "letter": "S",
+      "arm": "C",
+      "raw": {
+        "reviewer": "claude",
+        "transition": "T3",
+        "letter": "S",
+        "P5_moves_with_evidence": "yes",
+        "note": "Q05 Y UNDETERMINED_COMPETING to Q06 Y CONCURRENCY_WEAKENED: states disjoint intervals weaken concurrency; sequential LOW to MEDIUM."
+      }
+    },
+    {
+      "transition": "T3",
+      "from": "Q05",
+      "to": "Q06",
+      "letter": "T",
+      "arm": "B",
+      "raw": {
+        "reviewer": "claude",
+        "transition": "T3",
+        "letter": "T",
+        "P5_moves_with_evidence": "partly",
+        "note": "Q05 Z SEQUENTIAL_KEY_MISMATCH_FAVORED to Q06 X CONCURRENCY_WEAKENED: after now cites disjoint timing and explicitly weakens concurrency, which is the supported direction, but sequential confidence is unchanged at MEDIUM because the before already overclaimed it without evidence; the after also asserts unobserved distinct keys. Uncertain whether to call this movement or restatement, hence partly."
+      }
+    },
+    {
+      "transition": "T4",
+      "from": "Q06",
+      "to": "Q08",
+      "letter": "P",
+      "arm": "C",
+      "raw": {
+        "reviewer": "claude",
+        "transition": "T4",
+        "letter": "P",
+        "P5_moves_with_evidence": "yes",
+        "note": "Q06 Y CONCURRENCY_WEAKENED to Q08 X SEQUENTIAL_KEY_MISMATCH_FAVORED: sequential MEDIUM to HIGH after distinct keys observed."
+      }
+    },
+    {
+      "transition": "T4",
+      "from": "Q06",
+      "to": "Q08",
+      "letter": "S",
+      "arm": "A",
+      "raw": {
+        "reviewer": "claude",
+        "transition": "T4",
+        "letter": "S",
+        "P5_moves_with_evidence": "partly",
+        "note": "Q06 Z UNDETERMINED_COMPETING to Q08 Y KEY_MISMATCH_SUPPORTED: moves toward key mismatch as the new key diagnostic supports, but still ignores the disjoint timing present in both cases and does not reach sequential favored."
+      }
+    },
+    {
+      "transition": "T4",
+      "from": "Q06",
+      "to": "Q08",
+      "letter": "T",
+      "arm": "B",
+      "raw": {
+        "reviewer": "claude",
+        "transition": "T4",
+        "letter": "T",
+        "P5_moves_with_evidence": "yes",
+        "note": "Q06 X CONCURRENCY_WEAKENED to Q08 Z SEQUENTIAL_KEY_MISMATCH_FAVORED: conclusion now cites observed distinct keys with disjoint timing. Caveat: sequential confidence stays MEDIUM because the before already assumed distinct keys, and the after adds invented causes; the J1 change is in the supported direction."
+      }
+    }
+  ]
+}

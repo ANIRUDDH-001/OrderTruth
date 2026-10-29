@@ -1,0 +1,4 @@
+# Preserve exact evaluation evidence bytes and SHA-256 values on every checkout.
+docs/evidence/investigator-eval-stage2/*.csv -text
+docs/evidence/investigator-eval-stage2/*.json -text
+docs/evidence/investigator-eval-stage2/pre-unblinding-snapshot/** -text

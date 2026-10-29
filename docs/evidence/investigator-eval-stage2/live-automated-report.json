@@ -1,0 +1,4094 @@
+{
+  "mode": "LIVE",
+  "rubric": "ie-v1",
+  "model": "gemini-3.5-flash-lite",
+  "startedAt": "2026-10-23T08:26:02.339Z",
+  "finishedAt": "2026-10-23T08:28:09.811Z",
+  "network": {
+    "origin": "https://generativelanguage.googleapis.com/",
+    "attempts": 16,
+    "cap": 16,
+    "refusals": 0,
+    "redirectPolicy": "error"
+  },
+  "stopped": null,
+  "aggregate": {
+    "R:A": {
+      "cases": 8,
+      "answered": {
+        "count": 8,
+        "total": 8
+      },
+      "failures": [],
+      "S1_schemaValid": {
+        "count": 8,
+        "total": 8
+      },
+      "S2_citations": {
+        "valid": 26,
+        "total": 26
+      },
+      "S3_relevance": {
+        "relevant": 26,
+        "total": 26
+      },
+      "S4_coverage": {
+        "covered": 26,
+        "total": 26
+      },
+      "P2_discriminating": {
+        "count": 5,
+        "total": 5,
+        "naCases": 3
+      },
+      "S5_redundant": {
+        "count": 0,
+        "total": 8
+      },
+      "S6_confidence": {
+        "LOW": 0,
+        "MEDIUM": 0,
+        "HIGH": 0,
+        "none": 8
+      },
+      "S6_overconfidentCases": [],
+      "S6_unassessableCases": "N/A (arm A states no confidence)",
+      "S7_competing": {
+        "count": 0,
+        "total": 2
+      },
+      "S8_triageHits": []
+    },
+    "R:B": {
+      "cases": 8,
+      "answered": {
+        "count": 8,
+        "total": 8
+      },
+      "failures": [],
+      "S1_schemaValid": {
+        "count": 8,
+        "total": 8
+      },
+      "S2_citations": {
+        "valid": 44,
+        "total": 44
+      },
+      "S3_relevance": {
+        "relevant": 44,
+        "total": 44
+      },
+      "S4_coverage": {
+        "covered": 26,
+        "total": 26
+      },
+      "P2_discriminating": {
+        "count": 5,
+        "total": 5,
+        "naCases": 3
+      },
+      "S5_redundant": {
+        "count": 0,
+        "total": 8
+      },
+      "S6_confidence": {
+        "LOW": 8,
+        "MEDIUM": 6,
+        "HIGH": 2,
+        "none": 0
+      },
+      "S6_overconfidentCases": [],
+      "S6_unassessableCases": [],
+      "S7_competing": {
+        "count": 2,
+        "total": 2
+      },
+      "S8_triageHits": [
+        {
+          "id": "R1",
+          "statement": 3,
+          "term": "execution"
+        },
+        {
+          "id": "R1",
+          "statement": 3,
+          "term": "executed"
+        },
+        {
+          "id": "R3",
+          "statement": 1,
+          "term": "execution"
+        },
+        {
+          "id": "R3",
+          "statement": 3,
+          "term": "execution"
+        },
+        {
+          "id": "R4",
+          "statement": 2,
+          "term": "execution"
+        },
+        {
+          "id": "R4",
+          "statement": 2,
+          "term": "execution"
+        },
+        {
+          "id": "R6",
+          "statement": 0,
+          "term": "executions"
+        },
+        {
+          "id": "R6",
+          "statement": 3,
+          "term": "execution"
+        },
+        {
+          "id": "R9",
+          "statement": 0,
+          "term": "execution"
+        },
+        {
+          "id": "R9",
+          "statement": 2,
+          "term": "execution"
+        },
+        {
+          "id": "R9",
+          "statement": 3,
+          "term": "execution"
+        }
+      ]
+    },
+    "R:C": {
+      "cases": 8,
+      "answered": {
+        "count": 8,
+        "total": 8
+      },
+      "failures": [],
+      "S1_schemaValid": {
+        "count": 8,
+        "total": 8
+      },
+      "S2_citations": {
+        "valid": 46,
+        "total": 46
+      },
+      "S3_relevance": {
+        "relevant": 46,
+        "total": 46
+      },
+      "S4_coverage": {
+        "covered": 26,
+        "total": 26
+      },
+      "P2_discriminating": {
+        "count": 5,
+        "total": 5,
+        "naCases": 3
+      },
+      "S5_redundant": {
+        "count": 0,
+        "total": 8
+      },
+      "S6_confidence": {
+        "LOW": 10,
+        "MEDIUM": 2,
+        "HIGH": 2,
+        "none": 0
+      },
+      "S6_overconfidentCases": [],
+      "S6_unassessableCases": [],
+      "S7_competing": {
+        "count": 2,
+        "total": 2
+      },
+      "S8_triageHits": []
+    },
+    "S:A": {
+      "cases": 1,
+      "answered": {
+        "count": 1,
+        "total": 1
+      },
+      "failures": [],
+      "S1_schemaValid": {
+        "count": 1,
+        "total": 1
+      },
+      "S2_citations": {
+        "valid": 2,
+        "total": 2
+      },
+      "S3_relevance": {
+        "relevant": 2,
+        "total": 2
+      },
+      "S4_coverage": {
+        "covered": 2,
+        "total": 2
+      },
+      "P2_discriminating": {
+        "count": 1,
+        "total": 1,
+        "naCases": 0
+      },
+      "S5_redundant": {
+        "count": 0,
+        "total": 1
+      },
+      "S6_confidence": {
+        "LOW": 0,
+        "MEDIUM": 0,
+        "HIGH": 0,
+        "none": 1
+      },
+      "S6_overconfidentCases": [],
+      "S6_unassessableCases": "N/A (arm A states no confidence)",
+      "S7_competing": {
+        "count": 0,
+        "total": 1
+      },
+      "S8_triageHits": []
+    },
+    "S:B": {
+      "cases": 1,
+      "answered": {
+        "count": 1,
+        "total": 1
+      },
+      "failures": [],
+      "S1_schemaValid": {
+        "count": 1,
+        "total": 1
+      },
+      "S2_citations": {
+        "valid": 3,
+        "total": 3
+      },
+      "S3_relevance": {
+        "relevant": 3,
+        "total": 3
+      },
+      "S4_coverage": {
+        "covered": 2,
+        "total": 2
+      },
+      "P2_discriminating": {
+        "count": 1,
+        "total": 1,
+        "naCases": 0
+      },
+      "S5_redundant": {
+        "count": 0,
+        "total": 1
+      },
+      "S6_confidence": {
+        "LOW": 1,
+        "MEDIUM": 1,
+        "HIGH": 0,
+        "none": 0
+      },
+      "S6_overconfidentCases": [],
+      "S6_unassessableCases": [],
+      "S7_competing": {
+        "count": 1,
+        "total": 1
+      },
+      "S8_triageHits": [
+        {
+          "id": "S1",
+          "statement": 2,
+          "term": "execution"
+        },
+        {
+          "id": "S1",
+          "statement": 2,
+          "term": "execution"
+        },
+        {
+          "id": "S1",
+          "statement": 2,
+          "term": "execution"
+        },
+        {
+          "id": "S1",
+          "statement": 3,
+          "term": "execution"
+        }
+      ]
+    },
+    "S:C": {
+      "cases": 1,
+      "answered": {
+        "count": 1,
+        "total": 1
+      },
+      "failures": [],
+      "S1_schemaValid": {
+        "count": 1,
+        "total": 1
+      },
+      "S2_citations": {
+        "valid": 4,
+        "total": 4
+      },
+      "S3_relevance": {
+        "relevant": 4,
+        "total": 4
+      },
+      "S4_coverage": {
+        "covered": 2,
+        "total": 2
+      },
+      "P2_discriminating": {
+        "count": 1,
+        "total": 1,
+        "naCases": 0
+      },
+      "S5_redundant": {
+        "count": 0,
+        "total": 1
+      },
+      "S6_confidence": {
+        "LOW": 2,
+        "MEDIUM": 0,
+        "HIGH": 0,
+        "none": 0
+      },
+      "S6_overconfidentCases": [],
+      "S6_unassessableCases": [],
+      "S7_competing": {
+        "count": 1,
+        "total": 1
+      },
+      "S8_triageHits": []
+    },
+    "V:A": {
+      "cases": 3,
+      "answered": {
+        "count": 3,
+        "total": 3
+      },
+      "failures": [],
+      "S1_schemaValid": {
+        "count": 3,
+        "total": 3
+      },
+      "S2_citations": {
+        "valid": 12,
+        "total": 12
+      },
+      "S3_relevance": {
+        "relevant": 12,
+        "total": 12
+      },
+      "S4_coverage": {
+        "covered": 12,
+        "total": 12
+      },
+      "P2_discriminating": {
+        "count": 3,
+        "total": 3,
+        "naCases": 0
+      },
+      "S5_redundant": {
+        "count": 0,
+        "total": 3
+      },
+      "S6_confidence": {
+        "LOW": 0,
+        "MEDIUM": 0,
+        "HIGH": 0,
+        "none": 3
+      },
+      "S6_overconfidentCases": [],
+      "S6_unassessableCases": "N/A (arm A states no confidence)",
+      "S7_competing": {
+        "count": 0,
+        "total": 0
+      },
+      "S8_triageHits": []
+    },
+    "V:B": {
+      "cases": 3,
+      "answered": {
+        "count": 3,
+        "total": 3
+      },
+      "failures": [],
+      "S1_schemaValid": {
+        "count": 3,
+        "total": 3
+      },
+      "S2_citations": {
+        "valid": 21,
+        "total": 21
+      },
+      "S3_relevance": {
+        "relevant": 21,
+        "total": 21
+      },
+      "S4_coverage": {
+        "covered": 12,
+        "total": 12
+      },
+      "P2_discriminating": {
+        "count": 3,
+        "total": 3,
+        "naCases": 0
+      },
+      "S5_redundant": {
+        "count": 0,
+        "total": 3
+      },
+      "S6_confidence": {
+        "LOW": 2,
+        "MEDIUM": 3,
+        "HIGH": 1,
+        "none": 0
+      },
+      "S6_overconfidentCases": [],
+      "S6_unassessableCases": [],
+      "S7_competing": {
+        "count": 0,
+        "total": 0
+      },
+      "S8_triageHits": [
+        {
+          "id": "V1",
+          "statement": 1,
+          "term": "execution"
+        },
+        {
+          "id": "V1",
+          "statement": 2,
+          "term": "execution"
+        },
+        {
+          "id": "V1",
+          "statement": 2,
+          "term": "execution"
+        },
+        {
+          "id": "V2",
+          "statement": 0,
+          "term": "execution"
+        },
+        {
+          "id": "V2",
+          "statement": 1,
+          "term": "execution"
+        },
+        {
+          "id": "V2",
+          "statement": 1,
+          "term": "execution"
+        },
+        {
+          "id": "V3",
+          "statement": 2,
+          "term": "execution"
+        },
+        {
+          "id": "V3",
+          "statement": 3,
+          "term": "Executing"
+        }
+      ]
+    },
+    "V:C": {
+      "cases": 3,
+      "answered": {
+        "count": 3,
+        "total": 3
+      },
+      "failures": [],
+      "S1_schemaValid": {
+        "count": 3,
+        "total": 3
+      },
+      "S2_citations": {
+        "valid": 24,
+        "total": 24
+      },
+      "S3_relevance": {
+        "relevant": 24,
+        "total": 24
+      },
+      "S4_coverage": {
+        "covered": 12,
+        "total": 12
+      },
+      "P2_discriminating": {
+        "count": 3,
+        "total": 3,
+        "naCases": 0
+      },
+      "S5_redundant": {
+        "count": 0,
+        "total": 3
+      },
+      "S6_confidence": {
+        "LOW": 2,
+        "MEDIUM": 3,
+        "HIGH": 1,
+        "none": 0
+      },
+      "S6_overconfidentCases": [],
+      "S6_unassessableCases": [],
+      "S7_competing": {
+        "count": 0,
+        "total": 0
+      },
+      "S8_triageHits": []
+    },
+    "X:A": {
+      "cases": 4,
+      "answered": {
+        "count": 4,
+        "total": 4
+      },
+      "failures": [],
+      "S1_schemaValid": {
+        "count": 4,
+        "total": 4
+      },
+      "S2_citations": {
+        "valid": 7,
+        "total": 7
+      },
+      "S3_relevance": {
+        "relevant": 6,
+        "total": 7
+      },
+      "S4_coverage": {
+        "covered": 6,
+        "total": 6
+      },
+      "P2_discriminating": {
+        "count": 2,
+        "total": 2,
+        "naCases": 2
+      },
+      "S5_redundant": {
+        "count": 0,
+        "total": 4
+      },
+      "S6_confidence": {
+        "LOW": 0,
+        "MEDIUM": 0,
+        "HIGH": 0,
+        "none": 4
+      },
+      "S6_overconfidentCases": [],
+      "S6_unassessableCases": "N/A (arm A states no confidence)",
+      "S7_competing": {
+        "count": 0,
+        "total": 0
+      },
+      "S8_triageHits": []
+    },
+    "X:B": {
+      "cases": 4,
+      "answered": {
+        "count": 4,
+        "total": 4
+      },
+      "failures": [],
+      "S1_schemaValid": {
+        "count": 4,
+        "total": 4
+      },
+      "S2_citations": {
+        "valid": 14,
+        "total": 14
+      },
+      "S3_relevance": {
+        "relevant": 12,
+        "total": 14
+      },
+      "S4_coverage": {
+        "covered": 6,
+        "total": 6
+      },
+      "P2_discriminating": {
+        "count": 2,
+        "total": 2,
+        "naCases": 2
+      },
+      "S5_redundant": {
+        "count": 0,
+        "total": 4
+      },
+      "S6_confidence": {
+        "LOW": 5,
+        "MEDIUM": 3,
+        "HIGH": 0,
+        "none": 0
+      },
+      "S6_overconfidentCases": [],
+      "S6_unassessableCases": [],
+      "S7_competing": {
+        "count": 0,
+        "total": 0
+      },
+      "S8_triageHits": [
+        {
+          "id": "X1",
+          "statement": 0,
+          "term": "execution"
+        },
+        {
+          "id": "X1",
+          "statement": 2,
+          "term": "execution"
+        },
+        {
+          "id": "X1",
+          "statement": 3,
+          "term": "execution"
+        },
+        {
+          "id": "X2",
+          "statement": 1,
+          "term": "execution"
+        },
+        {
+          "id": "X4",
+          "statement": 3,
+          "term": "execution"
+        }
+      ]
+    },
+    "X:C": {
+      "cases": 4,
+      "answered": {
+        "count": 4,
+        "total": 4
+      },
+      "failures": [],
+      "S1_schemaValid": {
+        "count": 4,
+        "total": 4
+      },
+      "S2_citations": {
+        "valid": 14,
+        "total": 14
+      },
+      "S3_relevance": {
+        "relevant": 12,
+        "total": 14
+      },
+      "S4_coverage": {
+        "covered": 6,
+        "total": 6
+      },
+      "P2_discriminating": {
+        "count": 2,
+        "total": 2,
+        "naCases": 2
+      },
+      "S5_redundant": {
+        "count": 0,
+        "total": 4
+      },
+      "S6_confidence": {
+        "LOW": 8,
+        "MEDIUM": 0,
+        "HIGH": 0,
+        "none": 0
+      },
+      "S6_overconfidentCases": [],
+      "S6_unassessableCases": [],
+      "S7_competing": {
+        "count": 0,
+        "total": 0
+      },
+      "S8_triageHits": []
+    }
+  },
+  "armBTotals": {
+    "latencyMs": [
+      1738,
+      1928,
+      2001,
+      2095,
+      2097,
+      2099,
+      2163,
+      2187,
+      2311,
+      2491,
+      2508,
+      2619,
+      2638,
+      2648,
+      2756,
+      2901
+    ],
+    "tokens": {
+      "prompt": 13909,
+      "output": 7894,
+      "total": 21803
+    }
+  },
+  "humanMetrics": "PENDING_TWO_STAGE_REVIEW",
+  "rows": [
+    {
+      "id": "R1",
+      "stratum": "R",
+      "inputPath": "HOSTED_REACHABLE",
+      "evidenceSha256": "2f577d34ff246a4f0a01225b5698274d61cf1844ee0c7108f73474d3d75f3bdb",
+      "outputs": {
+        "A": {
+          "status": "OK",
+          "error": null,
+          "summary": "The current merchant count does not establish a duplicate. Inspect write outcomes before attributing a cause.",
+          "hypotheses": [
+            {
+              "explanation": "The current merchant count does not establish a duplicate. Inspect write outcomes before attributing a cause.",
+              "evidenceIds": [
+                "E41",
+                "M_run_53a0493b-cdea-4e1f-8352-502c1d52932c"
+              ],
+              "confidence": null
+            }
+          ],
+          "nextDiagnostic": "MERCHANT_WRITE_OUTCOMES",
+          "diagnosticReason": null
+        },
+        "B": {
+          "status": "OK",
+          "error": null,
+          "summary": "Analysis of OrderTruth sandbox observation E41 and merchant state M_run_53a0493b-cdea-4e1f-8352-502c1d52932c reveals a completed USD 1.00 payment capture with one active merchant order. Competing hypotheses focus on sequential processing versus potential unobserved retries, and the next diagnostic will examine handler timing to evaluate concurrency.",
+          "hypotheses": [
+            {
+              "explanation": "Sequential request processing successfully recorded the single payment capture observed in E41 and registered the active order in M_run_53a0493b-cdea-4e1f-8352-502c1d52932c without overlap.",
+              "evidenceIds": [
+                "E41",
+                "M_run_53a0493b-cdea-4e1f-8352-502c1d52932c"
+              ],
+              "confidence": "HIGH"
+            },
+            {
+              "explanation": "An isolated retry occurred after a transient client timeout, where the initial attempt completed silently at PayPal as seen in E41 before the merchant recorded the final state in M_run_53a0493b-cdea-4e1f-8352-502c1d52932c.",
+              "evidenceIds": [
+                "E41",
+                "M_run_53a0493b-cdea-4e1f-8352-502c1d52932c"
+              ],
+              "confidence": "LOW"
+            }
+          ],
+          "nextDiagnostic": "HANDLER_TIMING",
+          "diagnosticReason": "Examine handler execution intervals to verify whether requests overlapped or executed strictly in sequence."
+        },
+        "C": {
+          "status": "OK",
+          "error": null,
+          "summary": "The current merchant state does not show an active duplicate order.",
+          "hypotheses": [
+            {
+              "explanation": "The current merchant state does not show an active duplicate.",
+              "evidenceIds": [
+                "E41",
+                "M_run_53a0493b-cdea-4e1f-8352-502c1d52932c"
+              ],
+              "confidence": "LOW"
+            }
+          ],
+          "nextDiagnostic": "HANDLER_TIMING",
+          "diagnosticReason": "Handler intervals distinguish overlapping concurrent writes from sequential duplicate writes."
+        }
+      },
+      "armC": {
+        "valid": true
+      },
+      "armB": {
+        "ok": true,
+        "error": null,
+        "httpStatus": 200,
+        "latencyMs": 2311,
+        "usage": {
+          "promptTokens": 490,
+          "outputTokens": 403,
+          "totalTokens": 893
+        },
+        "guardEvents": [
+          {
+            "attempt": 1,
+            "kind": "SENT",
+            "status": 200,
+            "modelVersion": "gemini-3.5-flash-lite",
+            "body": "{\n  \"candidates\": [\n    {\n      \"content\": {\n        \"parts\": [\n          {\n            \"text\": \"{\\\"summary\\\": \\\"Analysis of OrderTruth sandbox observation E41 and merchant state M_run_53a0493b-cdea-4e1f-8352-502c1d52932c reveals a completed USD 1.00 payment capture with one active merchant order. Competing hypotheses focus on sequential processing versus potential unobserved retries, and the next diagnostic will examine handler timing to evaluate concurrency.\\\", \\\"hypotheses\\\": [{\\\"explanation\\\": \\\"Sequential request processing successfully recorded the single payment capture observed in E41 and registered the active order in M_run_53a0493b-cdea-4e1f-8352-502c1d52932c without overlap.\\\", \\\"evidenceIds\\\": [\\\"E41\\\", \\\"M_run_53a0493b-cdea-4e1f-8352-502c1d52932c\\\"], \\\"confidence\\\": \\\"HIGH\\\", \\\"status\\\": \\\"HYPOTHESIS\\\"}, {\\\"explanation\\\": \\\"An isolated retry occurred after a transient client timeout, where the initial attempt completed silently at PayPal as seen in E41 before the merchant recorded the final state in M_run_53a0493b-cdea-4e1f-8352-502c1d52932c.\\\", \\\"evidenceIds\\\": [\\\"E41\\\", \\\"M_run_53a0493b-cdea-4e1f-8352-502c1d52932c\\\"], \\\"confidence\\\": \\\"LOW\\\", \\\"status\\\": \\\"HYPOTHESIS\\\"}], \\\"nextDiagnostic\\\": \\\"HANDLER_TIMING\\\", \\\"diagnosticReason\\\": \\\"Examine handler execution intervals to verify whether requests overlapped or executed strictly in sequence.\\\"}\",\n            \"thoughtSignature\": \"EmAKXgFpFH0TWcUFiyF7dNECl1uoKoRj/WyrcoYB/xyMp8BnL1R6G6FP33+ufuvUdm+DXqwcz1/GMoXEiDVWympOxWaDO3CmufddNkoAxQmDB8e5w5FhJn+MonKKFGjj0B4=\"\n          }\n        ],\n        \"role\": \"model\"\n      },\n      \"finishReason\": \"STOP\",\n      \"index\": 0\n    }\n  ],\n  \"usageMetadata\": {\n    \"promptTokenCount\": 490,\n    \"candidatesTokenCount\": 403,\n    \"totalTokenCount\": 893,\n    \"promptTokensDetails\": [\n      {\n        \"modality\": \"TEXT\",\n        \"tokenCount\": 490\n      }\n    ],\n    \"serviceTier\": \"standard\"\n  },\n  \"modelVersion\": \"gemini-3.5-flash-lite\",\n  \"responseId\": \"GxrbaoDSJs_m694Pwqbf0Qc\"\n}\n"
+          }
+        ]
+      },
+      "scores": {
+        "A": {
+          "id": "R1",
+          "stratum": "R",
+          "arm": "A",
+          "status": "OK",
+          "error": null,
+          "S1_schemaValid": true,
+          "S2_citations": {
+            "valid": 2,
+            "total": 2
+          },
+          "S3_relevance": {
+            "relevant": 2,
+            "total": 2
+          },
+          "S4_coverage": {
+            "covered": 2,
+            "total": 2
+          },
+          "P2_discriminating": null,
+          "S5_redundant": false,
+          "assessable": true,
+          "S6_confidence": {
+            "LOW": 0,
+            "MEDIUM": 0,
+            "HIGH": 0,
+            "none": 1
+          },
+          "S6_overconfident": null,
+          "S7_competing": null,
+          "S8_triage": [],
+          "hypotheses": 1
+        },
+        "B": {
+          "id": "R1",
+          "stratum": "R",
+          "arm": "B",
+          "status": "OK",
+          "error": null,
+          "S1_schemaValid": true,
+          "S2_citations": {
+            "valid": 4,
+            "total": 4
+          },
+          "S3_relevance": {
+            "relevant": 4,
+            "total": 4
+          },
+          "S4_coverage": {
+            "covered": 2,
+            "total": 2
+          },
+          "P2_discriminating": null,
+          "S5_redundant": false,
+          "assessable": true,
+          "S6_confidence": {
+            "LOW": 1,
+            "MEDIUM": 0,
+            "HIGH": 1,
+            "none": 0
+          },
+          "S6_overconfident": false,
+          "S7_competing": null,
+          "S8_triage": [
+            {
+              "statement": 3,
+              "term": "execution"
+            },
+            {
+              "statement": 3,
+              "term": "executed"
+            }
+          ],
+          "hypotheses": 2
+        },
+        "C": {
+          "id": "R1",
+          "stratum": "R",
+          "arm": "C",
+          "status": "OK",
+          "error": null,
+          "S1_schemaValid": true,
+          "S2_citations": {
+            "valid": 2,
+            "total": 2
+          },
+          "S3_relevance": {
+            "relevant": 2,
+            "total": 2
+          },
+          "S4_coverage": {
+            "covered": 2,
+            "total": 2
+          },
+          "P2_discriminating": null,
+          "S5_redundant": false,
+          "assessable": true,
+          "S6_confidence": {
+            "LOW": 1,
+            "MEDIUM": 0,
+            "HIGH": 0,
+            "none": 0
+          },
+          "S6_overconfident": false,
+          "S7_competing": null,
+          "S8_triage": [],
+          "hypotheses": 1
+        }
+      }
+    },
+    {
+      "id": "R2",
+      "stratum": "R",
+      "inputPath": "HOSTED_REACHABLE",
+      "evidenceSha256": "8ab5d3ac223a6de9e76a4d50d905fbceeeb14b165369654179205fce9575493a",
+      "outputs": {
+        "A": {
+          "status": "OK",
+          "error": null,
+          "summary": "Multiple controlled merchant orders reference the recorded payment. Compare merchant write identities; the payment observation alone does not establish the merchant cause.",
+          "hypotheses": [
+            {
+              "explanation": "Multiple controlled merchant orders reference the recorded payment. Compare merchant write identities; the payment observation alone does not establish the merchant cause.",
+              "evidenceIds": [
+                "E41",
+                "M_run_9831c7b9-80a5-4e00-8f50-35ca26fcb868"
+              ],
+              "confidence": null
+            }
+          ],
+          "nextDiagnostic": "IDEMPOTENCY_KEYS",
+          "diagnosticReason": null
+        },
+        "B": {
+          "status": "OK",
+          "error": null,
+          "summary": "Investigation of duplicate merchant orders observed in the controlled sandbox environment alongside a single completed PayPal capture. Two competing merchant-side mechanisms are evaluated to explain the discrepancy.",
+          "hypotheses": [
+            {
+              "explanation": "Sequential submission mechanism: The merchant application received two distinct user submissions or automated retries sequentially, creating two order records without concurrency. Supported by M_run_9831c7b9-80a5-4e00-8f50-35ca26fcb868. Unknown is why two orders were created while E41 shows only one completed capture.",
+              "evidenceIds": [
+                "E41",
+                "M_run_9831c7b9-80a5-4e00-8f50-35ca26fcb868"
+              ],
+              "confidence": "MEDIUM"
+            },
+            {
+              "explanation": "Idempotency key failure mechanism: The merchant system failed to enforce idempotency across distinct request identifiers, leading to multiple order entries for a single payment session. Supported by E41 and M_run_9831c7b9-80a5-4e00-8f50-35ca26fcb868. Unknown is whether distinct keys were generated by the client or server.",
+              "evidenceIds": [
+                "E41",
+                "M_run_9831c7b9-80a5-4e00-8f50-35ca26fcb868"
+              ],
+              "confidence": "LOW"
+            }
+          ],
+          "nextDiagnostic": "IDEMPOTENCY_KEYS",
+          "diagnosticReason": "Inspect idempotency keys used across requests to determine if missing or non-matching keys permitted duplicate merchant order writes."
+        },
+        "C": {
+          "status": "OK",
+          "error": null,
+          "summary": "2 active merchant orders reference one payment observation.",
+          "hypotheses": [
+            {
+              "explanation": "Concurrent merchant handlers may each have passed the existence check before either wrote, producing duplicate orders.",
+              "evidenceIds": [
+                "E41",
+                "M_run_9831c7b9-80a5-4e00-8f50-35ca26fcb868"
+              ],
+              "confidence": "LOW"
+            },
+            {
+              "explanation": "Sequential merchant handlers may have written duplicate orders because their distinct write identities bypassed a shared deduplication boundary.",
+              "evidenceIds": [
+                "E41",
+                "M_run_9831c7b9-80a5-4e00-8f50-35ca26fcb868"
+              ],
+              "confidence": "LOW"
+            }
+          ],
+          "nextDiagnostic": "HANDLER_TIMING",
+          "diagnosticReason": "Handler intervals distinguish overlapping concurrent writes from sequential duplicate writes."
+        }
+      },
+      "armC": {
+        "valid": true
+      },
+      "armB": {
+        "ok": true,
+        "error": null,
+        "httpStatus": 200,
+        "latencyMs": 2163,
+        "usage": {
+          "promptTokens": 547,
+          "outputTokens": 368,
+          "totalTokens": 915
+        },
+        "guardEvents": [
+          {
+            "attempt": 2,
+            "kind": "SENT",
+            "status": 200,
+            "modelVersion": "gemini-3.5-flash-lite",
+            "body": "{\n  \"candidates\": [\n    {\n      \"content\": {\n        \"parts\": [\n          {\n            \"text\": \"{\\\"summary\\\":\\\"Investigation of duplicate merchant orders observed in the controlled sandbox environment alongside a single completed PayPal capture. Two competing merchant-side mechanisms are evaluated to explain the discrepancy.\\\",\\\"hypotheses\\\":[{\\\"explanation\\\":\\\"Sequential submission mechanism: The merchant application received two distinct user submissions or automated retries sequentially, creating two order records without concurrency. Supported by M_run_9831c7b9-80a5-4e00-8f50-35ca26fcb868. Unknown is why two orders were created while E41 shows only one completed capture.\\\",\\\"evidenceIds\\\":[\\\"E41\\\",\\\"M_run_9831c7b9-80a5-4e00-8f50-35ca26fcb868\\\"],\\\"confidence\\\":\\\"MEDIUM\\\",\\\"status\\\":\\\"HYPOTHESIS\\\"},{\\\"explanation\\\":\\\"Idempotency key failure mechanism: The merchant system failed to enforce idempotency across distinct request identifiers, leading to multiple order entries for a single payment session. Supported by E41 and M_run_9831c7b9-80a5-4e00-8f50-35ca26fcb868. Unknown is whether distinct keys were generated by the client or server.\\\",\\\"evidenceIds\\\":[\\\"E41\\\",\\\"M_run_9831c7b9-80a5-4e00-8f50-35ca26fcb868\\\"],\\\"confidence\\\":\\\"LOW\\\",\\\"status\\\":\\\"HYPOTHESIS\\\"}],\\\"nextDiagnostic\\\":\\\"IDEMPOTENCY_KEYS\\\",\\\"diagnosticReason\\\":\\\"Inspect idempotency keys used across requests to determine if missing or non-matching keys permitted duplicate merchant order writes.\\\"}\",\n            \"thoughtSignature\": \"EmAKXgFpFH0TLiwaNbe1PeSGTy+EvD9jfDN3RQfAkmue5t2XlOw4Dmsi20QsAQa9jZ0ZyBlNaCIVlYk9MmEJS/PNM2pqa7SJv5TEzMwWBnmQQRKUPX7fsqOdyFKlAUA5es8=\"\n          }\n        ],\n        \"role\": \"model\"\n      },\n      \"finishReason\": \"STOP\",\n      \"index\": 0\n    }\n  ],\n  \"usageMetadata\": {\n    \"promptTokenCount\": 547,\n    \"candidatesTokenCount\": 368,\n    \"totalTokenCount\": 915,\n    \"promptTokensDetails\": [\n      {\n        \"modality\": \"TEXT\",\n        \"tokenCount\": 547\n      }\n    ],\n    \"serviceTier\": \"standard\"\n  },\n  \"modelVersion\": \"gemini-3.5-flash-lite\",\n  \"responseId\": \"Ixrbap69LoWD694P3ajbsAY\"\n}\n"
+          }
+        ]
+      },
+      "scores": {
+        "A": {
+          "id": "R2",
+          "stratum": "R",
+          "arm": "A",
+          "status": "OK",
+          "error": null,
+          "S1_schemaValid": true,
+          "S2_citations": {
+            "valid": 2,
+            "total": 2
+          },
+          "S3_relevance": {
+            "relevant": 2,
+            "total": 2
+          },
+          "S4_coverage": {
+            "covered": 2,
+            "total": 2
+          },
+          "P2_discriminating": true,
+          "S5_redundant": false,
+          "assessable": true,
+          "S6_confidence": {
+            "LOW": 0,
+            "MEDIUM": 0,
+            "HIGH": 0,
+            "none": 1
+          },
+          "S6_overconfident": null,
+          "S7_competing": false,
+          "S8_triage": [],
+          "hypotheses": 1
+        },
+        "B": {
+          "id": "R2",
+          "stratum": "R",
+          "arm": "B",
+          "status": "OK",
+          "error": null,
+          "S1_schemaValid": true,
+          "S2_citations": {
+            "valid": 4,
+            "total": 4
+          },
+          "S3_relevance": {
+            "relevant": 4,
+            "total": 4
+          },
+          "S4_coverage": {
+            "covered": 2,
+            "total": 2
+          },
+          "P2_discriminating": true,
+          "S5_redundant": false,
+          "assessable": true,
+          "S6_confidence": {
+            "LOW": 1,
+            "MEDIUM": 1,
+            "HIGH": 0,
+            "none": 0
+          },
+          "S6_overconfident": false,
+          "S7_competing": true,
+          "S8_triage": [],
+          "hypotheses": 2
+        },
+        "C": {
+          "id": "R2",
+          "stratum": "R",
+          "arm": "C",
+          "status": "OK",
+          "error": null,
+          "S1_schemaValid": true,
+          "S2_citations": {
+            "valid": 4,
+            "total": 4
+          },
+          "S3_relevance": {
+            "relevant": 4,
+            "total": 4
+          },
+          "S4_coverage": {
+            "covered": 2,
+            "total": 2
+          },
+          "P2_discriminating": true,
+          "S5_redundant": false,
+          "assessable": true,
+          "S6_confidence": {
+            "LOW": 2,
+            "MEDIUM": 0,
+            "HIGH": 0,
+            "none": 0
+          },
+          "S6_overconfident": false,
+          "S7_competing": true,
+          "S8_triage": [],
+          "hypotheses": 2
+        }
+      }
+    },
+    {
+      "id": "R3",
+      "stratum": "R",
+      "inputPath": "HOSTED_REACHABLE",
+      "evidenceSha256": "094818633239508d2e1716021ec01d87fef4098e9b298bb498cd46346df77820",
+      "outputs": {
+        "A": {
+          "status": "OK",
+          "error": null,
+          "summary": "Multiple controlled merchant orders reference the recorded payment; the diagnostic records 2 distinct merchant write keys. Different keys can bypass a shared deduplication boundary. Timing is still needed to assess concurrency.",
+          "hypotheses": [
+            {
+              "explanation": "Multiple controlled merchant orders reference the recorded payment; the diagnostic records 2 distinct merchant write keys. Different keys can bypass a shared deduplication boundary. Timing is still needed to assess concurrency.",
+              "evidenceIds": [
+                "E41",
+                "M_run_577608b8-f8de-4b80-84c9-f134c17b4c13",
+                "D_abf3ad2f-f3cc-43e9-8d01-42af3b1795ec"
+              ],
+              "confidence": null
+            }
+          ],
+          "nextDiagnostic": "HANDLER_TIMING",
+          "diagnosticReason": null
+        },
+        "B": {
+          "status": "OK",
+          "error": null,
+          "summary": "Investigation of duplicate merchant order creations supported by observed PayPal Sandbox capture data and distinct merchant handler idempotency keys.",
+          "hypotheses": [
+            {
+              "explanation": "Concurrent client retries or parallel webhook/return triggers caused two distinct order records to be written sequentially or concurrently, supported by M_run_577608b8-f8de-4b80-84c9-f134c17b4c13 and D_abf3ad2f-f3cc-43e9-8d01-42af3b1795ec. However, distinct keys do not definitively prove overlapping execution timing.",
+              "evidenceIds": [
+                "M_run_577608b8-f8de-4b80-84c9-f134c17b4c13",
+                "D_abf3ad2f-f3cc-43e9-8d01-42af3b1795ec"
+              ],
+              "confidence": "MEDIUM"
+            },
+            {
+              "explanation": "Independent user checkout actions created separate merchant orders before PayPal completion, evidenced by E41 and M_run_577608b8-f8de-4b80-84c9-f134c17b4c13. This mechanism leaves the exact scheduling of handler invocations unknown.",
+              "evidenceIds": [
+                "E41",
+                "M_run_577608b8-f8de-4b80-84c9-f134c17b4c13"
+              ],
+              "confidence": "LOW"
+            }
+          ],
+          "nextDiagnostic": "HANDLER_TIMING",
+          "diagnosticReason": "Examining handler execution start and end intervals will determine whether the duplicate orders were generated by overlapping concurrent requests or sequential writes."
+        },
+        "C": {
+          "status": "OK",
+          "error": null,
+          "summary": "2 active merchant orders reference one payment observation. The key diagnostic records 2 distinct merchant write identities.",
+          "hypotheses": [
+            {
+              "explanation": "Concurrent merchant handlers may each have passed the existence check before either wrote, producing duplicate orders.",
+              "evidenceIds": [
+                "E41",
+                "M_run_577608b8-f8de-4b80-84c9-f134c17b4c13",
+                "D_abf3ad2f-f3cc-43e9-8d01-42af3b1795ec"
+              ],
+              "confidence": "LOW"
+            },
+            {
+              "explanation": "Sequential merchant handlers may have written duplicate orders because their distinct write identities bypassed a shared deduplication boundary.",
+              "evidenceIds": [
+                "E41",
+                "M_run_577608b8-f8de-4b80-84c9-f134c17b4c13",
+                "D_abf3ad2f-f3cc-43e9-8d01-42af3b1795ec"
+              ],
+              "confidence": "MEDIUM"
+            }
+          ],
+          "nextDiagnostic": "HANDLER_TIMING",
+          "diagnosticReason": "Handler intervals distinguish overlapping concurrent writes from sequential duplicate writes."
+        }
+      },
+      "armC": {
+        "valid": true
+      },
+      "armB": {
+        "ok": true,
+        "error": null,
+        "httpStatus": 200,
+        "latencyMs": 2491,
+        "usage": {
+          "promptTokens": 872,
+          "outputTokens": 460,
+          "totalTokens": 1332
+        },
+        "guardEvents": [
+          {
+            "attempt": 3,
+            "kind": "SENT",
+            "status": 200,
+            "modelVersion": "gemini-3.5-flash-lite",
+            "body": "{\n  \"candidates\": [\n    {\n      \"content\": {\n        \"parts\": [\n          {\n            \"text\": \"{\\n  \\\"summary\\\": \\\"Investigation of duplicate merchant order creations supported by observed PayPal Sandbox capture data and distinct merchant handler idempotency keys.\\\",\\n  \\\"hypotheses\\\": [\\n    {\\n      \\\"explanation\\\": \\\"Concurrent client retries or parallel webhook/return triggers caused two distinct order records to be written sequentially or concurrently, supported by M_run_577608b8-f8de-4b80-84c9-f134c17b4c13 and D_abf3ad2f-f3cc-43e9-8d01-42af3b1795ec. However, distinct keys do not definitively prove overlapping execution timing.\\\",\\n      \\\"evidenceIds\\\": [\\\"M_run_577608b8-f8de-4b80-84c9-f134c17b4c13\\\", \\\"D_abf3ad2f-f3cc-43e9-8d01-42af3b1795ec\\\"],\\n      \\\"confidence\\\": \\\"MEDIUM\\\",\\n      \\\"status\\\": \\\"HYPOTHESIS\\\"\\n    },\\n    {\\n      \\\"explanation\\\": \\\"Independent user checkout actions created separate merchant orders before PayPal completion, evidenced by E41 and M_run_577608b8-f8de-4b80-84c9-f134c17b4c13. This mechanism leaves the exact scheduling of handler invocations unknown.\\\",\\n      \\\"evidenceIds\\\": [\\\"E41\\\", \\\"M_run_577608b8-f8de-4b80-84c9-f134c17b4c13\\\"],\\n      \\\"confidence\\\": \\\"LOW\\\",\\n      \\\"status\\\": \\\"HYPOTHESIS\\\"\\n    }\\n  ],\\n  \\\"nextDiagnostic\\\": \\\"HANDLER_TIMING\\\",\\n  \\\"diagnosticReason\\\": \\\"Examining handler execution start and end intervals will determine whether the duplicate orders were generated by overlapping concurrent requests or sequential writes.\\\"\\n}\",\n            \"thoughtSignature\": \"EmAKXgFpFH0TWH5onpU+FWOz6axKXBHan4oF3D0sndfAqpiYt8LDAd2ui2Z8dlmCPLYb+MF7fMCYIr+7DrrSssXHtJFjQG9DLXD0XhfjWZEOYJsKftRLoRl5i7N6oqaB+D0=\"\n          }\n        ],\n        \"role\": \"model\"\n      },\n      \"finishReason\": \"STOP\",\n      \"index\": 0\n    }\n  ],\n  \"usageMetadata\": {\n    \"promptTokenCount\": 872,\n    \"candidatesTokenCount\": 460,\n    \"totalTokenCount\": 1332,\n    \"promptTokensDetails\": [\n      {\n        \"modality\": \"TEXT\",\n        \"tokenCount\": 872\n      }\n    ],\n    \"serviceTier\": \"standard\"\n  },\n  \"modelVersion\": \"gemini-3.5-flash-lite\",\n  \"responseId\": \"LBrbav_-D6ve694PgZOtuQY\"\n}\n"
+          }
+        ]
+      },
+      "scores": {
+        "A": {
+          "id": "R3",
+          "stratum": "R",
+          "arm": "A",
+          "status": "OK",
+          "error": null,
+          "S1_schemaValid": true,
+          "S2_citations": {
+            "valid": 3,
+            "total": 3
+          },
+          "S3_relevance": {
+            "relevant": 3,
+            "total": 3
+          },
+          "S4_coverage": {
+            "covered": 3,
+            "total": 3
+          },
+          "P2_discriminating": true,
+          "S5_redundant": false,
+          "assessable": true,
+          "S6_confidence": {
+            "LOW": 0,
+            "MEDIUM": 0,
+            "HIGH": 0,
+            "none": 1
+          },
+          "S6_overconfident": null,
+          "S7_competing": null,
+          "S8_triage": [],
+          "hypotheses": 1
+        },
+        "B": {
+          "id": "R3",
+          "stratum": "R",
+          "arm": "B",
+          "status": "OK",
+          "error": null,
+          "S1_schemaValid": true,
+          "S2_citations": {
+            "valid": 4,
+            "total": 4
+          },
+          "S3_relevance": {
+            "relevant": 4,
+            "total": 4
+          },
+          "S4_coverage": {
+            "covered": 3,
+            "total": 3
+          },
+          "P2_discriminating": true,
+          "S5_redundant": false,
+          "assessable": true,
+          "S6_confidence": {
+            "LOW": 1,
+            "MEDIUM": 1,
+            "HIGH": 0,
+            "none": 0
+          },
+          "S6_overconfident": false,
+          "S7_competing": null,
+          "S8_triage": [
+            {
+              "statement": 1,
+              "term": "execution"
+            },
+            {
+              "statement": 3,
+              "term": "execution"
+            }
+          ],
+          "hypotheses": 2
+        },
+        "C": {
+          "id": "R3",
+          "stratum": "R",
+          "arm": "C",
+          "status": "OK",
+          "error": null,
+          "S1_schemaValid": true,
+          "S2_citations": {
+            "valid": 6,
+            "total": 6
+          },
+          "S3_relevance": {
+            "relevant": 6,
+            "total": 6
+          },
+          "S4_coverage": {
+            "covered": 3,
+            "total": 3
+          },
+          "P2_discriminating": true,
+          "S5_redundant": false,
+          "assessable": true,
+          "S6_confidence": {
+            "LOW": 1,
+            "MEDIUM": 1,
+            "HIGH": 0,
+            "none": 0
+          },
+          "S6_overconfident": false,
+          "S7_competing": null,
+          "S8_triage": [],
+          "hypotheses": 2
+        }
+      }
+    },
+    {
+      "id": "R4",
+      "stratum": "R",
+      "inputPath": "HOSTED_REACHABLE",
+      "evidenceSha256": "c709836181ceba8ad86374c969ceaa369457b77312ec6e4c444d8bd875eb08ff",
+      "outputs": {
+        "A": {
+          "status": "OK",
+          "error": null,
+          "summary": "Multiple controlled merchant orders reference the recorded payment. Compare merchant write identities; the payment observation alone does not establish the merchant cause.",
+          "hypotheses": [
+            {
+              "explanation": "Multiple controlled merchant orders reference the recorded payment. Compare merchant write identities; the payment observation alone does not establish the merchant cause.",
+              "evidenceIds": [
+                "E41",
+                "M_run_2bdfb2f7-00b0-4865-8d8b-d5dcd1cd38ef",
+                "D_73c017e8-b17d-46bb-89df-62d99c202330"
+              ],
+              "confidence": null
+            }
+          ],
+          "nextDiagnostic": "IDEMPOTENCY_KEYS",
+          "diagnosticReason": null
+        },
+        "B": {
+          "status": "OK",
+          "error": null,
+          "summary": "Investigation of two merchant orders created against a single PayPal sandbox observation. Disjoint timing entries weaken concurrency explanation, suggesting sequential writes using different keys are possible.",
+          "hypotheses": [
+            {
+              "explanation": "Sequential order creation where different keys permitted two merchant writes without concurrency, supported by disjoint timing intervals in E41, M_run_2bdfb2f7-00b0-4865-8d8b-d5dcd1cd38ef, and D_73c017e8-b17d-46bb-89df-62d99c202330.",
+              "evidenceIds": [
+                "E41",
+                "M_run_2bdfb2f7-00b0-4865-8d8b-d5dcd1cd38ef",
+                "D_73c017e8-b17d-46bb-89df-62d99c202330"
+              ],
+              "confidence": "MEDIUM"
+            },
+            {
+              "explanation": "Concurrent processing attempts that failed to deduplicate due to distinct keys, though timing entries show disjoint execution intervals weakening simultaneous execution, supported by E41, M_run_2bdfb2f7-00b0-4865-8d8b-d5dcd1cd38ef, and D_73c017e8-b17d-46bb-89df-62d99c202330.",
+              "evidenceIds": [
+                "E41",
+                "M_run_2bdfb2f7-00b0-4865-8d8b-d5dcd1cd38ef",
+                "D_73c017e8-b17d-46bb-89df-62d99c202330"
+              ],
+              "confidence": "LOW"
+            }
+          ],
+          "nextDiagnostic": "IDEMPOTENCY_KEYS",
+          "diagnosticReason": "Check idempotency keys to distinguish whether distinct keys enabled sequential duplicate writes or if key reuse failure occurred."
+        },
+        "C": {
+          "status": "OK",
+          "error": null,
+          "summary": "2 active merchant orders reference one payment observation. Recorded handler intervals are disjoint, which weakens a concurrency explanation.",
+          "hypotheses": [
+            {
+              "explanation": "Concurrent merchant handlers may each have passed the existence check before either wrote, producing duplicate orders.",
+              "evidenceIds": [
+                "E41",
+                "M_run_2bdfb2f7-00b0-4865-8d8b-d5dcd1cd38ef",
+                "D_73c017e8-b17d-46bb-89df-62d99c202330"
+              ],
+              "confidence": "LOW"
+            },
+            {
+              "explanation": "Sequential merchant handlers may have written duplicate orders because their distinct write identities bypassed a shared deduplication boundary.",
+              "evidenceIds": [
+                "E41",
+                "M_run_2bdfb2f7-00b0-4865-8d8b-d5dcd1cd38ef",
+                "D_73c017e8-b17d-46bb-89df-62d99c202330"
+              ],
+              "confidence": "MEDIUM"
+            }
+          ],
+          "nextDiagnostic": "IDEMPOTENCY_KEYS",
+          "diagnosticReason": "Write identities show whether a shared deduplication key could have blocked the duplicate."
+        }
+      },
+      "armC": {
+        "valid": true
+      },
+      "armB": {
+        "ok": true,
+        "error": null,
+        "httpStatus": 200,
+        "latencyMs": 2648,
+        "usage": {
+          "promptTokens": 872,
+          "outputTokens": 466,
+          "totalTokens": 1338
+        },
+        "guardEvents": [
+          {
+            "attempt": 4,
+            "kind": "SENT",
+            "status": 200,
+            "modelVersion": "gemini-3.5-flash-lite",
+            "body": "{\n  \"candidates\": [\n    {\n      \"content\": {\n        \"parts\": [\n          {\n            \"text\": \"{\\\"summary\\\":\\\"Investigation of two merchant orders created against a single PayPal sandbox observation. Disjoint timing entries weaken concurrency explanation, suggesting sequential writes using different keys are possible.\\\",\\\"hypotheses\\\":[{\\\"explanation\\\":\\\"Sequential order creation where different keys permitted two merchant writes without concurrency, supported by disjoint timing intervals in E41, M_run_2bdfb2f7-00b0-4865-8d8b-d5dcd1cd38ef, and D_73c017e8-b17d-46bb-89df-62d99c202330.\\\",\\\"evidenceIds\\\":[\\\"E41\\\",\\\"M_run_2bdfb2f7-00b0-4865-8d8b-d5dcd1cd38ef\\\",\\\"D_73c017e8-b17d-46bb-89df-62d99c202330\\\"],\\\"confidence\\\":\\\"MEDIUM\\\",\\\"status\\\":\\\"HYPOTHESIS\\\"},{\\\"explanation\\\":\\\"Concurrent processing attempts that failed to deduplicate due to distinct keys, though timing entries show disjoint execution intervals weakening simultaneous execution, supported by E41, M_run_2bdfb2f7-00b0-4865-8d8b-d5dcd1cd38ef, and D_73c017e8-b17d-46bb-89df-62d99c202330.\\\",\\\"evidenceIds\\\":[\\\"E41\\\",\\\"M_run_2bdfb2f7-00b0-4865-8d8b-d5dcd1cd38ef\\\",\\\"D_73c017e8-b17d-46bb-89df-62d99c202330\\\"],\\\"confidence\\\":\\\"LOW\\\",\\\"status\\\":\\\"HYPOTHESIS\\\"}],\\\"nextDiagnostic\\\":\\\"IDEMPOTENCY_KEYS\\\",\\\"diagnosticReason\\\":\\\"Check idempotency keys to distinguish whether distinct keys enabled sequential duplicate writes or if key reuse failure occurred.\\\"}\",\n            \"thoughtSignature\": \"EmAKXgFpFH0TyP6with5kijCHwdyuzmG4EY44opKsMZNIwF+p6/YmkpwC4PaAnddMyILRcXRQu3LRIJPnSKhT/HOsvT2jovvY77sg7fDKo7Gsh1AL8Z+0Wnxg4/dILwfq4w=\"\n          }\n        ],\n        \"role\": \"model\"\n      },\n      \"finishReason\": \"STOP\",\n      \"index\": 0\n    }\n  ],\n  \"usageMetadata\": {\n    \"promptTokenCount\": 872,\n    \"candidatesTokenCount\": 466,\n    \"totalTokenCount\": 1338,\n    \"promptTokensDetails\": [\n      {\n        \"modality\": \"TEXT\",\n        \"tokenCount\": 872\n      }\n    ],\n    \"serviceTier\": \"standard\"\n  },\n  \"modelVersion\": \"gemini-3.5-flash-lite\",\n  \"responseId\": \"NBrbavKaHLe4694P88rA4Q0\"\n}\n"
+          }
+        ]
+      },
+      "scores": {
+        "A": {
+          "id": "R4",
+          "stratum": "R",
+          "arm": "A",
+          "status": "OK",
+          "error": null,
+          "S1_schemaValid": true,
+          "S2_citations": {
+            "valid": 3,
+            "total": 3
+          },
+          "S3_relevance": {
+            "relevant": 3,
+            "total": 3
+          },
+          "S4_coverage": {
+            "covered": 3,
+            "total": 3
+          },
+          "P2_discriminating": true,
+          "S5_redundant": false,
+          "assessable": true,
+          "S6_confidence": {
+            "LOW": 0,
+            "MEDIUM": 0,
+            "HIGH": 0,
+            "none": 1
+          },
+          "S6_overconfident": null,
+          "S7_competing": null,
+          "S8_triage": [],
+          "hypotheses": 1
+        },
+        "B": {
+          "id": "R4",
+          "stratum": "R",
+          "arm": "B",
+          "status": "OK",
+          "error": null,
+          "S1_schemaValid": true,
+          "S2_citations": {
+            "valid": 6,
+            "total": 6
+          },
+          "S3_relevance": {
+            "relevant": 6,
+            "total": 6
+          },
+          "S4_coverage": {
+            "covered": 3,
+            "total": 3
+          },
+          "P2_discriminating": true,
+          "S5_redundant": false,
+          "assessable": true,
+          "S6_confidence": {
+            "LOW": 1,
+            "MEDIUM": 1,
+            "HIGH": 0,
+            "none": 0
+          },
+          "S6_overconfident": false,
+          "S7_competing": null,
+          "S8_triage": [
+            {
+              "statement": 2,
+              "term": "execution"
+            },
+            {
+              "statement": 2,
+              "term": "execution"
+            }
+          ],
+          "hypotheses": 2
+        },
+        "C": {
+          "id": "R4",
+          "stratum": "R",
+          "arm": "C",
+          "status": "OK",
+          "error": null,
+          "S1_schemaValid": true,
+          "S2_citations": {
+            "valid": 6,
+            "total": 6
+          },
+          "S3_relevance": {
+            "relevant": 6,
+            "total": 6
+          },
+          "S4_coverage": {
+            "covered": 3,
+            "total": 3
+          },
+          "P2_discriminating": true,
+          "S5_redundant": false,
+          "assessable": true,
+          "S6_confidence": {
+            "LOW": 1,
+            "MEDIUM": 1,
+            "HIGH": 0,
+            "none": 0
+          },
+          "S6_overconfident": false,
+          "S7_competing": null,
+          "S8_triage": [],
+          "hypotheses": 2
+        }
+      }
+    },
+    {
+      "id": "R5",
+      "stratum": "R",
+      "inputPath": "HOSTED_REACHABLE",
+      "evidenceSha256": "7e58627786e5f6fa73d6572f2891348b1d9d0dfbd8f2f2b38628e9f236834b57",
+      "outputs": {
+        "A": {
+          "status": "OK",
+          "error": null,
+          "summary": "Multiple controlled merchant orders reference the recorded payment; the diagnostic records 2 distinct merchant write keys. Different keys can bypass a shared deduplication boundary. Timing is still needed to assess concurrency.",
+          "hypotheses": [
+            {
+              "explanation": "Multiple controlled merchant orders reference the recorded payment; the diagnostic records 2 distinct merchant write keys. Different keys can bypass a shared deduplication boundary. Timing is still needed to assess concurrency.",
+              "evidenceIds": [
+                "E41",
+                "M_run_8794a1ab-0ea0-452c-8aeb-3931f52e06d1",
+                "D_a2386387-9234-4750-8578-4996ff605e9b",
+                "D_e4e5e98c-820a-4bce-817d-fe4ce339bb36"
+              ],
+              "confidence": null
+            }
+          ],
+          "nextDiagnostic": "MERCHANT_WRITE_OUTCOMES",
+          "diagnosticReason": null
+        },
+        "B": {
+          "status": "OK",
+          "error": null,
+          "summary": "Investigation of order duplication shows two distinct merchant orders created using different idempotency keys and completely disjoint handler timing intervals. Observation E41 confirms PayPal completed a single capture, while merchant diagnostic records show two separate orders.",
+          "hypotheses": [
+            {
+              "explanation": "Mechanism 1: Sequential independent write operations caused by user browser redirect refresh and an asynchronous webhook arrival acting on different internal order IDs. Supported by distinct keys and disjoint timing in D_a2386387-9234-4750-8578-4996ff605e9b and D_e4e5e98c-820a-4bce-817d-fe4ce339bb36. Unknown/weakness: does not explain why separate merchant orders were instantiated for a single PayPal transaction.",
+              "evidenceIds": [
+                "E41",
+                "M_run_8794a1ab-0ea0-452c-8aeb-3931f52e06d1",
+                "D_a2386387-9234-4750-8578-4996ff605e9b",
+                "D_e4e5e98c-820a-4bce-817d-fe4ce339bb36"
+              ],
+              "confidence": "MEDIUM"
+            },
+            {
+              "explanation": "Mechanism 2: Client-side session recreation prior to checkout return resulting in two distinct cart initializations submitted sequentially. Supported by M_run_8794a1ab-0ea0-452c-8aeb-3931f52e06d1 and D_a2386387-9234-4750-8578-4996ff605e9b showing two active placed orders. Unknown/weakness: timing intervals are disjoint and span 41 seconds apart, making concurrent race conditions unlikely.",
+              "evidenceIds": [
+                "M_run_8794a1ab-0ea0-452c-8aeb-3931f52e06d1",
+                "D_a2386387-9234-4750-8578-4996ff605e9b",
+                "D_e4e5e98c-820a-4bce-817d-fe4ce339bb36"
+              ],
+              "confidence": "LOW"
+            }
+          ],
+          "nextDiagnostic": "MERCHANT_WRITE_OUTCOMES",
+          "diagnosticReason": "Checking MERCHANT_WRITE_OUTCOMES will distinguish whether database constraints or session tokens permitted multiple independent cart creations during separate client requests."
+        },
+        "C": {
+          "status": "OK",
+          "error": null,
+          "summary": "2 active merchant orders reference one payment observation. The key diagnostic records 2 distinct merchant write identities. Recorded handler intervals are disjoint, which weakens a concurrency explanation.",
+          "hypotheses": [
+            {
+              "explanation": "Concurrent merchant handlers may each have passed the existence check before either wrote, producing duplicate orders.",
+              "evidenceIds": [
+                "E41",
+                "M_run_8794a1ab-0ea0-452c-8aeb-3931f52e06d1",
+                "D_a2386387-9234-4750-8578-4996ff605e9b",
+                "D_e4e5e98c-820a-4bce-817d-fe4ce339bb36"
+              ],
+              "confidence": "LOW"
+            },
+            {
+              "explanation": "Sequential merchant handlers may have written duplicate orders because their distinct write identities bypassed a shared deduplication boundary.",
+              "evidenceIds": [
+                "E41",
+                "M_run_8794a1ab-0ea0-452c-8aeb-3931f52e06d1",
+                "D_a2386387-9234-4750-8578-4996ff605e9b",
+                "D_e4e5e98c-820a-4bce-817d-fe4ce339bb36"
+              ],
+              "confidence": "HIGH"
+            }
+          ],
+          "nextDiagnostic": "MERCHANT_WRITE_OUTCOMES",
+          "diagnosticReason": "Committed write outcomes show which handler paths wrote orders; no unperformed diagnostic remains to separate the mechanisms further."
+        }
+      },
+      "armC": {
+        "valid": true
+      },
+      "armB": {
+        "ok": true,
+        "error": null,
+        "httpStatus": 200,
+        "latencyMs": 2619,
+        "usage": {
+          "promptTokens": 1203,
+          "outputTokens": 696,
+          "totalTokens": 1899
+        },
+        "guardEvents": [
+          {
+            "attempt": 5,
+            "kind": "SENT",
+            "status": 200,
+            "modelVersion": "gemini-3.5-flash-lite",
+            "body": "{\n  \"candidates\": [\n    {\n      \"content\": {\n        \"parts\": [\n          {\n            \"text\": \"{\\n  \\\"summary\\\": \\\"Investigation of order duplication shows two distinct merchant orders created using different idempotency keys and completely disjoint handler timing intervals. Observation E41 confirms PayPal completed a single capture, while merchant diagnostic records show two separate orders.\\\",\\n  \\\"hypotheses\\\": [\\n    {\\n      \\\"explanation\\\": \\\"Mechanism 1: Sequential independent write operations caused by user browser redirect refresh and an asynchronous webhook arrival acting on different internal order IDs. Supported by distinct keys and disjoint timing in D_a2386387-9234-4750-8578-4996ff605e9b and D_e4e5e98c-820a-4bce-817d-fe4ce339bb36. Unknown/weakness: does not explain why separate merchant orders were instantiated for a single PayPal transaction.\\\",\\n      \\\"evidenceIds\\\": [\\n        \\\"E41\\\",\\n        \\\"M_run_8794a1ab-0ea0-452c-8aeb-3931f52e06d1\\\",\\n        \\\"D_a2386387-9234-4750-8578-4996ff605e9b\\\",\\n        \\\"D_e4e5e98c-820a-4bce-817d-fe4ce339bb36\\\"\\n      ],\\n      \\\"confidence\\\": \\\"MEDIUM\\\",\\n      \\\"status\\\": \\\"HYPOTHESIS\\\"\\n    },\\n    {\\n      \\\"explanation\\\": \\\"Mechanism 2: Client-side session recreation prior to checkout return resulting in two distinct cart initializations submitted sequentially. Supported by M_run_8794a1ab-0ea0-452c-8aeb-3931f52e06d1 and D_a2386387-9234-4750-8578-4996ff605e9b showing two active placed orders. Unknown/weakness: timing intervals are disjoint and span 41 seconds apart, making concurrent race conditions unlikely.\\\",\\n      \\\"evidenceIds\\\": [\\n        \\\"M_run_8794a1ab-0ea0-452c-8aeb-3931f52e06d1\\\",\\n        \\\"D_a2386387-9234-4750-8578-4996ff605e9b\\\",\\n        \\\"D_e4e5e98c-820a-4bce-817d-fe4ce339bb36\\\"\\n      ],\\n      \\\"confidence\\\": \\\"LOW\\\",\\n      \\\"status\\\": \\\"HYPOTHESIS\\\"\\n    }\\n  ],\\n  \\\"nextDiagnostic\\\": \\\"MERCHANT_WRITE_OUTCOMES\\\",\\n  \\\"diagnosticReason\\\": \\\"Checking MERCHANT_WRITE_OUTCOMES will distinguish whether database constraints or session tokens permitted multiple independent cart creations during separate client requests.\\\"\\n}\",\n            \"thoughtSignature\": \"EmAKXgFpFH0TlcQqaxEorukrzCwJh5W61mUVgnxx48VF4JpIn7s4OYO+SCzh9Ydj6xgXKxsiGyLSH1zxooE1f7BEN7a9sgMx/vIgGU6CuBi6hO+U02klTR58hSxb+/u6gXw=\"\n          }\n        ],\n        \"role\": \"model\"\n      },\n      \"finishReason\": \"STOP\",\n      \"index\": 0\n    }\n  ],\n  \"usageMetadata\": {\n    \"promptTokenCount\": 1203,\n    \"candidatesTokenCount\": 696,\n    \"totalTokenCount\": 1899,\n    \"promptTokensDetails\": [\n      {\n        \"modality\": \"TEXT\",\n        \"tokenCount\": 1203\n      }\n    ],\n    \"serviceTier\": \"standard\"\n  },\n  \"modelVersion\": \"gemini-3.5-flash-lite\",\n  \"responseId\": \"PRrbaqyfAoS70r4PyuiBiAg\"\n}\n"
+          }
+        ]
+      },
+      "scores": {
+        "A": {
+          "id": "R5",
+          "stratum": "R",
+          "arm": "A",
+          "status": "OK",
+          "error": null,
+          "S1_schemaValid": true,
+          "S2_citations": {
+            "valid": 4,
+            "total": 4
+          },
+          "S3_relevance": {
+            "relevant": 4,
+            "total": 4
+          },
+          "S4_coverage": {
+            "covered": 4,
+            "total": 4
+          },
+          "P2_discriminating": true,
+          "S5_redundant": false,
+          "assessable": true,
+          "S6_confidence": {
+            "LOW": 0,
+            "MEDIUM": 0,
+            "HIGH": 0,
+            "none": 1
+          },
+          "S6_overconfident": null,
+          "S7_competing": null,
+          "S8_triage": [],
+          "hypotheses": 1
+        },
+        "B": {
+          "id": "R5",
+          "stratum": "R",
+          "arm": "B",
+          "status": "OK",
+          "error": null,
+          "S1_schemaValid": true,
+          "S2_citations": {
+            "valid": 7,
+            "total": 7
+          },
+          "S3_relevance": {
+            "relevant": 7,
+            "total": 7
+          },
+          "S4_coverage": {
+            "covered": 4,
+            "total": 4
+          },
+          "P2_discriminating": true,
+          "S5_redundant": false,
+          "assessable": true,
+          "S6_confidence": {
+            "LOW": 1,
+            "MEDIUM": 1,
+            "HIGH": 0,
+            "none": 0
+          },
+          "S6_overconfident": false,
+          "S7_competing": null,
+          "S8_triage": [],
+          "hypotheses": 2
+        },
+        "C": {
+          "id": "R5",
+          "stratum": "R",
+          "arm": "C",
+          "status": "OK",
+          "error": null,
+          "S1_schemaValid": true,
+          "S2_citations": {
+            "valid": 8,
+            "total": 8
+          },
+          "S3_relevance": {
+            "relevant": 8,
+            "total": 8
+          },
+          "S4_coverage": {
+            "covered": 4,
+            "total": 4
+          },
+          "P2_discriminating": true,
+          "S5_redundant": false,
+          "assessable": true,
+          "S6_confidence": {
+            "LOW": 1,
+            "MEDIUM": 0,
+            "HIGH": 1,
+            "none": 0
+          },
+          "S6_overconfident": false,
+          "S7_competing": null,
+          "S8_triage": [],
+          "hypotheses": 2
+        }
+      }
+    },
+    {
+      "id": "R6",
+      "stratum": "R",
+      "inputPath": "HOSTED_REACHABLE",
+      "evidenceSha256": "aee3d6bfc17f2a483e41f68299795bfa390e38619af920f79eb858d9b6c529c4",
+      "outputs": {
+        "A": {
+          "status": "OK",
+          "error": null,
+          "summary": "Multiple controlled merchant orders reference the recorded payment; the diagnostic records 2 distinct merchant write keys. Different keys can bypass a shared deduplication boundary. Timing is still needed to assess concurrency.",
+          "hypotheses": [
+            {
+              "explanation": "Multiple controlled merchant orders reference the recorded payment; the diagnostic records 2 distinct merchant write keys. Different keys can bypass a shared deduplication boundary. Timing is still needed to assess concurrency.",
+              "evidenceIds": [
+                "E41",
+                "M_run_583f6ad9-a73d-4225-853f-b573be4a3df5",
+                "D_4a05890e-def1-4895-8c22-7b854cd57587",
+                "D_4028a032-096c-4535-8033-73f426465362",
+                "D_4847e1a8-7b3d-44ed-8a2f-090b113e47b3"
+              ],
+              "confidence": null
+            }
+          ],
+          "nextDiagnostic": "MERCHANT_WRITE_OUTCOMES",
+          "diagnosticReason": null
+        },
+        "B": {
+          "status": "OK",
+          "error": null,
+          "summary": "Investigation of PayPal Sandbox observations and merchant state indicates two distinct merchant order records committed via separate handler executions with different idempotency keys and disjoint timing intervals, pointing to sequential writes rather than a concurrent race condition.",
+          "hypotheses": [
+            {
+              "explanation": "Sequential independent handler triggers created two separate merchant orders. Supported by D_4028a032-096c-4535-8033-73f426465362 showing disjoint timing intervals for capture_return and webhook_capture_completed, and D_4a05890e-def1-4895-8c22-7b854cd57587 showing distinct idempotency keys. However, it remains unknown why two separate orders were initialized for a single PayPal sandbox observation E41.",
+              "evidenceIds": [
+                "E41",
+                "M_run_583f6ad9-a73d-4225-853f-b573be4a3df5",
+                "D_4a05890e-def1-4895-8c22-7b854cd57587",
+                "D_4028a032-096c-4535-8033-73f426465362"
+              ],
+              "confidence": "HIGH"
+            },
+            {
+              "explanation": "Multiple distinct client sessions or redirects initiated separate order checkouts that both successfully committed writes as shown in D_4847e1a8-7b3d-44ed-8a2f-090b113e47b3. This explains the two active orders in M_run_583f6ad9-a73d-4225-853f-b573be4a3df5, but it weakens the concurrency theory since timing intervals in D_4028a032-096c-4535-8033-73f426465362 do not overlap.",
+              "evidenceIds": [
+                "M_run_583f6ad9-a73d-4225-853f-b573be4a3df5",
+                "D_4028a032-096c-4535-8033-73f426465362",
+                "D_4847e1a8-7b3d-44ed-8a2f-090b113e47b3"
+              ],
+              "confidence": "MEDIUM"
+            }
+          ],
+          "nextDiagnostic": "MERCHANT_WRITE_OUTCOMES",
+          "diagnosticReason": "All available diagnostics including handler timing, idempotency keys, and merchant write outcomes have already been performed to distinguish between sequential writes and potential execution anomalies."
+        },
+        "C": {
+          "status": "OK",
+          "error": null,
+          "summary": "2 active merchant orders reference one payment observation. The key diagnostic records 2 distinct merchant write identities. Recorded handler intervals are disjoint, which weakens a concurrency explanation. Committed writes came from 2 distinct handler paths.",
+          "hypotheses": [
+            {
+              "explanation": "Concurrent merchant handlers may each have passed the existence check before either wrote, producing duplicate orders.",
+              "evidenceIds": [
+                "E41",
+                "M_run_583f6ad9-a73d-4225-853f-b573be4a3df5",
+                "D_4a05890e-def1-4895-8c22-7b854cd57587",
+                "D_4028a032-096c-4535-8033-73f426465362",
+                "D_4847e1a8-7b3d-44ed-8a2f-090b113e47b3"
+              ],
+              "confidence": "LOW"
+            },
+            {
+              "explanation": "Sequential merchant handlers may have written duplicate orders because their distinct write identities bypassed a shared deduplication boundary.",
+              "evidenceIds": [
+                "E41",
+                "M_run_583f6ad9-a73d-4225-853f-b573be4a3df5",
+                "D_4a05890e-def1-4895-8c22-7b854cd57587",
+                "D_4028a032-096c-4535-8033-73f426465362",
+                "D_4847e1a8-7b3d-44ed-8a2f-090b113e47b3"
+              ],
+              "confidence": "HIGH"
+            }
+          ],
+          "nextDiagnostic": "MERCHANT_WRITE_OUTCOMES",
+          "diagnosticReason": "Committed write outcomes show which handler paths wrote orders; no unperformed diagnostic remains to separate the mechanisms further."
+        }
+      },
+      "armC": {
+        "valid": true
+      },
+      "armB": {
+        "ok": true,
+        "error": null,
+        "httpStatus": 200,
+        "latencyMs": 2756,
+        "usage": {
+          "promptTokens": 1439,
+          "outputTokens": 729,
+          "totalTokens": 2168
+        },
+        "guardEvents": [
+          {
+            "attempt": 6,
+            "kind": "SENT",
+            "status": 200,
+            "modelVersion": "gemini-3.5-flash-lite",
+            "body": "{\n  \"candidates\": [\n    {\n      \"content\": {\n        \"parts\": [\n          {\n            \"text\": \"{\\n  \\\"summary\\\": \\\"Investigation of PayPal Sandbox observations and merchant state indicates two distinct merchant order records committed via separate handler executions with different idempotency keys and disjoint timing intervals, pointing to sequential writes rather than a concurrent race condition.\\\",\\n  \\\"hypotheses\\\": [\\n    {\\n      \\\"explanation\\\": \\\"Sequential independent handler triggers created two separate merchant orders. Supported by D_4028a032-096c-4535-8033-73f426465362 showing disjoint timing intervals for capture_return and webhook_capture_completed, and D_4a05890e-def1-4895-8c22-7b854cd57587 showing distinct idempotency keys. However, it remains unknown why two separate orders were initialized for a single PayPal sandbox observation E41.\\\",\\n      \\\"evidenceIds\\\": [\\n        \\\"E41\\\",\\n        \\\"M_run_583f6ad9-a73d-4225-853f-b573be4a3df5\\\",\\n        \\\"D_4a05890e-def1-4895-8c22-7b854cd57587\\\",\\n        \\\"D_4028a032-096c-4535-8033-73f426465362\\\"\\n      ],\\n        \\\"confidence\\\": \\\"HIGH\\\",\\n        \\\"status\\\": \\\"HYPOTHESIS\\\"\\n    },\\n    {\\n      \\\"explanation\\\": \\\"Multiple distinct client sessions or redirects initiated separate order checkouts that both successfully committed writes as shown in D_4847e1a8-7b3d-44ed-8a2f-090b113e47b3. This explains the two active orders in M_run_583f6ad9-a73d-4225-853f-b573be4a3df5, but it weakens the concurrency theory since timing intervals in D_4028a032-096c-4535-8033-73f426465362 do not overlap.\\\",\\n      \\\"evidenceIds\\\": [\\n        \\\"M_run_583f6ad9-a73d-4225-853f-b573be4a3df5\\\",\\n        \\\"D_4028a032-096c-4535-8033-73f426465362\\\",\\n        \\\"D_4847e1a8-7b3d-44ed-8a2f-090b113e47b3\\\"\\n      ],\\n      \\\"confidence\\\": \\\"MEDIUM\\\",\\n      \\\"status\\\": \\\"HYPOTHESIS\\\"\\n    }\\n  ],\\n  \\\"nextDiagnostic\\\": \\\"MERCHANT_WRITE_OUTCOMES\\\",\\n  \\\"diagnosticReason\\\": \\\"All available diagnostics including handler timing, idempotency keys, and merchant write outcomes have already been performed to distinguish between sequential writes and potential execution anomalies.\\\"\\n}\",\n            \"thoughtSignature\": \"EmAKXgFpFH0TV9ycziKcytny5pWLW7db+PL9Vq1Ao2Ns4U72LFwynOEzLlJp/eJF0pTBefSKFvjibA8fsGsM1bfYLzVHIMd1bCuAgcqIoObpRk7BhVCgSkS8uZMV8Fq4epc=\"\n          }\n        ],\n        \"role\": \"model\"\n      },\n      \"finishReason\": \"STOP\",\n      \"index\": 0\n    }\n  ],\n  \"usageMetadata\": {\n    \"promptTokenCount\": 1439,\n    \"candidatesTokenCount\": 729,\n    \"totalTokenCount\": 2168,\n    \"promptTokensDetails\": [\n      {\n        \"modality\": \"TEXT\",\n        \"tokenCount\": 1439\n      }\n    ],\n    \"serviceTier\": \"standard\"\n  },\n  \"modelVersion\": \"gemini-3.5-flash-lite\",\n  \"responseId\": \"RRrbatauKc77694PnLXHmAY\"\n}\n"
+          }
+        ]
+      },
+      "scores": {
+        "A": {
+          "id": "R6",
+          "stratum": "R",
+          "arm": "A",
+          "status": "OK",
+          "error": null,
+          "S1_schemaValid": true,
+          "S2_citations": {
+            "valid": 5,
+            "total": 5
+          },
+          "S3_relevance": {
+            "relevant": 5,
+            "total": 5
+          },
+          "S4_coverage": {
+            "covered": 5,
+            "total": 5
+          },
+          "P2_discriminating": null,
+          "S5_redundant": false,
+          "assessable": true,
+          "S6_confidence": {
+            "LOW": 0,
+            "MEDIUM": 0,
+            "HIGH": 0,
+            "none": 1
+          },
+          "S6_overconfident": null,
+          "S7_competing": null,
+          "S8_triage": [],
+          "hypotheses": 1
+        },
+        "B": {
+          "id": "R6",
+          "stratum": "R",
+          "arm": "B",
+          "status": "OK",
+          "error": null,
+          "S1_schemaValid": true,
+          "S2_citations": {
+            "valid": 7,
+            "total": 7
+          },
+          "S3_relevance": {
+            "relevant": 7,
+            "total": 7
+          },
+          "S4_coverage": {
+            "covered": 5,
+            "total": 5
+          },
+          "P2_discriminating": null,
+          "S5_redundant": false,
+          "assessable": true,
+          "S6_confidence": {
+            "LOW": 0,
+            "MEDIUM": 1,
+            "HIGH": 1,
+            "none": 0
+          },
+          "S6_overconfident": false,
+          "S7_competing": null,
+          "S8_triage": [
+            {
+              "statement": 0,
+              "term": "executions"
+            },
+            {
+              "statement": 3,
+              "term": "execution"
+            }
+          ],
+          "hypotheses": 2
+        },
+        "C": {
+          "id": "R6",
+          "stratum": "R",
+          "arm": "C",
+          "status": "OK",
+          "error": null,
+          "S1_schemaValid": true,
+          "S2_citations": {
+            "valid": 10,
+            "total": 10
+          },
+          "S3_relevance": {
+            "relevant": 10,
+            "total": 10
+          },
+          "S4_coverage": {
+            "covered": 5,
+            "total": 5
+          },
+          "P2_discriminating": null,
+          "S5_redundant": false,
+          "assessable": true,
+          "S6_confidence": {
+            "LOW": 1,
+            "MEDIUM": 0,
+            "HIGH": 1,
+            "none": 0
+          },
+          "S6_overconfident": false,
+          "S7_competing": null,
+          "S8_triage": [],
+          "hypotheses": 2
+        }
+      }
+    },
+    {
+      "id": "R7",
+      "stratum": "R",
+      "inputPath": "HOSTED_REACHABLE",
+      "evidenceSha256": "f9a652f804fffdbc1a42be14724237acf3ba1d847be856aca1198e8ed76e5620",
+      "outputs": {
+        "A": {
+          "status": "OK",
+          "error": null,
+          "summary": "The current merchant count does not establish a duplicate. Inspect write outcomes before attributing a cause.",
+          "hypotheses": [
+            {
+              "explanation": "The current merchant count does not establish a duplicate. Inspect write outcomes before attributing a cause.",
+              "evidenceIds": [
+                "E41",
+                "M_run_02f2a34a-e820-4ba5-89d8-de5423ec740f",
+                "D_b64535e0-313d-4c7a-8abb-bbd6c7eedec7",
+                "D_3e269c86-9c0d-4b48-8369-7794311f4ac3"
+              ],
+              "confidence": null
+            }
+          ],
+          "nextDiagnostic": "MERCHANT_WRITE_OUTCOMES",
+          "diagnosticReason": null
+        },
+        "B": {
+          "status": "OK",
+          "error": null,
+          "summary": "Investigation of PayPal Sandbox observation E41 and merchant state M_run_02f2a34a-e820-4ba5-89d8-de5423ec740f reveals two distinct merchant records. Diagnostic E41 shows one completed PayPal capture, while M_run_02f2a34a... shows two distinct order keys with disjoint handler timing intervals.",
+          "hypotheses": [
+            {
+              "explanation": "Mechanism 1: Sequential duplicate order creation. Supported by E41 and D_3e269c86..., showing disjoint timing intervals between capture_return and webhook_capture_completed. Different keys permitted sequential duplicate writes without any race. Unknown/weakness: Does not explain why separate merchant order IDs were generated for the same payment session.",
+              "evidenceIds": [
+                "E41",
+                "M_run_02f2a34a-e820-4ba5-89d8-de5423ec740f",
+                "D_3e269c86-9c0d-4b48-8369-7794311f4ac3"
+              ],
+              "confidence": "MEDIUM"
+            },
+            {
+              "explanation": "Mechanism 2: Asynchronous webhook processing race alongside redirect return. Supported by D_b64535e0..., showing distinct idempotency keys for capture_return and webhook_capture_completed. Unknown/weakness: The disjoint timing intervals in D_3e269c86... weaken an overlapping concurrency explanation.",
+              "evidenceIds": [
+                "E41",
+                "M_run_02f2a34a-e820-4ba5-89d8-de5423ec740f",
+                "D_b64535e0-313d-4c7a-8abb-bbd6c7eedec7",
+                "D_3e269c86-9c0d-4b48-8369-7794311f4ac3"
+              ],
+              "confidence": "LOW"
+            }
+          ],
+          "nextDiagnostic": "MERCHANT_WRITE_OUTCOMES",
+          "diagnosticReason": "Checking merchant write outcomes will distinguish whether the duplicate records stemmed from retry logic in the client return handler or independent webhook ingestion."
+        },
+        "C": {
+          "status": "OK",
+          "error": null,
+          "summary": "The current merchant state does not show an active duplicate order.",
+          "hypotheses": [
+            {
+              "explanation": "The current merchant state does not show an active duplicate. A voided duplicate is recorded; the diagnostics present may explain its history.",
+              "evidenceIds": [
+                "E41",
+                "M_run_02f2a34a-e820-4ba5-89d8-de5423ec740f",
+                "D_b64535e0-313d-4c7a-8abb-bbd6c7eedec7",
+                "D_3e269c86-9c0d-4b48-8369-7794311f4ac3"
+              ],
+              "confidence": "LOW"
+            }
+          ],
+          "nextDiagnostic": "MERCHANT_WRITE_OUTCOMES",
+          "diagnosticReason": "Committed write outcomes show which handler paths wrote orders; no unperformed diagnostic remains to separate the mechanisms further."
+        }
+      },
+      "armC": {
+        "valid": true
+      },
+      "armB": {
+        "ok": true,
+        "error": null,
+        "httpStatus": 200,
+        "latencyMs": 2187,
+        "usage": {
+          "promptTokens": 1187,
+          "outputTokens": 571,
+          "totalTokens": 1758
+        },
+        "guardEvents": [
+          {
+            "attempt": 7,
+            "kind": "SENT",
+            "status": 200,
+            "modelVersion": "gemini-3.5-flash-lite",
+            "body": "{\n  \"candidates\": [\n    {\n      \"content\": {\n        \"parts\": [\n          {\n            \"text\": \"{\\n  \\\"summary\\\": \\\"Investigation of PayPal Sandbox observation E41 and merchant state M_run_02f2a34a-e820-4ba5-89d8-de5423ec740f reveals two distinct merchant records. Diagnostic E41 shows one completed PayPal capture, while M_run_02f2a34a... shows two distinct order keys with disjoint handler timing intervals.\\\",\\n  \\\"hypotheses\\\": [\\n    {\\n      \\\"explanation\\\": \\\"Mechanism 1: Sequential duplicate order creation. Supported by E41 and D_3e269c86..., showing disjoint timing intervals between capture_return and webhook_capture_completed. Different keys permitted sequential duplicate writes without any race. Unknown/weakness: Does not explain why separate merchant order IDs were generated for the same payment session.\\\",\\n      \\\"evidenceIds\\\": [\\\"E41\\\", \\\"M_run_02f2a34a-e820-4ba5-89d8-de5423ec740f\\\", \\\"D_3e269c86-9c0d-4b48-8369-7794311f4ac3\\\"],\\n      \\\"confidence\\\": \\\"MEDIUM\\\",\\n      \\\"status\\\": \\\"HYPOTHESIS\\\"\\n    },\\n    {\\n      \\\"explanation\\\": \\\"Mechanism 2: Asynchronous webhook processing race alongside redirect return. Supported by D_b64535e0..., showing distinct idempotency keys for capture_return and webhook_capture_completed. Unknown/weakness: The disjoint timing intervals in D_3e269c86... weaken an overlapping concurrency explanation.\\\",\\n      \\\"evidenceIds\\\": [\\\"E41\\\", \\\"M_run_02f2a34a-e820-4ba5-89d8-de5423ec740f\\\", \\\"D_b64535e0-313d-4c7a-8abb-bbd6c7eedec7\\\", \\\"D_3e269c86-9c0d-4b48-8369-7794311f4ac3\\\"],\\n      \\\"confidence\\\": \\\"LOW\\\",\\n      \\\"status\\\": \\\"HYPOTHESIS\\\"\\n    }\\n  ],\\n  \\\"nextDiagnostic\\\": \\\"MERCHANT_WRITE_OUTCOMES\\\",\\n  \\\"diagnosticReason\\\": \\\"Checking merchant write outcomes will distinguish whether the duplicate records stemmed from retry logic in the client return handler or independent webhook ingestion.\\\"\\n}\",\n            \"thoughtSignature\": \"EmAKXgFpFH0T50IJHeWKwFNj35pem6MId43cwPhHrHEvOL13My6gAAdRhgbyCYKkz92GmfPNtwNEh/c9ANGMzRKv38pYBPYS1NLoMs1XYdsf4IE47QKag4gwd0MfLvYElsU=\"\n          }\n        ],\n        \"role\": \"model\"\n      },\n      \"finishReason\": \"STOP\",\n      \"index\": 0\n    }\n  ],\n  \"usageMetadata\": {\n    \"promptTokenCount\": 1187,\n    \"candidatesTokenCount\": 571,\n    \"totalTokenCount\": 1758,\n    \"promptTokensDetails\": [\n      {\n        \"modality\": \"TEXT\",\n        \"tokenCount\": 1187\n      }\n    ],\n    \"serviceTier\": \"standard\"\n  },\n  \"modelVersion\": \"gemini-3.5-flash-lite\",\n  \"responseId\": \"Thrbatj5FYjB694P9oSrmQg\"\n}\n"
+          }
+        ]
+      },
+      "scores": {
+        "A": {
+          "id": "R7",
+          "stratum": "R",
+          "arm": "A",
+          "status": "OK",
+          "error": null,
+          "S1_schemaValid": true,
+          "S2_citations": {
+            "valid": 4,
+            "total": 4
+          },
+          "S3_relevance": {
+            "relevant": 4,
+            "total": 4
+          },
+          "S4_coverage": {
+            "covered": 4,
+            "total": 4
+          },
+          "P2_discriminating": null,
+          "S5_redundant": false,
+          "assessable": true,
+          "S6_confidence": {
+            "LOW": 0,
+            "MEDIUM": 0,
+            "HIGH": 0,
+            "none": 1
+          },
+          "S6_overconfident": null,
+          "S7_competing": null,
+          "S8_triage": [],
+          "hypotheses": 1
+        },
+        "B": {
+          "id": "R7",
+          "stratum": "R",
+          "arm": "B",
+          "status": "OK",
+          "error": null,
+          "S1_schemaValid": true,
+          "S2_citations": {
+            "valid": 7,
+            "total": 7
+          },
+          "S3_relevance": {
+            "relevant": 7,
+            "total": 7
+          },
+          "S4_coverage": {
+            "covered": 4,
+            "total": 4
+          },
+          "P2_discriminating": null,
+          "S5_redundant": false,
+          "assessable": true,
+          "S6_confidence": {
+            "LOW": 1,
+            "MEDIUM": 1,
+            "HIGH": 0,
+            "none": 0
+          },
+          "S6_overconfident": false,
+          "S7_competing": null,
+          "S8_triage": [],
+          "hypotheses": 2
+        },
+        "C": {
+          "id": "R7",
+          "stratum": "R",
+          "arm": "C",
+          "status": "OK",
+          "error": null,
+          "S1_schemaValid": true,
+          "S2_citations": {
+            "valid": 4,
+            "total": 4
+          },
+          "S3_relevance": {
+            "relevant": 4,
+            "total": 4
+          },
+          "S4_coverage": {
+            "covered": 4,
+            "total": 4
+          },
+          "P2_discriminating": null,
+          "S5_redundant": false,
+          "assessable": true,
+          "S6_confidence": {
+            "LOW": 1,
+            "MEDIUM": 0,
+            "HIGH": 0,
+            "none": 0
+          },
+          "S6_overconfident": false,
+          "S7_competing": null,
+          "S8_triage": [],
+          "hypotheses": 1
+        }
+      }
+    },
+    {
+      "id": "R9",
+      "stratum": "R",
+      "inputPath": "HOSTED_REACHABLE",
+      "evidenceSha256": "ba23ff0876f18cd0097eb2e83b5ed7b08f23cbeb42498ebe434d947bad6115e3",
+      "outputs": {
+        "A": {
+          "status": "OK",
+          "error": null,
+          "summary": "Multiple controlled merchant orders reference the recorded payment. Compare merchant write identities; the payment observation alone does not establish the merchant cause.",
+          "hypotheses": [
+            {
+              "explanation": "Multiple controlled merchant orders reference the recorded payment. Compare merchant write identities; the payment observation alone does not establish the merchant cause.",
+              "evidenceIds": [
+                "E41",
+                "M_run_60d6e34d-b244-4a82-88a9-45dbc4231207",
+                "D_7da7cd4e-f9ce-4c65-8e7e-ba1fd21d576c"
+              ],
+              "confidence": null
+            }
+          ],
+          "nextDiagnostic": "IDEMPOTENCY_KEYS",
+          "diagnosticReason": null
+        },
+        "B": {
+          "status": "OK",
+          "error": null,
+          "summary": "Investigation of duplicate merchant orders observed in M_run_60d6e34d-b244-4a82-88a9-45dbc4231207 against PayPal Sandbox observation E41. Two competing hypotheses are evaluated: concurrent execution vs sequential distinct writes.",
+          "hypotheses": [
+            {
+              "explanation": "Concurrent request handling caused overlapping writes, supported by multiple orders in M_run_60d6e34d-b244-4a82-88a9-45dbc4231207. However, counts alone do not prove overlap and distinct keys permit sequential writes.",
+              "evidenceIds": [
+                "E41",
+                "M_run_60d6e34d-b244-4a82-88a9-45dbc4231207",
+                "D_7da7cd4e-f9ce-4c65-8e7e-ba1fd21d576c"
+              ],
+              "confidence": "LOW"
+            },
+            {
+              "explanation": "Sequential execution of two distinct handler flows (capture return and webhook) recorded in D_7da7cd4e-f9ce-4c65-8e7e-ba1fd21d576c created separate records without concurrency. Weakened by lack of exact timing intervals.",
+              "evidenceIds": [
+                "M_run_60d6e34d-b244-4a82-88a9-45dbc4231207",
+                "D_7da7cd4e-f9ce-4c65-8e7e-ba1fd21d576c"
+              ],
+              "confidence": "LOW"
+            }
+          ],
+          "nextDiagnostic": "HANDLER_TIMING",
+          "diagnosticReason": "Handler timing execution intervals will distinguish whether the two committed writes overlapped concurrently or occurred sequentially."
+        },
+        "C": {
+          "status": "OK",
+          "error": null,
+          "summary": "2 active merchant orders reference one payment observation. Committed writes came from 2 distinct handler paths.",
+          "hypotheses": [
+            {
+              "explanation": "Concurrent merchant handlers may each have passed the existence check before either wrote, producing duplicate orders.",
+              "evidenceIds": [
+                "E41",
+                "M_run_60d6e34d-b244-4a82-88a9-45dbc4231207",
+                "D_7da7cd4e-f9ce-4c65-8e7e-ba1fd21d576c"
+              ],
+              "confidence": "LOW"
+            },
+            {
+              "explanation": "Sequential merchant handlers may have written duplicate orders because their distinct write identities bypassed a shared deduplication boundary.",
+              "evidenceIds": [
+                "E41",
+                "M_run_60d6e34d-b244-4a82-88a9-45dbc4231207",
+                "D_7da7cd4e-f9ce-4c65-8e7e-ba1fd21d576c"
+              ],
+              "confidence": "LOW"
+            }
+          ],
+          "nextDiagnostic": "HANDLER_TIMING",
+          "diagnosticReason": "Handler intervals distinguish overlapping concurrent writes from sequential duplicate writes."
+        }
+      },
+      "armC": {
+        "valid": true
+      },
+      "armB": {
+        "ok": true,
+        "error": null,
+        "httpStatus": 200,
+        "latencyMs": 2099,
+        "usage": {
+          "promptTokens": 775,
+          "outputTokens": 417,
+          "totalTokens": 1192
+        },
+        "guardEvents": [
+          {
+            "attempt": 8,
+            "kind": "SENT",
+            "status": 200,
+            "modelVersion": "gemini-3.5-flash-lite",
+            "body": "{\n  \"candidates\": [\n    {\n      \"content\": {\n        \"parts\": [\n          {\n            \"text\": \"{\\\"summary\\\":\\\"Investigation of duplicate merchant orders observed in M_run_60d6e34d-b244-4a82-88a9-45dbc4231207 against PayPal Sandbox observation E41. Two competing hypotheses are evaluated: concurrent execution vs sequential distinct writes.\\\",\\\"hypotheses\\\":[{\\\"explanation\\\":\\\"Concurrent request handling caused overlapping writes, supported by multiple orders in M_run_60d6e34d-b244-4a82-88a9-45dbc4231207. However, counts alone do not prove overlap and distinct keys permit sequential writes.\\\",\\\"evidenceIds\\\":[\\\"E41\\\",\\\"M_run_60d6e34d-b244-4a82-88a9-45dbc4231207\\\",\\\"D_7da7cd4e-f9ce-4c65-8e7e-ba1fd21d576c\\\"],\\\"confidence\\\":\\\"LOW\\\",\\\"status\\\":\\\"HYPOTHESIS\\\"},{\\\"explanation\\\":\\\"Sequential execution of two distinct handler flows (capture return and webhook) recorded in D_7da7cd4e-f9ce-4c65-8e7e-ba1fd21d576c created separate records without concurrency. Weakened by lack of exact timing intervals.\\\",\\\"evidenceIds\\\":[\\\"M_run_60d6e34d-b244-4a82-88a9-45dbc4231207\\\",\\\"D_7da7cd4e-f9ce-4c65-8e7e-ba1fd21d576c\\\"],\\\"confidence\\\":\\\"LOW\\\",\\\"status\\\":\\\"HYPOTHESIS\\\"}],\\\"nextDiagnostic\\\":\\\"HANDLER_TIMING\\\",\\\"diagnosticReason\\\":\\\"Handler timing execution intervals will distinguish whether the two committed writes overlapped concurrently or occurred sequentially.\\\"}\",\n            \"thoughtSignature\": \"EmAKXgFpFH0TmzL3IHPcgQHQaa02nP1E1e/EFwZCkhI6VswVHXoaMaj0XZRz3FCZc6iVeKyc3GpouppXghSuU7tza9hYEt3k/EYqlbiP2LkL0WGSpgEPU34zUlbXUafi+TU=\"\n          }\n        ],\n        \"role\": \"model\"\n      },\n      \"finishReason\": \"STOP\",\n      \"index\": 0\n    }\n  ],\n  \"usageMetadata\": {\n    \"promptTokenCount\": 775,\n    \"candidatesTokenCount\": 417,\n    \"totalTokenCount\": 1192,\n    \"promptTokensDetails\": [\n      {\n        \"modality\": \"TEXT\",\n        \"tokenCount\": 775\n      }\n    ],\n    \"serviceTier\": \"standard\"\n  },\n  \"modelVersion\": \"gemini-3.5-flash-lite\",\n  \"responseId\": \"Vhrbas-4Kunh694PzIfimQg\"\n}\n"
+          }
+        ]
+      },
+      "scores": {
+        "A": {
+          "id": "R9",
+          "stratum": "R",
+          "arm": "A",
+          "status": "OK",
+          "error": null,
+          "S1_schemaValid": true,
+          "S2_citations": {
+            "valid": 3,
+            "total": 3
+          },
+          "S3_relevance": {
+            "relevant": 3,
+            "total": 3
+          },
+          "S4_coverage": {
+            "covered": 3,
+            "total": 3
+          },
+          "P2_discriminating": true,
+          "S5_redundant": false,
+          "assessable": true,
+          "S6_confidence": {
+            "LOW": 0,
+            "MEDIUM": 0,
+            "HIGH": 0,
+            "none": 1
+          },
+          "S6_overconfident": null,
+          "S7_competing": false,
+          "S8_triage": [],
+          "hypotheses": 1
+        },
+        "B": {
+          "id": "R9",
+          "stratum": "R",
+          "arm": "B",
+          "status": "OK",
+          "error": null,
+          "S1_schemaValid": true,
+          "S2_citations": {
+            "valid": 5,
+            "total": 5
+          },
+          "S3_relevance": {
+            "relevant": 5,
+            "total": 5
+          },
+          "S4_coverage": {
+            "covered": 3,
+            "total": 3
+          },
+          "P2_discriminating": true,
+          "S5_redundant": false,
+          "assessable": true,
+          "S6_confidence": {
+            "LOW": 2,
+            "MEDIUM": 0,
+            "HIGH": 0,
+            "none": 0
+          },
+          "S6_overconfident": false,
+          "S7_competing": true,
+          "S8_triage": [
+            {
+              "statement": 0,
+              "term": "execution"
+            },
+            {
+              "statement": 2,
+              "term": "execution"
+            },
+            {
+              "statement": 3,
+              "term": "execution"
+            }
+          ],
+          "hypotheses": 2
+        },
+        "C": {
+          "id": "R9",
+          "stratum": "R",
+          "arm": "C",
+          "status": "OK",
+          "error": null,
+          "S1_schemaValid": true,
+          "S2_citations": {
+            "valid": 6,
+            "total": 6
+          },
+          "S3_relevance": {
+            "relevant": 6,
+            "total": 6
+          },
+          "S4_coverage": {
+            "covered": 3,
+            "total": 3
+          },
+          "P2_discriminating": true,
+          "S5_redundant": false,
+          "assessable": true,
+          "S6_confidence": {
+            "LOW": 2,
+            "MEDIUM": 0,
+            "HIGH": 0,
+            "none": 0
+          },
+          "S6_overconfident": false,
+          "S7_competing": true,
+          "S8_triage": [],
+          "hypotheses": 2
+        }
+      }
+    },
+    {
+      "id": "S1",
+      "stratum": "S",
+      "inputPath": "TEST_MODE_ONLY",
+      "evidenceSha256": "b7b410b5195ae4f8221e4c838f1135b1bd1684239f2191045000376340486467",
+      "outputs": {
+        "A": {
+          "status": "OK",
+          "error": null,
+          "summary": "Multiple controlled merchant orders reference the recorded payment. Compare merchant write identities; the payment observation alone does not establish the merchant cause.",
+          "hypotheses": [
+            {
+              "explanation": "Multiple controlled merchant orders reference the recorded payment. Compare merchant write identities; the payment observation alone does not establish the merchant cause.",
+              "evidenceIds": [
+                "E41",
+                "M_run_4c2282a2-226e-4028-8877-851a6a71d3d5"
+              ],
+              "confidence": null
+            }
+          ],
+          "nextDiagnostic": "IDEMPOTENCY_KEYS",
+          "diagnosticReason": null
+        },
+        "B": {
+          "status": "OK",
+          "error": null,
+          "summary": "Investigation of OrderTruth controlled merchant scenario with SYNTHETIC_PAYMENT_OBSERVATION E41 and CONTROLLED_MERCHANT_STATE M_run_4c2282a2-226e-4028-8877-851a6a71d3d5. Two competing causal hypotheses are evaluated regarding duplicate orders.",
+          "hypotheses": [
+            {
+              "explanation": "Sequential duplicate write mechanism: The merchant application processed two distinct order creation requests sequentially, resulting in two separate placed orders despite utilizing the same payment details. This is supported by E41 and M_run_4c2282a2-226e-4028-8877-851a6a71d3d5, but it remains unknown whether client retries or user double-clicks caused the distinct keys.",
+              "evidenceIds": [
+                "E41",
+                "M_run_4c2282a2-226e-4028-8877-851a6a71d3d5"
+              ],
+              "confidence": "MEDIUM"
+            },
+            {
+              "explanation": "Concurrent thread execution mechanism: Multiple execution threads attempted to record order placement simultaneously. Supported by M_run_4c2282a2-226e-4028-8877-851a6a71d3d5, but lacks timing evidence to prove overlapping execution intervals.",
+              "evidenceIds": [
+                "M_run_4c2282a2-226e-4028-8877-851a6a71d3d5"
+              ],
+              "confidence": "LOW"
+            }
+          ],
+          "nextDiagnostic": "HANDLER_TIMING",
+          "diagnosticReason": "Examine handler execution intervals to distinguish between concurrent race conditions and sequential client requests."
+        },
+        "C": {
+          "status": "OK",
+          "error": null,
+          "summary": "2 active merchant orders reference one payment observation.",
+          "hypotheses": [
+            {
+              "explanation": "Concurrent merchant handlers may each have passed the existence check before either wrote, producing duplicate orders.",
+              "evidenceIds": [
+                "E41",
+                "M_run_4c2282a2-226e-4028-8877-851a6a71d3d5"
+              ],
+              "confidence": "LOW"
+            },
+            {
+              "explanation": "Sequential merchant handlers may have written duplicate orders because their distinct write identities bypassed a shared deduplication boundary.",
+              "evidenceIds": [
+                "E41",
+                "M_run_4c2282a2-226e-4028-8877-851a6a71d3d5"
+              ],
+              "confidence": "LOW"
+            }
+          ],
+          "nextDiagnostic": "HANDLER_TIMING",
+          "diagnosticReason": "Handler intervals distinguish overlapping concurrent writes from sequential duplicate writes."
+        }
+      },
+      "armC": {
+        "valid": true
+      },
+      "armB": {
+        "ok": true,
+        "error": null,
+        "httpStatus": 200,
+        "latencyMs": 2001,
+        "usage": {
+          "promptTokens": 547,
+          "outputTokens": 421,
+          "totalTokens": 968
+        },
+        "guardEvents": [
+          {
+            "attempt": 9,
+            "kind": "SENT",
+            "status": 200,
+            "modelVersion": "gemini-3.5-flash-lite",
+            "body": "{\n  \"candidates\": [\n    {\n      \"content\": {\n        \"parts\": [\n          {\n            \"text\": \"{\\\"summary\\\": \\\"Investigation of OrderTruth controlled merchant scenario with SYNTHETIC_PAYMENT_OBSERVATION E41 and CONTROLLED_MERCHANT_STATE M_run_4c2282a2-226e-4028-8877-851a6a71d3d5. Two competing causal hypotheses are evaluated regarding duplicate orders.\\\", \\\"hypotheses\\\": [{\\\"explanation\\\": \\\"Sequential duplicate write mechanism: The merchant application processed two distinct order creation requests sequentially, resulting in two separate placed orders despite utilizing the same payment details. This is supported by E41 and M_run_4c2282a2-226e-4028-8877-851a6a71d3d5, but it remains unknown whether client retries or user double-clicks caused the distinct keys.\\\", \\\"evidenceIds\\\": [\\\"E41\\\", \\\"M_run_4c2282a2-226e-4028-8877-851a6a71d3d5\\\"], \\\"confidence\\\": \\\"MEDIUM\\\", \\\"status\\\": \\\"HYPOTHESIS\\\"}, {\\\"explanation\\\": \\\"Concurrent thread execution mechanism: Multiple execution threads attempted to record order placement simultaneously. Supported by M_run_4c2282a2-226e-4028-8877-851a6a71d3d5, but lacks timing evidence to prove overlapping execution intervals.\\\", \\\"evidenceIds\\\": [\\\"M_run_4c2282a2-226e-4028-8877-851a6a71d3d5\\\"], \\\"confidence\\\": \\\"LOW\\\", \\\"status\\\": \\\"HYPOTHESIS\\\"}], \\\"nextDiagnostic\\\": \\\"HANDLER_TIMING\\\", \\\"diagnosticReason\\\": \\\"Examine handler execution intervals to distinguish between concurrent race conditions and sequential client requests.\\\"}\",\n            \"thoughtSignature\": \"EmAKXgFpFH0TwUF8dKgvlYMO9+joCWhWi6MyCuFEZFvEB1TzAtXzUgEI7HFKEfaVkBfrp7jMappY8MSQrpKZIWjtttRxIVOYwbSf5BXjPddAtDYZRpyT8DxFAlyWimXV8S0=\"\n          }\n        ],\n        \"role\": \"model\"\n      },\n      \"finishReason\": \"STOP\",\n      \"index\": 0\n    }\n  ],\n  \"usageMetadata\": {\n    \"promptTokenCount\": 547,\n    \"candidatesTokenCount\": 421,\n    \"totalTokenCount\": 968,\n    \"promptTokensDetails\": [\n      {\n        \"modality\": \"TEXT\",\n        \"tokenCount\": 547\n      }\n    ],\n    \"serviceTier\": \"standard\"\n  },\n  \"modelVersion\": \"gemini-3.5-flash-lite\",\n  \"responseId\": \"Xhrbau_XLKKi694Pjd2KqQY\"\n}\n"
+          }
+        ]
+      },
+      "scores": {
+        "A": {
+          "id": "S1",
+          "stratum": "S",
+          "arm": "A",
+          "status": "OK",
+          "error": null,
+          "S1_schemaValid": true,
+          "S2_citations": {
+            "valid": 2,
+            "total": 2
+          },
+          "S3_relevance": {
+            "relevant": 2,
+            "total": 2
+          },
+          "S4_coverage": {
+            "covered": 2,
+            "total": 2
+          },
+          "P2_discriminating": true,
+          "S5_redundant": false,
+          "assessable": true,
+          "S6_confidence": {
+            "LOW": 0,
+            "MEDIUM": 0,
+            "HIGH": 0,
+            "none": 1
+          },
+          "S6_overconfident": null,
+          "S7_competing": false,
+          "S8_triage": [],
+          "hypotheses": 1
+        },
+        "B": {
+          "id": "S1",
+          "stratum": "S",
+          "arm": "B",
+          "status": "OK",
+          "error": null,
+          "S1_schemaValid": true,
+          "S2_citations": {
+            "valid": 3,
+            "total": 3
+          },
+          "S3_relevance": {
+            "relevant": 3,
+            "total": 3
+          },
+          "S4_coverage": {
+            "covered": 2,
+            "total": 2
+          },
+          "P2_discriminating": true,
+          "S5_redundant": false,
+          "assessable": true,
+          "S6_confidence": {
+            "LOW": 1,
+            "MEDIUM": 1,
+            "HIGH": 0,
+            "none": 0
+          },
+          "S6_overconfident": false,
+          "S7_competing": true,
+          "S8_triage": [
+            {
+              "statement": 2,
+              "term": "execution"
+            },
+            {
+              "statement": 2,
+              "term": "execution"
+            },
+            {
+              "statement": 2,
+              "term": "execution"
+            },
+            {
+              "statement": 3,
+              "term": "execution"
+            }
+          ],
+          "hypotheses": 2
+        },
+        "C": {
+          "id": "S1",
+          "stratum": "S",
+          "arm": "C",
+          "status": "OK",
+          "error": null,
+          "S1_schemaValid": true,
+          "S2_citations": {
+            "valid": 4,
+            "total": 4
+          },
+          "S3_relevance": {
+            "relevant": 4,
+            "total": 4
+          },
+          "S4_coverage": {
+            "covered": 2,
+            "total": 2
+          },
+          "P2_discriminating": true,
+          "S5_redundant": false,
+          "assessable": true,
+          "S6_confidence": {
+            "LOW": 2,
+            "MEDIUM": 0,
+            "HIGH": 0,
+            "none": 0
+          },
+          "S6_overconfident": false,
+          "S7_competing": true,
+          "S8_triage": [],
+          "hypotheses": 2
+        }
+      }
+    },
+    {
+      "id": "V1",
+      "stratum": "V",
+      "inputPath": "COUNTERFACTUAL",
+      "evidenceSha256": "87ec1620d3e48afedaead317d028d36d78442af15ef54f504459543b8a68b533",
+      "outputs": {
+        "A": {
+          "status": "OK",
+          "error": null,
+          "summary": "Multiple controlled merchant orders reference the recorded payment; the diagnostic records 2 distinct merchant write keys. Different keys can bypass a shared deduplication boundary. Timing is still needed to assess concurrency.",
+          "hypotheses": [
+            {
+              "explanation": "Multiple controlled merchant orders reference the recorded payment; the diagnostic records 2 distinct merchant write keys. Different keys can bypass a shared deduplication boundary. Timing is still needed to assess concurrency.",
+              "evidenceIds": [
+                "E41",
+                "M_run_121d9e60-8d78-49fe-86a4-b2642a56163d",
+                "D_46e4a888-2977-44b8-87f5-c1f93ca0cf38",
+                "D_ad261dd5-200f-46f0-89fa-c47c217993b1"
+              ],
+              "confidence": null
+            }
+          ],
+          "nextDiagnostic": "MERCHANT_WRITE_OUTCOMES",
+          "diagnosticReason": null
+        },
+        "B": {
+          "status": "OK",
+          "error": null,
+          "summary": "Investigation of merchant duplicate orders shows two distinct merchant orders created via separate handlers using different idempotency keys. Disjoint or overlapping timing entries do not prove concurrency, and different keys permit sequential duplicate writes.",
+          "hypotheses": [
+            {
+              "explanation": "Concurrent merchant execution caused two separate order placements due to independent handlers receiving events simultaneously. Supported by overlapping handler timing in D_ad261dd5-200f-46f0-89fa-c47c217993b1, but weakened by distinct idempotency keys found in D_46e4a888-2977-44b8-87f5-c1f93ca0cf38.",
+              "evidenceIds": [
+                "E41",
+                "M_run_121d9e60-8d78-49fe-86a4-b2642a56163d",
+                "D_46e4a888-2977-44b8-87f5-c1f93ca0cf38",
+                "D_ad261dd5-200f-46f0-89fa-c47c217993b1"
+              ],
+              "confidence": "MEDIUM"
+            },
+            {
+              "explanation": "Sequential duplicate writes occurred because different keys permitted independent write operations without overlapping execution constraints. Supported by distinct keys in D_46e4a888-2977-44b8-87f5-c1f93ca0cf38, but timing proximity in D_ad261dd5-200f-46f0-89fa-c47c217993b1 leaves execution order ambiguous.",
+              "evidenceIds": [
+                "E41",
+                "M_run_121d9e60-8d78-49fe-86a4-b2642a56163d",
+                "D_46e4a888-2977-44b8-87f5-c1f93ca0cf38",
+                "D_ad261dd5-200f-46f0-89fa-c47c217993b1"
+              ],
+              "confidence": "LOW"
+            }
+          ],
+          "nextDiagnostic": "MERCHANT_WRITE_OUTCOMES",
+          "diagnosticReason": "Checking merchant write outcomes will determine database persistence behavior and distinguish between concurrent handler racing and sequential distinct key insertions."
+        },
+        "C": {
+          "status": "OK",
+          "error": null,
+          "summary": "2 active merchant orders reference one payment observation. The key diagnostic records 2 distinct merchant write identities. Recorded handler intervals overlap.",
+          "hypotheses": [
+            {
+              "explanation": "Concurrent merchant handlers may each have passed the existence check before either wrote, producing duplicate orders.",
+              "evidenceIds": [
+                "E41",
+                "M_run_121d9e60-8d78-49fe-86a4-b2642a56163d",
+                "D_46e4a888-2977-44b8-87f5-c1f93ca0cf38",
+                "D_ad261dd5-200f-46f0-89fa-c47c217993b1"
+              ],
+              "confidence": "MEDIUM"
+            },
+            {
+              "explanation": "Sequential merchant handlers may have written duplicate orders because their distinct write identities bypassed a shared deduplication boundary.",
+              "evidenceIds": [
+                "E41",
+                "M_run_121d9e60-8d78-49fe-86a4-b2642a56163d",
+                "D_46e4a888-2977-44b8-87f5-c1f93ca0cf38",
+                "D_ad261dd5-200f-46f0-89fa-c47c217993b1"
+              ],
+              "confidence": "MEDIUM"
+            }
+          ],
+          "nextDiagnostic": "MERCHANT_WRITE_OUTCOMES",
+          "diagnosticReason": "Committed write outcomes show which handler paths wrote orders; no unperformed diagnostic remains to separate the mechanisms further."
+        }
+      },
+      "armC": {
+        "valid": true
+      },
+      "armB": {
+        "ok": true,
+        "error": null,
+        "httpStatus": 200,
+        "latencyMs": 2901,
+        "usage": {
+          "promptTokens": 1202,
+          "outputTokens": 625,
+          "totalTokens": 1827
+        },
+        "guardEvents": [
+          {
+            "attempt": 10,
+            "kind": "SENT",
+            "status": 200,
+            "modelVersion": "gemini-3.5-flash-lite",
+            "body": "{\n  \"candidates\": [\n    {\n      \"content\": {\n        \"parts\": [\n          {\n            \"text\": \"{\\n  \\\"summary\\\": \\\"Investigation of merchant duplicate orders shows two distinct merchant orders created via separate handlers using different idempotency keys. Disjoint or overlapping timing entries do not prove concurrency, and different keys permit sequential duplicate writes.\\\",\\n  \\\"hypotheses\\\": [\\n    {\\n      \\\"explanation\\\": \\\"Concurrent merchant execution caused two separate order placements due to independent handlers receiving events simultaneously. Supported by overlapping handler timing in D_ad261dd5-200f-46f0-89fa-c47c217993b1, but weakened by distinct idempotency keys found in D_46e4a888-2977-44b8-87f5-c1f93ca0cf38.\\\",\\n      \\\"evidenceIds\\\": [\\\"E41\\\", \\\"M_run_121d9e60-8d78-49fe-86a4-b2642a56163d\\\", \\\"D_46e4a888-2977-44b8-87f5-c1f93ca0cf38\\\", \\\"D_ad261dd5-200f-46f0-89fa-c47c217993b1\\\"],\\n      \\\"confidence\\\": \\\"MEDIUM\\\",\\n      \\\"status\\\": \\\"HYPOTHESIS\\\"\\n    },\\n    {\\n      \\\"explanation\\\": \\\"Sequential duplicate writes occurred because different keys permitted independent write operations without overlapping execution constraints. Supported by distinct keys in D_46e4a888-2977-44b8-87f5-c1f93ca0cf38, but timing proximity in D_ad261dd5-200f-46f0-89fa-c47c217993b1 leaves execution order ambiguous.\\\",\\n      \\\"evidenceIds\\\": [\\\"E41\\\", \\\"M_run_121d9e60-8d78-49fe-86a4-b2642a56163d\\\", \\\"D_46e4a888-2977-44b8-87f5-c1f93ca0cf38\\\", \\\"D_ad261dd5-200f-46f0-89fa-c47c217993b1\\\"],\\n      \\\"confidence\\\": \\\"LOW\\\",\\n      \\\"status\\\": \\\"HYPOTHESIS\\\"\\n    }\\n  ],\\n  \\\"nextDiagnostic\\\": \\\"MERCHANT_WRITE_OUTCOMES\\\",\\n  \\\"diagnosticReason\\\": \\\"Checking merchant write outcomes will determine database persistence behavior and distinguish between concurrent handler racing and sequential distinct key insertions.\\\"\\n}\",\n            \"thoughtSignature\": \"EmAKXgFpFH0TKitOAOsTjC6ll3q2d4x5Tbn3L3CbIpOEuhXW9S+Bbn0ko/nnrg+tPP69mdERUhieq7kC46p6Cxj5XrT1S7RxxYPPvsG/TFOZGf2pFuuI2XRFN5nQJe14FVw=\"\n          }\n        ],\n        \"role\": \"model\"\n      },\n      \"finishReason\": \"STOP\",\n      \"index\": 0\n    }\n  ],\n  \"usageMetadata\": {\n    \"promptTokenCount\": 1202,\n    \"candidatesTokenCount\": 625,\n    \"totalTokenCount\": 1827,\n    \"promptTokensDetails\": [\n      {\n        \"modality\": \"TEXT\",\n        \"tokenCount\": 1202\n      }\n    ],\n    \"serviceTier\": \"standard\"\n  },\n  \"modelVersion\": \"gemini-3.5-flash-lite\",\n  \"responseId\": \"ZxrbapGgA4iM694Pp8DHuQY\"\n}\n"
+          }
+        ]
+      },
+      "scores": {
+        "A": {
+          "id": "V1",
+          "stratum": "V",
+          "arm": "A",
+          "status": "OK",
+          "error": null,
+          "S1_schemaValid": true,
+          "S2_citations": {
+            "valid": 4,
+            "total": 4
+          },
+          "S3_relevance": {
+            "relevant": 4,
+            "total": 4
+          },
+          "S4_coverage": {
+            "covered": 4,
+            "total": 4
+          },
+          "P2_discriminating": true,
+          "S5_redundant": false,
+          "assessable": true,
+          "S6_confidence": {
+            "LOW": 0,
+            "MEDIUM": 0,
+            "HIGH": 0,
+            "none": 1
+          },
+          "S6_overconfident": null,
+          "S7_competing": null,
+          "S8_triage": [],
+          "hypotheses": 1
+        },
+        "B": {
+          "id": "V1",
+          "stratum": "V",
+          "arm": "B",
+          "status": "OK",
+          "error": null,
+          "S1_schemaValid": true,
+          "S2_citations": {
+            "valid": 8,
+            "total": 8
+          },
+          "S3_relevance": {
+            "relevant": 8,
+            "total": 8
+          },
+          "S4_coverage": {
+            "covered": 4,
+            "total": 4
+          },
+          "P2_discriminating": true,
+          "S5_redundant": false,
+          "assessable": true,
+          "S6_confidence": {
+            "LOW": 1,
+            "MEDIUM": 1,
+            "HIGH": 0,
+            "none": 0
+          },
+          "S6_overconfident": false,
+          "S7_competing": null,
+          "S8_triage": [
+            {
+              "statement": 1,
+              "term": "execution"
+            },
+            {
+              "statement": 2,
+              "term": "execution"
+            },
+            {
+              "statement": 2,
+              "term": "execution"
+            }
+          ],
+          "hypotheses": 2
+        },
+        "C": {
+          "id": "V1",
+          "stratum": "V",
+          "arm": "C",
+          "status": "OK",
+          "error": null,
+          "S1_schemaValid": true,
+          "S2_citations": {
+            "valid": 8,
+            "total": 8
+          },
+          "S3_relevance": {
+            "relevant": 8,
+            "total": 8
+          },
+          "S4_coverage": {
+            "covered": 4,
+            "total": 4
+          },
+          "P2_discriminating": true,
+          "S5_redundant": false,
+          "assessable": true,
+          "S6_confidence": {
+            "LOW": 0,
+            "MEDIUM": 2,
+            "HIGH": 0,
+            "none": 0
+          },
+          "S6_overconfident": false,
+          "S7_competing": null,
+          "S8_triage": [],
+          "hypotheses": 2
+        }
+      }
+    },
+    {
+      "id": "V2",
+      "stratum": "V",
+      "inputPath": "COUNTERFACTUAL",
+      "evidenceSha256": "a0361a2079486e335c20217118e45e8aec93e7c6903ad66c84769681080f7c0f",
+      "outputs": {
+        "A": {
+          "status": "OK",
+          "error": null,
+          "summary": "Multiple controlled merchant orders reference the recorded payment; the diagnostic records 1 distinct merchant write keys. Different keys can bypass a shared deduplication boundary. Timing is still needed to assess concurrency.",
+          "hypotheses": [
+            {
+              "explanation": "Multiple controlled merchant orders reference the recorded payment; the diagnostic records 1 distinct merchant write keys. Different keys can bypass a shared deduplication boundary. Timing is still needed to assess concurrency.",
+              "evidenceIds": [
+                "E41",
+                "M_run_a8b200fe-a4f5-4f70-8d5c-6c076623fcf2",
+                "D_cf8d7bf9-301a-4ed7-8596-e494eb0788b3",
+                "D_4582501e-4966-474c-8140-9e87924c2bf4"
+              ],
+              "confidence": null
+            }
+          ],
+          "nextDiagnostic": "MERCHANT_WRITE_OUTCOMES",
+          "diagnosticReason": null
+        },
+        "B": {
+          "status": "OK",
+          "error": null,
+          "summary": "PayPal Sandbox observation E41 shows one completed capture. Merchant state records two active orders. Diagnostics D_cf8d7bf9 and D_4582501e show overlapping handler execution and shared idempotency keys across distinct merchant order IDs.",
+          "hypotheses": [
+            {
+              "explanation": "Concurrent handler execution caused a race condition where the client return handler and webhook handler both created separate merchant orders while referencing the same shared idempotency key. Supported by overlapping timing in D_4582501e and shared key in D_cf8d7bf9. However, timing intervals alone do not prove overlapping execution against PayPal records, and distinct order IDs remain unexplained.",
+              "evidenceIds": [
+                "E41",
+                "M_run_a8b200fe-a4f5-4f70-8d5c-6c076623fcf2",
+                "D_cf8d7bf9-301a-4ed7-8596-e494eb0788b3",
+                "D_4582501e-4966-474c-8140-9e87924c2bf4"
+              ],
+              "confidence": "MEDIUM"
+            },
+            {
+              "explanation": "Sequential writes occurred where the client return handler finished first creating order mo_6bb1d559, followed immediately by the webhook handler creating order mo_da8ff9de. Different keys are not required for sequential writes. Supported by the sequential timestamps in D_4582501e. However, this does not explain why both handlers utilized identical idempotency keys.",
+              "evidenceIds": [
+                "M_run_a8b200fe-a4f5-4f70-8d5c-6c076623fcf2",
+                "D_cf8d7bf9-301a-4ed7-8596-e494eb0788b3",
+                "D_4582501e-4966-474c-8140-9e87924c2bf4"
+              ],
+              "confidence": "LOW"
+            }
+          ],
+          "nextDiagnostic": "MERCHANT_WRITE_OUTCOMES",
+          "diagnosticReason": "Checking merchant write outcomes will distinguish whether database transaction isolation failures or sequential logic errors permitted two separate order rows to be written from overlapping event arrivals."
+        },
+        "C": {
+          "status": "OK",
+          "error": null,
+          "summary": "2 active merchant orders reference one payment observation. The key diagnostic records 1 distinct merchant write identity. Recorded handler intervals overlap.",
+          "hypotheses": [
+            {
+              "explanation": "Concurrent merchant handlers may each have passed the existence check before either wrote, producing duplicate orders.",
+              "evidenceIds": [
+                "E41",
+                "M_run_a8b200fe-a4f5-4f70-8d5c-6c076623fcf2",
+                "D_cf8d7bf9-301a-4ed7-8596-e494eb0788b3",
+                "D_4582501e-4966-474c-8140-9e87924c2bf4"
+              ],
+              "confidence": "MEDIUM"
+            },
+            {
+              "explanation": "Sequential merchant handlers may have written duplicate orders because their distinct write identities bypassed a shared deduplication boundary.",
+              "evidenceIds": [
+                "E41",
+                "M_run_a8b200fe-a4f5-4f70-8d5c-6c076623fcf2",
+                "D_cf8d7bf9-301a-4ed7-8596-e494eb0788b3",
+                "D_4582501e-4966-474c-8140-9e87924c2bf4"
+              ],
+              "confidence": "LOW"
+            }
+          ],
+          "nextDiagnostic": "MERCHANT_WRITE_OUTCOMES",
+          "diagnosticReason": "Committed write outcomes show which handler paths wrote orders; no unperformed diagnostic remains to separate the mechanisms further."
+        }
+      },
+      "armC": {
+        "valid": true
+      },
+      "armB": {
+        "ok": true,
+        "error": null,
+        "httpStatus": 200,
+        "latencyMs": 2508,
+        "usage": {
+          "promptTokens": 1201,
+          "outputTokens": 612,
+          "totalTokens": 1813
+        },
+        "guardEvents": [
+          {
+            "attempt": 11,
+            "kind": "SENT",
+            "status": 200,
+            "modelVersion": "gemini-3.5-flash-lite",
+            "body": "{\n  \"candidates\": [\n    {\n      \"content\": {\n        \"parts\": [\n          {\n            \"text\": \"{\\n  \\\"summary\\\": \\\"PayPal Sandbox observation E41 shows one completed capture. Merchant state records two active orders. Diagnostics D_cf8d7bf9 and D_4582501e show overlapping handler execution and shared idempotency keys across distinct merchant order IDs.\\\",\\n  \\\"hypotheses\\\": [\\n    {\\n      \\\"explanation\\\": \\\"Concurrent handler execution caused a race condition where the client return handler and webhook handler both created separate merchant orders while referencing the same shared idempotency key. Supported by overlapping timing in D_4582501e and shared key in D_cf8d7bf9. However, timing intervals alone do not prove overlapping execution against PayPal records, and distinct order IDs remain unexplained.\\\",\\n      \\\"evidenceIds\\\": [\\n        \\\"E41\\\",\\n        \\\"M_run_a8b200fe-a4f5-4f70-8d5c-6c076623fcf2\\\",\\n        \\\"D_cf8d7bf9-301a-4ed7-8596-e494eb0788b3\\\",\\n        \\\"D_4582501e-4966-474c-8140-9e87924c2bf4\\\"\\n      ],\\n      \\\"confidence\\\": \\\"MEDIUM\\\",\\n      \\\"status\\\": \\\"HYPOTHESIS\\\"\\n    },\\n    {\\n      \\\"explanation\\\": \\\"Sequential writes occurred where the client return handler finished first creating order mo_6bb1d559, followed immediately by the webhook handler creating order mo_da8ff9de. Different keys are not required for sequential writes. Supported by the sequential timestamps in D_4582501e. However, this does not explain why both handlers utilized identical idempotency keys.\\\",\\n      \\\"evidenceIds\\\": [\\n        \\\"M_run_a8b200fe-a4f5-4f70-8d5c-6c076623fcf2\\\",\\n        \\\"D_cf8d7bf9-301a-4ed7-8596-e494eb0788b3\\\",\\n        \\\"D_4582501e-4966-474c-8140-9e87924c2bf4\\\"\\n      ],\\n      \\\"confidence\\\": \\\"LOW\\\",\\n      \\\"status\\\": \\\"HYPOTHESIS\\\"\\n    }\\n  ],\\n  \\\"nextDiagnostic\\\": \\\"MERCHANT_WRITE_OUTCOMES\\\",\\n  \\\"diagnosticReason\\\": \\\"Checking merchant write outcomes will distinguish whether database transaction isolation failures or sequential logic errors permitted two separate order rows to be written from overlapping event arrivals.\\\"\\n}\",\n            \"thoughtSignature\": \"EmAKXgFpFH0T3Pq3lQapZLREXiPddqNztE3TZgBe2JZbqUXoalX/JeeWEljLwepxKUzMsIB4dGGJ+m0LhqSIalN8AIinAmUQCFXaiEE4nR7HnAINyztcSul4lG3oTzgSsZ0=\"\n          }\n        ],\n        \"role\": \"model\"\n      },\n      \"finishReason\": \"STOP\",\n      \"index\": 0\n    }\n  ],\n  \"usageMetadata\": {\n    \"promptTokenCount\": 1201,\n    \"candidatesTokenCount\": 612,\n    \"totalTokenCount\": 1813,\n    \"promptTokensDetails\": [\n      {\n        \"modality\": \"TEXT\",\n        \"tokenCount\": 1201\n      }\n    ],\n    \"serviceTier\": \"standard\"\n  },\n  \"modelVersion\": \"gemini-3.5-flash-lite\",\n  \"responseId\": \"bxrbaqaMMsSI694P9_GFsAg\"\n}\n"
+          }
+        ]
+      },
+      "scores": {
+        "A": {
+          "id": "V2",
+          "stratum": "V",
+          "arm": "A",
+          "status": "OK",
+          "error": null,
+          "S1_schemaValid": true,
+          "S2_citations": {
+            "valid": 4,
+            "total": 4
+          },
+          "S3_relevance": {
+            "relevant": 4,
+            "total": 4
+          },
+          "S4_coverage": {
+            "covered": 4,
+            "total": 4
+          },
+          "P2_discriminating": true,
+          "S5_redundant": false,
+          "assessable": true,
+          "S6_confidence": {
+            "LOW": 0,
+            "MEDIUM": 0,
+            "HIGH": 0,
+            "none": 1
+          },
+          "S6_overconfident": null,
+          "S7_competing": null,
+          "S8_triage": [],
+          "hypotheses": 1
+        },
+        "B": {
+          "id": "V2",
+          "stratum": "V",
+          "arm": "B",
+          "status": "OK",
+          "error": null,
+          "S1_schemaValid": true,
+          "S2_citations": {
+            "valid": 7,
+            "total": 7
+          },
+          "S3_relevance": {
+            "relevant": 7,
+            "total": 7
+          },
+          "S4_coverage": {
+            "covered": 4,
+            "total": 4
+          },
+          "P2_discriminating": true,
+          "S5_redundant": false,
+          "assessable": true,
+          "S6_confidence": {
+            "LOW": 1,
+            "MEDIUM": 1,
+            "HIGH": 0,
+            "none": 0
+          },
+          "S6_overconfident": false,
+          "S7_competing": null,
+          "S8_triage": [
+            {
+              "statement": 0,
+              "term": "execution"
+            },
+            {
+              "statement": 1,
+              "term": "execution"
+            },
+            {
+              "statement": 1,
+              "term": "execution"
+            }
+          ],
+          "hypotheses": 2
+        },
+        "C": {
+          "id": "V2",
+          "stratum": "V",
+          "arm": "C",
+          "status": "OK",
+          "error": null,
+          "S1_schemaValid": true,
+          "S2_citations": {
+            "valid": 8,
+            "total": 8
+          },
+          "S3_relevance": {
+            "relevant": 8,
+            "total": 8
+          },
+          "S4_coverage": {
+            "covered": 4,
+            "total": 4
+          },
+          "P2_discriminating": true,
+          "S5_redundant": false,
+          "assessable": true,
+          "S6_confidence": {
+            "LOW": 1,
+            "MEDIUM": 1,
+            "HIGH": 0,
+            "none": 0
+          },
+          "S6_overconfident": false,
+          "S7_competing": null,
+          "S8_triage": [],
+          "hypotheses": 2
+        }
+      }
+    },
+    {
+      "id": "V3",
+      "stratum": "V",
+      "inputPath": "COUNTERFACTUAL",
+      "evidenceSha256": "5a7dbf8c080f40734aa098b6b0b825200776979661d1bcb507b63dc34c1e1517",
+      "outputs": {
+        "A": {
+          "status": "OK",
+          "error": null,
+          "summary": "Multiple controlled merchant orders reference the recorded payment; the diagnostic records 3 distinct merchant write keys. Different keys can bypass a shared deduplication boundary. Timing is still needed to assess concurrency.",
+          "hypotheses": [
+            {
+              "explanation": "Multiple controlled merchant orders reference the recorded payment; the diagnostic records 3 distinct merchant write keys. Different keys can bypass a shared deduplication boundary. Timing is still needed to assess concurrency.",
+              "evidenceIds": [
+                "E41",
+                "M_run_64fa1718-25c4-4e7e-82dd-650221a4a422",
+                "D_be2e8542-8a4c-4f0c-8d1b-45bf7fa72025",
+                "D_71840ed3-0e9f-4cc2-82ea-2a16e7f655aa"
+              ],
+              "confidence": null
+            }
+          ],
+          "nextDiagnostic": "MERCHANT_WRITE_OUTCOMES",
+          "diagnosticReason": null
+        },
+        "B": {
+          "status": "OK",
+          "error": null,
+          "summary": "Investigation of merchant state observations and diagnostic data reveals three separate merchant order records created with distinct idempotency keys and completely disjoint handler timing intervals. Competing hypotheses focus on sequential unique order creation versus separate capture event pathways.",
+          "hypotheses": [
+            {
+              "explanation": "Sequential writes occurred without concurrency. Evidence D_71840ed3-0e9f-4cc2-82ea-2a16e7f655aa shows entirely disjoint handler timing intervals from 10:00:00.000 to 10:01:15.504. Evidence D_be2e8542-8a4c-4f0c-8d1b-45bf7fa72025 demonstrates distinct idempotency keys for each order. What remains unknown is why multiple distinct merchant orders were placed instead of a single transaction, though different keys permit sequential duplicate writes without a race.",
+              "evidenceIds": [
+                "M_run_64fa1718-25c4-4e7e-82dd-650221a4a422",
+                "D_be2e8542-8a4c-4f0c-8d1b-45bf7fa72025",
+                "D_71840ed3-0e9f-4cc2-82ea-2a16e7f655aa"
+              ],
+              "confidence": "HIGH"
+            },
+            {
+              "explanation": "Separate execution pathways triggered distinct order placements independently. Evidence D_be2e8542-8a4c-4f0c-8d1b-45bf7fa72025 reports three distinct keys across different handlers including capture_return and webhook_capture_completed. Evidence E41 confirms a completed PayPal sandbox observation. This weakens a concurrency explanation because the intervals are strictly disjoint, but what remains unknown is the external client trigger source for each separate order.",
+              "evidenceIds": [
+                "E41",
+                "M_run_64fa1718-25c4-4e7e-82dd-650221a4a422",
+                "D_be2e8542-8a4c-4f0c-8d1b-45bf7fa72025"
+              ],
+              "confidence": "MEDIUM"
+            }
+          ],
+          "nextDiagnostic": "MERCHANT_WRITE_OUTCOMES",
+          "diagnosticReason": "Executing MERCHANT_WRITE_OUTCOMES will reveal database write success outcomes and payload details, distinguishing whether the three separate orders resulted from independent client requests or automated retry policies."
+        },
+        "C": {
+          "status": "OK",
+          "error": null,
+          "summary": "3 active merchant orders reference one payment observation. The key diagnostic records 3 distinct merchant write identities. Recorded handler intervals are disjoint, which weakens a concurrency explanation.",
+          "hypotheses": [
+            {
+              "explanation": "Concurrent merchant handlers may each have passed the existence check before either wrote, producing duplicate orders.",
+              "evidenceIds": [
+                "E41",
+                "M_run_64fa1718-25c4-4e7e-82dd-650221a4a422",
+                "D_be2e8542-8a4c-4f0c-8d1b-45bf7fa72025",
+                "D_71840ed3-0e9f-4cc2-82ea-2a16e7f655aa"
+              ],
+              "confidence": "LOW"
+            },
+            {
+              "explanation": "Sequential merchant handlers may have written duplicate orders because their distinct write identities bypassed a shared deduplication boundary.",
+              "evidenceIds": [
+                "E41",
+                "M_run_64fa1718-25c4-4e7e-82dd-650221a4a422",
+                "D_be2e8542-8a4c-4f0c-8d1b-45bf7fa72025",
+                "D_71840ed3-0e9f-4cc2-82ea-2a16e7f655aa"
+              ],
+              "confidence": "HIGH"
+            }
+          ],
+          "nextDiagnostic": "MERCHANT_WRITE_OUTCOMES",
+          "diagnosticReason": "Committed write outcomes show which handler paths wrote orders; no unperformed diagnostic remains to separate the mechanisms further."
+        }
+      },
+      "armC": {
+        "valid": true
+      },
+      "armB": {
+        "ok": true,
+        "error": null,
+        "httpStatus": 200,
+        "latencyMs": 2638,
+        "usage": {
+          "promptTokens": 1484,
+          "outputTokens": 658,
+          "totalTokens": 2142
+        },
+        "guardEvents": [
+          {
+            "attempt": 12,
+            "kind": "SENT",
+            "status": 200,
+            "modelVersion": "gemini-3.5-flash-lite",
+            "body": "{\n  \"candidates\": [\n    {\n      \"content\": {\n        \"parts\": [\n          {\n            \"text\": \"{\\n  \\\"summary\\\": \\\"Investigation of merchant state observations and diagnostic data reveals three separate merchant order records created with distinct idempotency keys and completely disjoint handler timing intervals. Competing hypotheses focus on sequential unique order creation versus separate capture event pathways.\\\",\\n  \\\"hypotheses\\\": [\\n    {\\n      \\\"explanation\\\": \\\"Sequential writes occurred without concurrency. Evidence D_71840ed3-0e9f-4cc2-82ea-2a16e7f655aa shows entirely disjoint handler timing intervals from 10:00:00.000 to 10:01:15.504. Evidence D_be2e8542-8a4c-4f0c-8d1b-45bf7fa72025 demonstrates distinct idempotency keys for each order. What remains unknown is why multiple distinct merchant orders were placed instead of a single transaction, though different keys permit sequential duplicate writes without a race.\\\",\\n      \\\"evidenceIds\\\": [\\n        \\\"M_run_64fa1718-25c4-4e7e-82dd-650221a4a422\\\",\\n        \\\"D_be2e8542-8a4c-4f0c-8d1b-45bf7fa72025\\\",\\n        \\\"D_71840ed3-0e9f-4cc2-82ea-2a16e7f655aa\\\"\\n      ],\\n      \\\"confidence\\\": \\\"HIGH\\\",\\n      \\\"status\\\": \\\"HYPOTHESIS\\\"\\n    },\\n    {\\n      \\\"explanation\\\": \\\"Separate execution pathways triggered distinct order placements independently. Evidence D_be2e8542-8a4c-4f0c-8d1b-45bf7fa72025 reports three distinct keys across different handlers including capture_return and webhook_capture_completed. Evidence E41 confirms a completed PayPal sandbox observation. This weakens a concurrency explanation because the intervals are strictly disjoint, but what remains unknown is the external client trigger source for each separate order.\\\",\\n      \\\"evidenceIds\\\": [\\n        \\\"E41\\\",\\n        \\\"M_run_64fa1718-25c4-4e7e-82dd-650221a4a422\\\",\\n        \\\"D_be2e8542-8a4c-4f0c-8d1b-45bf7fa72025\\\"\\n      ],\\n      \\\"confidence\\\": \\\"MEDIUM\\\",\\n      \\\"status\\\": \\\"HYPOTHESIS\\\"\\n    }\\n  ],\\n  \\\"nextDiagnostic\\\": \\\"MERCHANT_WRITE_OUTCOMES\\\",\\n  \\\"diagnosticReason\\\": \\\"Executing MERCHANT_WRITE_OUTCOMES will reveal database write success outcomes and payload details, distinguishing whether the three separate orders resulted from independent client requests or automated retry policies.\\\"\\n}\",\n            \"thoughtSignature\": \"EmAKXgFpFH0TZDWz6/DL9Aj1sM+5qWzlXvNFAp4iBfi0pnv/gTFaZ8BTUwUVF7ozGh45E1D7lMw0BOsy0efJAkWDqUGZ2sq9syVyEswhl1QVtDeJKdY+TYgSDAx19K+B3DI=\"\n          }\n        ],\n        \"role\": \"model\"\n      },\n      \"finishReason\": \"STOP\",\n      \"index\": 0\n    }\n  ],\n  \"usageMetadata\": {\n    \"promptTokenCount\": 1484,\n    \"candidatesTokenCount\": 658,\n    \"totalTokenCount\": 2142,\n    \"promptTokensDetails\": [\n      {\n        \"modality\": \"TEXT\",\n        \"tokenCount\": 1484\n      }\n    ],\n    \"serviceTier\": \"standard\"\n  },\n  \"modelVersion\": \"gemini-3.5-flash-lite\",\n  \"responseId\": \"eBrbaoP6E6Pi694Py7H_wAc\"\n}\n"
+          }
+        ]
+      },
+      "scores": {
+        "A": {
+          "id": "V3",
+          "stratum": "V",
+          "arm": "A",
+          "status": "OK",
+          "error": null,
+          "S1_schemaValid": true,
+          "S2_citations": {
+            "valid": 4,
+            "total": 4
+          },
+          "S3_relevance": {
+            "relevant": 4,
+            "total": 4
+          },
+          "S4_coverage": {
+            "covered": 4,
+            "total": 4
+          },
+          "P2_discriminating": true,
+          "S5_redundant": false,
+          "assessable": true,
+          "S6_confidence": {
+            "LOW": 0,
+            "MEDIUM": 0,
+            "HIGH": 0,
+            "none": 1
+          },
+          "S6_overconfident": null,
+          "S7_competing": null,
+          "S8_triage": [],
+          "hypotheses": 1
+        },
+        "B": {
+          "id": "V3",
+          "stratum": "V",
+          "arm": "B",
+          "status": "OK",
+          "error": null,
+          "S1_schemaValid": true,
+          "S2_citations": {
+            "valid": 6,
+            "total": 6
+          },
+          "S3_relevance": {
+            "relevant": 6,
+            "total": 6
+          },
+          "S4_coverage": {
+            "covered": 4,
+            "total": 4
+          },
+          "P2_discriminating": true,
+          "S5_redundant": false,
+          "assessable": true,
+          "S6_confidence": {
+            "LOW": 0,
+            "MEDIUM": 1,
+            "HIGH": 1,
+            "none": 0
+          },
+          "S6_overconfident": false,
+          "S7_competing": null,
+          "S8_triage": [
+            {
+              "statement": 2,
+              "term": "execution"
+            },
+            {
+              "statement": 3,
+              "term": "Executing"
+            }
+          ],
+          "hypotheses": 2
+        },
+        "C": {
+          "id": "V3",
+          "stratum": "V",
+          "arm": "C",
+          "status": "OK",
+          "error": null,
+          "S1_schemaValid": true,
+          "S2_citations": {
+            "valid": 8,
+            "total": 8
+          },
+          "S3_relevance": {
+            "relevant": 8,
+            "total": 8
+          },
+          "S4_coverage": {
+            "covered": 4,
+            "total": 4
+          },
+          "P2_discriminating": true,
+          "S5_redundant": false,
+          "assessable": true,
+          "S6_confidence": {
+            "LOW": 1,
+            "MEDIUM": 0,
+            "HIGH": 1,
+            "none": 0
+          },
+          "S6_overconfident": false,
+          "S7_competing": null,
+          "S8_triage": [],
+          "hypotheses": 2
+        }
+      }
+    },
+    {
+      "id": "X1",
+      "stratum": "X",
+      "inputPath": "UNREACHABLE_VALUES",
+      "evidenceSha256": "3968f4f4d3b51f945076efcd36a3d735409632725a6e6b13d56ae742fe957c5b",
+      "outputs": {
+        "A": {
+          "status": "OK",
+          "error": null,
+          "summary": "Multiple controlled merchant orders reference the recorded payment. Compare merchant write identities; the payment observation alone does not establish the merchant cause.",
+          "hypotheses": [
+            {
+              "explanation": "Multiple controlled merchant orders reference the recorded payment. Compare merchant write identities; the payment observation alone does not establish the merchant cause.",
+              "evidenceIds": [
+                "E41",
+                "M_run_8855d2cd-9b7d-430e-89c2-bd14286eea03"
+              ],
+              "confidence": null
+            }
+          ],
+          "nextDiagnostic": "IDEMPOTENCY_KEYS",
+          "diagnosticReason": null
+        },
+        "B": {
+          "status": "OK",
+          "error": null,
+          "summary": "Investigation of duplicate merchant order records associated with a completed PayPal Sandbox payment. Two competing mechanisms are evaluated: sequential duplicate writes versus concurrent API handler execution.",
+          "hypotheses": [
+            {
+              "explanation": "Sequential duplicate writes occurred where the merchant application created two distinct internal order entries consecutively without checking idempotency, supported by M_run_8855d2cd-9b7d-430e-89c2-bd14286eea03. What remains unknown is whether client-side retry logic triggered the second write.",
+              "evidenceIds": [
+                "E41",
+                "M_run_8855d2cd-9b7d-430e-89c2-bd14286eea03"
+              ],
+              "confidence": "MEDIUM"
+            },
+            {
+              "explanation": "Concurrent webhook or callback handlers processed the same payment notification simultaneously, supported by E41 showing a completed capture. The weakness is that different order keys and lack of timing intervals do not prove overlapping execution.",
+              "evidenceIds": [
+                "E41",
+                "M_run_8855d2cd-9b7d-430e-89c2-bd14286eea03"
+              ],
+              "confidence": "LOW"
+            }
+          ],
+          "nextDiagnostic": "HANDLER_TIMING",
+          "diagnosticReason": "Reviewing handler execution start and end intervals will distinguish between simultaneous webhook processing and sequential client retries."
+        },
+        "C": {
+          "status": "OK",
+          "error": null,
+          "summary": "2 active merchant orders reference one payment observation.",
+          "hypotheses": [
+            {
+              "explanation": "Concurrent merchant handlers may each have passed the existence check before either wrote, producing duplicate orders.",
+              "evidenceIds": [
+                "E41",
+                "M_run_8855d2cd-9b7d-430e-89c2-bd14286eea03"
+              ],
+              "confidence": "LOW"
+            },
+            {
+              "explanation": "Sequential merchant handlers may have written duplicate orders because their distinct write identities bypassed a shared deduplication boundary.",
+              "evidenceIds": [
+                "E41",
+                "M_run_8855d2cd-9b7d-430e-89c2-bd14286eea03"
+              ],
+              "confidence": "LOW"
+            }
+          ],
+          "nextDiagnostic": "HANDLER_TIMING",
+          "diagnosticReason": "Handler intervals distinguish overlapping concurrent writes from sequential duplicate writes."
+        }
+      },
+      "armC": {
+        "valid": true
+      },
+      "armB": {
+        "ok": true,
+        "error": null,
+        "httpStatus": 200,
+        "latencyMs": 1738,
+        "usage": {
+          "promptTokens": 533,
+          "outputTokens": 300,
+          "totalTokens": 833
+        },
+        "guardEvents": [
+          {
+            "attempt": 13,
+            "kind": "SENT",
+            "status": 200,
+            "modelVersion": "gemini-3.5-flash-lite",
+            "body": "{\n  \"candidates\": [\n    {\n      \"content\": {\n        \"parts\": [\n          {\n            \"text\": \"{\\\"summary\\\":\\\"Investigation of duplicate merchant order records associated with a completed PayPal Sandbox payment. Two competing mechanisms are evaluated: sequential duplicate writes versus concurrent API handler execution.\\\",\\\"hypotheses\\\":[{\\\"explanation\\\":\\\"Sequential duplicate writes occurred where the merchant application created two distinct internal order entries consecutively without checking idempotency, supported by M_run_8855d2cd-9b7d-430e-89c2-bd14286eea03. What remains unknown is whether client-side retry logic triggered the second write.\\\",\\\"evidenceIds\\\":[\\\"E41\\\",\\\"M_run_8855d2cd-9b7d-430e-89c2-bd14286eea03\\\"],\\\"confidence\\\":\\\"MEDIUM\\\",\\\"status\\\":\\\"HYPOTHESIS\\\"},{\\\"explanation\\\":\\\"Concurrent webhook or callback handlers processed the same payment notification simultaneously, supported by E41 showing a completed capture. The weakness is that different order keys and lack of timing intervals do not prove overlapping execution.\\\",\\\"evidenceIds\\\":[\\\"E41\\\",\\\"M_run_8855d2cd-9b7d-430e-89c2-bd14286eea03\\\"],\\\"confidence\\\":\\\"LOW\\\",\\\"status\\\":\\\"HYPOTHESIS\\\"}],\\\"nextDiagnostic\\\":\\\"HANDLER_TIMING\\\",\\\"diagnosticReason\\\":\\\"Reviewing handler execution start and end intervals will distinguish between simultaneous webhook processing and sequential client retries.\\\"}\",\n            \"thoughtSignature\": \"EmAKXgFpFH0Tz3mNYC2+cwnDrTYzeigtXvEgBDWH6MDCxOruYhqUHrMwtABhqQ+AO8ksuuyz358vGEMP9kzyZrPlCT7uyZgut5AeGDlNJzku0v7hJrdvkYSSmHPb+jv3HTg=\"\n          }\n        ],\n        \"role\": \"model\"\n      },\n      \"finishReason\": \"STOP\",\n      \"index\": 0\n    }\n  ],\n  \"usageMetadata\": {\n    \"promptTokenCount\": 533,\n    \"candidatesTokenCount\": 300,\n    \"totalTokenCount\": 833,\n    \"promptTokensDetails\": [\n      {\n        \"modality\": \"TEXT\",\n        \"tokenCount\": 533\n      }\n    ],\n    \"serviceTier\": \"standard\"\n  },\n  \"modelVersion\": \"gemini-3.5-flash-lite\",\n  \"responseId\": \"gBrbaubLN6Pi694Py7H_wAc\"\n}\n"
+          }
+        ]
+      },
+      "scores": {
+        "A": {
+          "id": "X1",
+          "stratum": "X",
+          "arm": "A",
+          "status": "OK",
+          "error": null,
+          "S1_schemaValid": true,
+          "S2_citations": {
+            "valid": 2,
+            "total": 2
+          },
+          "S3_relevance": {
+            "relevant": 2,
+            "total": 2
+          },
+          "S4_coverage": {
+            "covered": 2,
+            "total": 2
+          },
+          "P2_discriminating": true,
+          "S5_redundant": false,
+          "assessable": true,
+          "S6_confidence": {
+            "LOW": 0,
+            "MEDIUM": 0,
+            "HIGH": 0,
+            "none": 1
+          },
+          "S6_overconfident": null,
+          "S7_competing": null,
+          "S8_triage": [],
+          "hypotheses": 1
+        },
+        "B": {
+          "id": "X1",
+          "stratum": "X",
+          "arm": "B",
+          "status": "OK",
+          "error": null,
+          "S1_schemaValid": true,
+          "S2_citations": {
+            "valid": 4,
+            "total": 4
+          },
+          "S3_relevance": {
+            "relevant": 4,
+            "total": 4
+          },
+          "S4_coverage": {
+            "covered": 2,
+            "total": 2
+          },
+          "P2_discriminating": true,
+          "S5_redundant": false,
+          "assessable": true,
+          "S6_confidence": {
+            "LOW": 1,
+            "MEDIUM": 1,
+            "HIGH": 0,
+            "none": 0
+          },
+          "S6_overconfident": false,
+          "S7_competing": null,
+          "S8_triage": [
+            {
+              "statement": 0,
+              "term": "execution"
+            },
+            {
+              "statement": 2,
+              "term": "execution"
+            },
+            {
+              "statement": 3,
+              "term": "execution"
+            }
+          ],
+          "hypotheses": 2
+        },
+        "C": {
+          "id": "X1",
+          "stratum": "X",
+          "arm": "C",
+          "status": "OK",
+          "error": null,
+          "S1_schemaValid": true,
+          "S2_citations": {
+            "valid": 4,
+            "total": 4
+          },
+          "S3_relevance": {
+            "relevant": 4,
+            "total": 4
+          },
+          "S4_coverage": {
+            "covered": 2,
+            "total": 2
+          },
+          "P2_discriminating": true,
+          "S5_redundant": false,
+          "assessable": true,
+          "S6_confidence": {
+            "LOW": 2,
+            "MEDIUM": 0,
+            "HIGH": 0,
+            "none": 0
+          },
+          "S6_overconfident": false,
+          "S7_competing": null,
+          "S8_triage": [],
+          "hypotheses": 2
+        }
+      }
+    },
+    {
+      "id": "X2",
+      "stratum": "X",
+      "inputPath": "OUT_OF_COLLECTOR_SCHEMA",
+      "evidenceSha256": "34319c4f32005ac36c79a1320a4fe201a18551c0f66c985480f44ccafc45fa7b",
+      "outputs": {
+        "A": {
+          "status": "OK",
+          "error": null,
+          "summary": "Multiple controlled merchant orders reference the recorded payment. Compare merchant write identities; the payment observation alone does not establish the merchant cause.",
+          "hypotheses": [
+            {
+              "explanation": "Multiple controlled merchant orders reference the recorded payment. Compare merchant write identities; the payment observation alone does not establish the merchant cause.",
+              "evidenceIds": [
+                "E41",
+                "M_run_c6c7f5e9-6231-422a-836e-41c3f04c7e75"
+              ],
+              "confidence": null
+            }
+          ],
+          "nextDiagnostic": "IDEMPOTENCY_KEYS",
+          "diagnosticReason": null
+        },
+        "B": {
+          "status": "OK",
+          "error": null,
+          "summary": "Investigation of merchant state showing two placed orders following a single completed PayPal sandbox capture observation E41. Competing mechanisms address potential sequential or concurrent write scenarios.",
+          "hypotheses": [
+            {
+              "explanation": "Independent sequential request submissions caused two distinct merchant order records to be created, as different keys can permit sequential duplicate writes without implying overlapping execution, supported by M_run_c6c7f5e9-6231-422a-836e-41c3f04c7e75. Unknown is whether distinct idempotency keys were used.",
+              "evidenceIds": [
+                "E41",
+                "M_run_c6c7f5e9-6231-422a-836e-41c3f04c7e75"
+              ],
+              "confidence": "LOW"
+            },
+            {
+              "explanation": "Concurrent client retry attempts triggered dual order creation in the merchant database despite only a single payment capture occurring in E41. Weakened by the lack of timing interval data proving overlap.",
+              "evidenceIds": [
+                "E41",
+                "M_run_c6c7f5e9-6231-422a-836e-41c3f04c7e75"
+              ],
+              "confidence": "LOW"
+            }
+          ],
+          "nextDiagnostic": "IDEMPOTENCY_KEYS",
+          "diagnosticReason": "Checking idempotency keys will distinguish whether the two merchant orders originated from separate client request tokens or a single retried request payload."
+        },
+        "C": {
+          "status": "OK",
+          "error": null,
+          "summary": "2 active merchant orders reference one payment observation.",
+          "hypotheses": [
+            {
+              "explanation": "Concurrent merchant handlers may each have passed the existence check before either wrote, producing duplicate orders.",
+              "evidenceIds": [
+                "E41",
+                "M_run_c6c7f5e9-6231-422a-836e-41c3f04c7e75"
+              ],
+              "confidence": "LOW"
+            },
+            {
+              "explanation": "Sequential merchant handlers may have written duplicate orders because their distinct write identities bypassed a shared deduplication boundary.",
+              "evidenceIds": [
+                "E41",
+                "M_run_c6c7f5e9-6231-422a-836e-41c3f04c7e75"
+              ],
+              "confidence": "LOW"
+            }
+          ],
+          "nextDiagnostic": "HANDLER_TIMING",
+          "diagnosticReason": "Handler intervals distinguish overlapping concurrent writes from sequential duplicate writes."
+        }
+      },
+      "armC": {
+        "valid": true
+      },
+      "armB": {
+        "ok": true,
+        "error": null,
+        "httpStatus": 200,
+        "latencyMs": 1928,
+        "usage": {
+          "promptTokens": 564,
+          "outputTokens": 381,
+          "totalTokens": 945
+        },
+        "guardEvents": [
+          {
+            "attempt": 14,
+            "kind": "SENT",
+            "status": 200,
+            "modelVersion": "gemini-3.5-flash-lite",
+            "body": "{\n  \"candidates\": [\n    {\n      \"content\": {\n        \"parts\": [\n          {\n            \"text\": \"{\\n  \\\"summary\\\": \\\"Investigation of merchant state showing two placed orders following a single completed PayPal sandbox capture observation E41. Competing mechanisms address potential sequential or concurrent write scenarios.\\\",\\n  \\\"hypotheses\\\": [\\n    {\\n      \\\"explanation\\\": \\\"Independent sequential request submissions caused two distinct merchant order records to be created, as different keys can permit sequential duplicate writes without implying overlapping execution, supported by M_run_c6c7f5e9-6231-422a-836e-41c3f04c7e75. Unknown is whether distinct idempotency keys were used.\\\",\\n      \\\"evidenceIds\\\": [\\\"E41\\\", \\\"M_run_c6c7f5e9-6231-422a-836e-41c3f04c7e75\\\"],\\n      \\\"confidence\\\": \\\"LOW\\\",\\n      \\\"status\\\": \\\"HYPOTHESIS\\\"\\n    },\\n    {\\n      \\\"explanation\\\": \\\"Concurrent client retry attempts triggered dual order creation in the merchant database despite only a single payment capture occurring in E41. Weakened by the lack of timing interval data proving overlap.\\\",\\n      \\\"evidenceIds\\\": [\\\"E41\\\", \\\"M_run_c6c7f5e9-6231-422a-836e-41c3f04c7e75\\\"],\\n      \\\"confidence\\\": \\\"LOW\\\",\\n      \\\"status\\\": \\\"HYPOTHESIS\\\"\\n    }\\n  ],\\n  \\\"nextDiagnostic\\\": \\\"IDEMPOTENCY_KEYS\\\",\\n  \\\"diagnosticReason\\\": \\\"Checking idempotency keys will distinguish whether the two merchant orders originated from separate client request tokens or a single retried request payload.\\\"\\n}\",\n            \"thoughtSignature\": \"EmAKXgFpFH0TkKGC6wF9hcPfKbfru640DkLb98et6yTKH9Yh5w7CdL2OsScstBg25/XaiQyDIKTFygaCBdHntDZniX7KWrD1+zCfNDWi/6gDamf/rFeERAAaNmOOBJruwrQ=\"\n          }\n        ],\n        \"role\": \"model\"\n      },\n      \"finishReason\": \"STOP\",\n      \"index\": 0\n    }\n  ],\n  \"usageMetadata\": {\n    \"promptTokenCount\": 564,\n    \"candidatesTokenCount\": 381,\n    \"totalTokenCount\": 945,\n    \"promptTokensDetails\": [\n      {\n        \"modality\": \"TEXT\",\n        \"tokenCount\": 564\n      }\n    ],\n    \"serviceTier\": \"standard\"\n  },\n  \"modelVersion\": \"gemini-3.5-flash-lite\",\n  \"responseId\": \"iBrbarDLKv6s694PyurWsQY\"\n}\n"
+          }
+        ]
+      },
+      "scores": {
+        "A": {
+          "id": "X2",
+          "stratum": "X",
+          "arm": "A",
+          "status": "OK",
+          "error": null,
+          "S1_schemaValid": true,
+          "S2_citations": {
+            "valid": 2,
+            "total": 2
+          },
+          "S3_relevance": {
+            "relevant": 2,
+            "total": 2
+          },
+          "S4_coverage": {
+            "covered": 2,
+            "total": 2
+          },
+          "P2_discriminating": true,
+          "S5_redundant": false,
+          "assessable": true,
+          "S6_confidence": {
+            "LOW": 0,
+            "MEDIUM": 0,
+            "HIGH": 0,
+            "none": 1
+          },
+          "S6_overconfident": null,
+          "S7_competing": null,
+          "S8_triage": [],
+          "hypotheses": 1
+        },
+        "B": {
+          "id": "X2",
+          "stratum": "X",
+          "arm": "B",
+          "status": "OK",
+          "error": null,
+          "S1_schemaValid": true,
+          "S2_citations": {
+            "valid": 4,
+            "total": 4
+          },
+          "S3_relevance": {
+            "relevant": 4,
+            "total": 4
+          },
+          "S4_coverage": {
+            "covered": 2,
+            "total": 2
+          },
+          "P2_discriminating": true,
+          "S5_redundant": false,
+          "assessable": true,
+          "S6_confidence": {
+            "LOW": 2,
+            "MEDIUM": 0,
+            "HIGH": 0,
+            "none": 0
+          },
+          "S6_overconfident": false,
+          "S7_competing": null,
+          "S8_triage": [
+            {
+              "statement": 1,
+              "term": "execution"
+            }
+          ],
+          "hypotheses": 2
+        },
+        "C": {
+          "id": "X2",
+          "stratum": "X",
+          "arm": "C",
+          "status": "OK",
+          "error": null,
+          "S1_schemaValid": true,
+          "S2_citations": {
+            "valid": 4,
+            "total": 4
+          },
+          "S3_relevance": {
+            "relevant": 4,
+            "total": 4
+          },
+          "S4_coverage": {
+            "covered": 2,
+            "total": 2
+          },
+          "P2_discriminating": true,
+          "S5_redundant": false,
+          "assessable": true,
+          "S6_confidence": {
+            "LOW": 2,
+            "MEDIUM": 0,
+            "HIGH": 0,
+            "none": 0
+          },
+          "S6_overconfident": false,
+          "S7_competing": null,
+          "S8_triage": [],
+          "hypotheses": 2
+        }
+      }
+    },
+    {
+      "id": "X3",
+      "stratum": "X",
+      "inputPath": "UNREACHABLE_VALUES",
+      "evidenceSha256": "469575a4c8343d3a055398c139978cee90814e7ecf49ef5a7b225fe532796347",
+      "outputs": {
+        "A": {
+          "status": "OK",
+          "error": null,
+          "summary": "Multiple controlled merchant orders reference the recorded payment. Compare merchant write identities; the payment observation alone does not establish the merchant cause.",
+          "hypotheses": [
+            {
+              "explanation": "Multiple controlled merchant orders reference the recorded payment. Compare merchant write identities; the payment observation alone does not establish the merchant cause.",
+              "evidenceIds": [
+                "E41",
+                "M_run_1a4f1397-4dc5-4aaa-8ac3-fef91d0e5475"
+              ],
+              "confidence": null
+            }
+          ],
+          "nextDiagnostic": "IDEMPOTENCY_KEYS",
+          "diagnosticReason": null
+        },
+        "B": {
+          "status": "OK",
+          "error": null,
+          "summary": "Investigation of duplicate merchant order records associated with a completed PayPal Sandbox payment observation (E41) and controlled merchant state (M_run_1a4f1397-4dc5-4aaa-8ac3-fef91d0e5475).",
+          "hypotheses": [
+            {
+              "explanation": "Sequential submission of two distinct merchant order keys processed separately against the same completed payment reference, supported by M_run_1a4f1397-4dc5-4aaa-8ac3-fef91d0e5475. It remains unknown if idempotency keys were reused or why separate order IDs were generated.",
+              "evidenceIds": [
+                "E41",
+                "M_run_1a4f1397-4dc5-4aaa-8ac3-fef91d0e5475"
+              ],
+              "confidence": "MEDIUM"
+            },
+            {
+              "explanation": "Overlapping concurrent requests generated multiple merchant order attempts before state synchronization, supported by the presence of active and voided records in M_run_1a4f1397-4dc5-4aaa-8ac3-fef91d0e5475. Disjoint timing or network latency details are not provided to confirm concurrency.",
+              "evidenceIds": [
+                "E41",
+                "M_run_1a4f1397-4dc5-4aaa-8ac3-fef91d0e5475"
+              ],
+              "confidence": "LOW"
+            }
+          ],
+          "nextDiagnostic": "HANDLER_TIMING",
+          "diagnosticReason": "Inspect handler start and end timestamps to determine if the order writes occurred concurrently or sequentially."
+        },
+        "C": {
+          "status": "OK",
+          "error": null,
+          "summary": "2 active merchant orders reference one payment observation. The merchant state is inconsistent: the active-order count differs from the listed placed orders.",
+          "hypotheses": [
+            {
+              "explanation": "Concurrent merchant handlers may each have passed the existence check before either wrote, producing duplicate orders.",
+              "evidenceIds": [
+                "E41",
+                "M_run_1a4f1397-4dc5-4aaa-8ac3-fef91d0e5475"
+              ],
+              "confidence": "LOW"
+            },
+            {
+              "explanation": "Sequential merchant handlers may have written duplicate orders because their distinct write identities bypassed a shared deduplication boundary.",
+              "evidenceIds": [
+                "E41",
+                "M_run_1a4f1397-4dc5-4aaa-8ac3-fef91d0e5475"
+              ],
+              "confidence": "LOW"
+            }
+          ],
+          "nextDiagnostic": "HANDLER_TIMING",
+          "diagnosticReason": "Handler intervals distinguish overlapping concurrent writes from sequential duplicate writes."
+        }
+      },
+      "armC": {
+        "valid": true
+      },
+      "armB": {
+        "ok": true,
+        "error": null,
+        "httpStatus": 200,
+        "latencyMs": 2097,
+        "usage": {
+          "promptTokens": 546,
+          "outputTokens": 358,
+          "totalTokens": 904
+        },
+        "guardEvents": [
+          {
+            "attempt": 15,
+            "kind": "SENT",
+            "status": 200,
+            "modelVersion": "gemini-3.5-flash-lite",
+            "body": "{\n  \"candidates\": [\n    {\n      \"content\": {\n        \"parts\": [\n          {\n            \"text\": \"{\\\"summary\\\":\\\"Investigation of duplicate merchant order records associated with a completed PayPal Sandbox payment observation (E41) and controlled merchant state (M_run_1a4f1397-4dc5-4aaa-8ac3-fef91d0e5475).\\\",\\\"hypotheses\\\":[{\\\"explanation\\\":\\\"Sequential submission of two distinct merchant order keys processed separately against the same completed payment reference, supported by M_run_1a4f1397-4dc5-4aaa-8ac3-fef91d0e5475. It remains unknown if idempotency keys were reused or why separate order IDs were generated.\\\",\\\"evidenceIds\\\":[\\\"E41\\\",\\\"M_run_1a4f1397-4dc5-4aaa-8ac3-fef91d0e5475\\\"],\\\"confidence\\\":\\\"MEDIUM\\\",\\\"status\\\":\\\"HYPOTHESIS\\\"},{\\\"explanation\\\":\\\"Overlapping concurrent requests generated multiple merchant order attempts before state synchronization, supported by the presence of active and voided records in M_run_1a4f1397-4dc5-4aaa-8ac3-fef91d0e5475. Disjoint timing or network latency details are not provided to confirm concurrency.\\\",\\\"evidenceIds\\\":[\\\"E41\\\",\\\"M_run_1a4f1397-4dc5-4aaa-8ac3-fef91d0e5475\\\"],\\\"confidence\\\":\\\"LOW\\\",\\\"status\\\":\\\"HYPOTHESIS\\\"}],\\\"nextDiagnostic\\\":\\\"HANDLER_TIMING\\\",\\\"diagnosticReason\\\":\\\"Inspect handler start and end timestamps to determine if the order writes occurred concurrently or sequentially.\\\"}\",\n            \"thoughtSignature\": \"EmAKXgFpFH0TeByjoHgD4Ke/2yeiH2S24ETC3bIr7SdEjpFoL5tfMO1ssnc72NY3JwWojCGVnloH8RnBSNrgL7hXkLWJOmVMOy+mB39HXGvx00EauBkv/hmzYEFEFmFx0jU=\"\n          }\n        ],\n        \"role\": \"model\"\n      },\n      \"finishReason\": \"STOP\",\n      \"index\": 0\n    }\n  ],\n  \"usageMetadata\": {\n    \"promptTokenCount\": 546,\n    \"candidatesTokenCount\": 358,\n    \"totalTokenCount\": 904,\n    \"promptTokensDetails\": [\n      {\n        \"modality\": \"TEXT\",\n        \"tokenCount\": 546\n      }\n    ],\n    \"serviceTier\": \"standard\"\n  },\n  \"modelVersion\": \"gemini-3.5-flash-lite\",\n  \"responseId\": \"kBrbao_XJqmx0r4PuL_QqAY\"\n}\n"
+          }
+        ]
+      },
+      "scores": {
+        "A": {
+          "id": "X3",
+          "stratum": "X",
+          "arm": "A",
+          "status": "OK",
+          "error": null,
+          "S1_schemaValid": true,
+          "S2_citations": {
+            "valid": 2,
+            "total": 2
+          },
+          "S3_relevance": {
+            "relevant": 1,
+            "total": 2
+          },
+          "S4_coverage": {
+            "covered": 1,
+            "total": 1
+          },
+          "P2_discriminating": null,
+          "S5_redundant": false,
+          "assessable": true,
+          "S6_confidence": {
+            "LOW": 0,
+            "MEDIUM": 0,
+            "HIGH": 0,
+            "none": 1
+          },
+          "S6_overconfident": null,
+          "S7_competing": null,
+          "S8_triage": [],
+          "hypotheses": 1
+        },
+        "B": {
+          "id": "X3",
+          "stratum": "X",
+          "arm": "B",
+          "status": "OK",
+          "error": null,
+          "S1_schemaValid": true,
+          "S2_citations": {
+            "valid": 4,
+            "total": 4
+          },
+          "S3_relevance": {
+            "relevant": 2,
+            "total": 4
+          },
+          "S4_coverage": {
+            "covered": 1,
+            "total": 1
+          },
+          "P2_discriminating": null,
+          "S5_redundant": false,
+          "assessable": true,
+          "S6_confidence": {
+            "LOW": 1,
+            "MEDIUM": 1,
+            "HIGH": 0,
+            "none": 0
+          },
+          "S6_overconfident": false,
+          "S7_competing": null,
+          "S8_triage": [],
+          "hypotheses": 2
+        },
+        "C": {
+          "id": "X3",
+          "stratum": "X",
+          "arm": "C",
+          "status": "OK",
+          "error": null,
+          "S1_schemaValid": true,
+          "S2_citations": {
+            "valid": 4,
+            "total": 4
+          },
+          "S3_relevance": {
+            "relevant": 2,
+            "total": 4
+          },
+          "S4_coverage": {
+            "covered": 1,
+            "total": 1
+          },
+          "P2_discriminating": null,
+          "S5_redundant": false,
+          "assessable": true,
+          "S6_confidence": {
+            "LOW": 2,
+            "MEDIUM": 0,
+            "HIGH": 0,
+            "none": 0
+          },
+          "S6_overconfident": false,
+          "S7_competing": null,
+          "S8_triage": [],
+          "hypotheses": 2
+        }
+      }
+    },
+    {
+      "id": "X4",
+      "stratum": "X",
+      "inputPath": "UNREACHABLE_VALUES",
+      "evidenceSha256": "5cbc3b69881175390a2c4f615ab56badde0fa17b24ccf0e8cebd27b03ba99cd4",
+      "outputs": {
+        "A": {
+          "status": "OK",
+          "error": null,
+          "summary": "Multiple controlled merchant orders reference the recorded payment. Compare merchant write identities; the payment observation alone does not establish the merchant cause.",
+          "hypotheses": [
+            {
+              "explanation": "Multiple controlled merchant orders reference the recorded payment. Compare merchant write identities; the payment observation alone does not establish the merchant cause.",
+              "evidenceIds": [
+                "M_run_0a83d8fb-228b-434d-85b7-019b4b467028"
+              ],
+              "confidence": null
+            }
+          ],
+          "nextDiagnostic": "IDEMPOTENCY_KEYS",
+          "diagnosticReason": null
+        },
+        "B": {
+          "status": "OK",
+          "error": null,
+          "summary": "Investigation of OrderTruth merchant scenario reveals two active orders with identical amounts, suggesting potential duplicate writes or concurrent placement. Competing hypotheses involve sequential request retries versus rapid overlapping requests, evaluated against sandbox observations.",
+          "hypotheses": [
+            {
+              "explanation": "Sequential retry hypothesis: The client submitted the payment request, experienced a temporary network timeout before receiving the merchant response, and automatically retried with a distinct key, resulting in two placed orders without true concurrency (supported by M_run_0a83d8fb-228b-434d-85b7-019b4b467028).",
+              "evidenceIds": [
+                "M_run_0a83d8fb-228b-434d-85b7-019b4b467028"
+              ],
+              "confidence": "MEDIUM"
+            },
+            {
+              "explanation": "Concurrent client submission hypothesis: The client application dispatched two parallel checkout requests simultaneously due to double-clicking the payment button, creating separate order keys (supported by M_run_0a83d8fb-228b-434d-85b7-019b4b467028), but exact timing remains unproven.",
+              "evidenceIds": [
+                "M_run_0a83d8fb-228b-434d-85b7-019b4b467028"
+              ],
+              "confidence": "LOW"
+            }
+          ],
+          "nextDiagnostic": "HANDLER_TIMING",
+          "diagnosticReason": "Checking handler execution start and end intervals will determine whether the two order creation requests overlapped in time or occurred sequentially."
+        },
+        "C": {
+          "status": "OK",
+          "error": null,
+          "summary": "2 active merchant orders reference one payment observation. No payment observation is present, so a completed capture is not established.",
+          "hypotheses": [
+            {
+              "explanation": "Concurrent merchant handlers may each have passed the existence check before either wrote, producing duplicate orders.",
+              "evidenceIds": [
+                "M_run_0a83d8fb-228b-434d-85b7-019b4b467028"
+              ],
+              "confidence": "LOW"
+            },
+            {
+              "explanation": "Sequential merchant handlers may have written duplicate orders because their distinct write identities bypassed a shared deduplication boundary.",
+              "evidenceIds": [
+                "M_run_0a83d8fb-228b-434d-85b7-019b4b467028"
+              ],
+              "confidence": "LOW"
+            }
+          ],
+          "nextDiagnostic": "HANDLER_TIMING",
+          "diagnosticReason": "Handler intervals distinguish overlapping concurrent writes from sequential duplicate writes."
+        }
+      },
+      "armC": {
+        "valid": true
+      },
+      "armB": {
+        "ok": true,
+        "error": null,
+        "httpStatus": 200,
+        "latencyMs": 2095,
+        "usage": {
+          "promptTokens": 447,
+          "outputTokens": 429,
+          "totalTokens": 876
+        },
+        "guardEvents": [
+          {
+            "attempt": 16,
+            "kind": "SENT",
+            "status": 200,
+            "modelVersion": "gemini-3.5-flash-lite",
+            "body": "{\n  \"candidates\": [\n    {\n      \"content\": {\n        \"parts\": [\n          {\n            \"text\": \"{\\n  \\\"summary\\\": \\\"Investigation of OrderTruth merchant scenario reveals two active orders with identical amounts, suggesting potential duplicate writes or concurrent placement. Competing hypotheses involve sequential request retries versus rapid overlapping requests, evaluated against sandbox observations.\\\",\\n  \\\"hypotheses\\\": [\\n    {\\n      \\\"explanation\\\": \\\"Sequential retry hypothesis: The client submitted the payment request, experienced a temporary network timeout before receiving the merchant response, and automatically retried with a distinct key, resulting in two placed orders without true concurrency (supported by M_run_0a83d8fb-228b-434d-85b7-019b4b467028).\\\",\\n      \\\"evidenceIds\\\": [\\n        \\\"M_run_0a83d8fb-228b-434d-85b7-019b4b467028\\\"\\n      ],\\n      \\\"confidence\\\": \\\"MEDIUM\\\",\\n      \\\"status\\\": \\\"HYPOTHESIS\\\"\\n    },\\n    {\\n      \\\"explanation\\\": \\\"Concurrent client submission hypothesis: The client application dispatched two parallel checkout requests simultaneously due to double-clicking the payment button, creating separate order keys (supported by M_run_0a83d8fb-228b-434d-85b7-019b4b467028), but exact timing remains unproven.\\\",\\n      \\\"evidenceIds\\\": [\\n        \\\"M_run_0a83d8fb-228b-434d-85b7-019b4b467028\\\"\\n      ],\\n      \\\"confidence\\\": \\\"LOW\\\",\\n      \\\"status\\\": \\\"HYPOTHESIS\\\"\\n    }\\n  ],\\n  \\\"nextDiagnostic\\\": \\\"HANDLER_TIMING\\\",\\n  \\\"diagnosticReason\\\": \\\"Checking handler execution start and end intervals will determine whether the two order creation requests overlapped in time or occurred sequentially.\\\"\\n}\",\n            \"thoughtSignature\": \"EmAKXgFpFH0TWj17tnoQamofviMnsd8QZQNMW62q0xXLwD2LYAbOvi0tAK/aJORs2nz784nyXBMuzpRkFxky7Wjem1PN/W6aGAQSjF7X9p09ChOl7fac8u2hYEC5IwWsIUw=\"\n          }\n        ],\n        \"role\": \"model\"\n      },\n      \"finishReason\": \"STOP\",\n      \"index\": 0\n    }\n  ],\n  \"usageMetadata\": {\n    \"promptTokenCount\": 447,\n    \"candidatesTokenCount\": 429,\n    \"totalTokenCount\": 876,\n    \"promptTokensDetails\": [\n      {\n        \"modality\": \"TEXT\",\n        \"tokenCount\": 447\n      }\n    ],\n    \"serviceTier\": \"standard\"\n  },\n  \"modelVersion\": \"gemini-3.5-flash-lite\",\n  \"responseId\": \"mBrbaqT5K_37jNAPsqeIuAQ\"\n}\n"
+          }
+        ]
+      },
+      "scores": {
+        "A": {
+          "id": "X4",
+          "stratum": "X",
+          "arm": "A",
+          "status": "OK",
+          "error": null,
+          "S1_schemaValid": true,
+          "S2_citations": {
+            "valid": 1,
+            "total": 1
+          },
+          "S3_relevance": {
+            "relevant": 1,
+            "total": 1
+          },
+          "S4_coverage": {
+            "covered": 1,
+            "total": 1
+          },
+          "P2_discriminating": null,
+          "S5_redundant": false,
+          "assessable": true,
+          "S6_confidence": {
+            "LOW": 0,
+            "MEDIUM": 0,
+            "HIGH": 0,
+            "none": 1
+          },
+          "S6_overconfident": null,
+          "S7_competing": null,
+          "S8_triage": [],
+          "hypotheses": 1
+        },
+        "B": {
+          "id": "X4",
+          "stratum": "X",
+          "arm": "B",
+          "status": "OK",
+          "error": null,
+          "S1_schemaValid": true,
+          "S2_citations": {
+            "valid": 2,
+            "total": 2
+          },
+          "S3_relevance": {
+            "relevant": 2,
+            "total": 2
+          },
+          "S4_coverage": {
+            "covered": 1,
+            "total": 1
+          },
+          "P2_discriminating": null,
+          "S5_redundant": false,
+          "assessable": true,
+          "S6_confidence": {
+            "LOW": 1,
+            "MEDIUM": 1,
+            "HIGH": 0,
+            "none": 0
+          },
+          "S6_overconfident": false,
+          "S7_competing": null,
+          "S8_triage": [
+            {
+              "statement": 3,
+              "term": "execution"
+            }
+          ],
+          "hypotheses": 2
+        },
+        "C": {
+          "id": "X4",
+          "stratum": "X",
+          "arm": "C",
+          "status": "OK",
+          "error": null,
+          "S1_schemaValid": true,
+          "S2_citations": {
+            "valid": 2,
+            "total": 2
+          },
+          "S3_relevance": {
+            "relevant": 2,
+            "total": 2
+          },
+          "S4_coverage": {
+            "covered": 1,
+            "total": 1
+          },
+          "P2_discriminating": null,
+          "S5_redundant": false,
+          "assessable": true,
+          "S6_confidence": {
+            "LOW": 2,
+            "MEDIUM": 0,
+            "HIGH": 0,
+            "none": 0
+          },
+          "S6_overconfident": false,
+          "S7_competing": null,
+          "S8_triage": [],
+          "hypotheses": 2
+        }
+      }
+    }
+  ]
+}

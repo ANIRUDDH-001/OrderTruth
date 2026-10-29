@@ -1,0 +1,27 @@
+{
+  "reviewer": "codex",
+  "validatedAt": "2026-10-24T12:33:31.885Z",
+  "rawPath": "C:/projects/ordertruth/.work/reviews/stage2-codex/stage2-sheet-codex.csv",
+  "rawSha256": "35820663a4292d9a9c81f9890035ee0bfdfe3b43f398bf25c2727bdfde38c9c0",
+  "normalizedPath": "C:/projects/ordertruth/.work/reviews/stage2-codex/stage2-sheet-codex-normalized.csv",
+  "normalizedSha256": "1abfb656537cf4a229f66e739564502ed0b45262a2713eba81c71e7eec736bcc",
+  "changes": [
+    {
+      "row": 54,
+      "identity": [
+        "codex",
+        "T2",
+        "P"
+      ],
+      "extraColumns": 1,
+      "note": "Disjoint timing supports the move toward sequential writes, though the output invents triggers."
+    }
+  ],
+  "scoringColumnsPreserved": true,
+  "caseRows": 48,
+  "transitionRows": 12,
+  "missing": [],
+  "missingTransitions": [],
+  "blankScoringFields": [],
+  "note": "Original return preserved byte-for-byte; format-only derived input; no key/report/consensus read and no scores resubmitted."
+}

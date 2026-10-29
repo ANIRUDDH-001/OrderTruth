@@ -1,0 +1,452 @@
+{
+  "createdAt": "2026-10-25T16:40:49.884Z",
+  "status": "COMPLETE_LOCAL_UNCOMMITTED",
+  "snapshotSha256": "f5f91ad9db185b00b4ab93317c21603e20527178bed5ff7a9d3b67db6b23cc03",
+  "tests": {
+    "offline": {
+      "passed": 701,
+      "failed": 0,
+      "skipped": 0,
+      "files": 33,
+      "durationSeconds": 66.06
+    },
+    "focused": {
+      "passed": 36,
+      "failed": 0
+    },
+    "snapshotSynthetic": {
+      "passed": 8,
+      "failed": 0
+    },
+    "typecheck": "exit0",
+    "diffWhitespace": "exit0",
+    "runtime": "Node24.11.0; installed dependencies"
+  },
+  "heuristicSecretScan": {
+    "files": 84,
+    "findings": 0,
+    "limitation": "Pattern scan of this scoped evidence/source set, not a complete repository-history secret audit."
+  },
+  "files": [
+    {
+      "path": ".gitattributes",
+      "bytes": 256,
+      "sha256": "010ba505b1a8df3ae91b980148fabd7e313e9772406950f0f1e4f7b67ae32e02"
+    },
+    {
+      "path": "docs/evidence/investigator-eval-stage1-log.md",
+      "bytes": 35125,
+      "sha256": "435952f331a3b1281a9a087a85a27831416a324c72c605fb7df7914603721b0f"
+    },
+    {
+      "path": "docs/evidence/investigator-eval-stage2/claude-analysis.json",
+      "bytes": 82941,
+      "sha256": "4f527117823dcc1d83523ee0716e6620fff9c77eea3deafbaf50886532a8c483"
+    },
+    {
+      "path": "docs/evidence/investigator-eval-stage2/claude-descriptive.json",
+      "bytes": 15174,
+      "sha256": "ba597590bd7047f0b7b71811934ac168da0fd8e9582118aee12383123033ce11"
+    },
+    {
+      "path": "docs/evidence/investigator-eval-stage2/claude-stage1.csv",
+      "bytes": 11169,
+      "sha256": "4576c21881356f39baa1181538d2efe6bce300e7767d3ab6cfb95201752ae9d5"
+    },
+    {
+      "path": "docs/evidence/investigator-eval-stage2/claude-stage2.csv",
+      "bytes": 11044,
+      "sha256": "f40daa0ae886d6641247ffb79173e87b5b23294f94fa5bb5990111e3f6043994"
+    },
+    {
+      "path": "docs/evidence/investigator-eval-stage2/claude-versus-A.json",
+      "bytes": 6315,
+      "sha256": "4119a938a1a5a293ea3b967933374b8e12fb23faae0c57f83517da2bb1ac610d"
+    },
+    {
+      "path": "docs/evidence/investigator-eval-stage2/claude-versus-C.json",
+      "bytes": 6316,
+      "sha256": "e0373be70e9c2a11237c38989f3a2bf035cc22aa02b345443953bce6a6cd1b55"
+    },
+    {
+      "path": "docs/evidence/investigator-eval-stage2/codex-analysis.json",
+      "bytes": 70466,
+      "sha256": "8f5b4a0a3acf9497579ffd864d58a7aec8e4a0d965e6c6e37edafaecf4ebf5a8"
+    },
+    {
+      "path": "docs/evidence/investigator-eval-stage2/codex-csv-normalization.json",
+      "bytes": 766,
+      "sha256": "690d85efcc3011edfded4ddfb562a66cfe1249c9e51c5d32d00bec1aa6f299ff"
+    },
+    {
+      "path": "docs/evidence/investigator-eval-stage2/codex-descriptive.json",
+      "bytes": 14064,
+      "sha256": "7adcbc2c7fa9a3a2a7003743107365a003ace45619345ee831813fbddc2025b1"
+    },
+    {
+      "path": "docs/evidence/investigator-eval-stage2/codex-review-audit.json",
+      "bytes": 1949,
+      "sha256": "2f517abef65cf479e3d0ea98bcdf6a173578bafc6430819be53aedae7ab88886"
+    },
+    {
+      "path": "docs/evidence/investigator-eval-stage2/codex-stage1.csv",
+      "bytes": 7581,
+      "sha256": "3d64511a9260ddf7892ba14f254af610a9cd9c9a2d013453dbffd571b31b0601"
+    },
+    {
+      "path": "docs/evidence/investigator-eval-stage2/codex-stage2-normalized.csv",
+      "bytes": 2713,
+      "sha256": "1abfb656537cf4a229f66e739564502ed0b45262a2713eba81c71e7eec736bcc"
+    },
+    {
+      "path": "docs/evidence/investigator-eval-stage2/codex-stage2-original.csv",
+      "bytes": 2711,
+      "sha256": "35820663a4292d9a9c81f9890035ee0bfdfe3b43f398bf25c2727bdfde38c9c0"
+    },
+    {
+      "path": "docs/evidence/investigator-eval-stage2/codex-versus-A.json",
+      "bytes": 6224,
+      "sha256": "8d5dcc98df5e291b2b744ef04c13dd87d49d5ded557b349cb2a0d88cc319df96"
+    },
+    {
+      "path": "docs/evidence/investigator-eval-stage2/codex-versus-C.json",
+      "bytes": 6226,
+      "sha256": "510dc8d44fc9bcc1a36fd786d22051810c79b8446d81fcc13089ffcecbbf81ad"
+    },
+    {
+      "path": "docs/evidence/investigator-eval-stage2/final-integrity.json",
+      "bytes": 1881,
+      "sha256": "8542fc497dfc2b27518a32decbb510d6bfae34b7dcc647ffd8a5291af54262c9"
+    },
+    {
+      "path": "docs/evidence/investigator-eval-stage2/independent-arithmetic.json",
+      "bytes": 1437,
+      "sha256": "065aae09a6d18013244d0f4cfc70934e37cf2d1862ce13451cd887fd76904cad"
+    },
+    {
+      "path": "docs/evidence/investigator-eval-stage2/live-arm-key.json",
+      "bytes": 2629,
+      "sha256": "eb79aca2b44b8abf9bd8910497982ac48535db00fc6b89320824f7c788f0a315"
+    },
+    {
+      "path": "docs/evidence/investigator-eval-stage2/live-automated-report.json",
+      "bytes": 169906,
+      "sha256": "fe2930721766e8580757a92cd11ea7fcd5c2cb092c8894e52bd964d53ea9d277"
+    },
+    {
+      "path": "docs/evidence/investigator-eval-stage2/pre-unblinding-snapshot/files/.gitattributes",
+      "bytes": 256,
+      "sha256": "010ba505b1a8df3ae91b980148fabd7e313e9772406950f0f1e4f7b67ae32e02"
+    },
+    {
+      "path": "docs/evidence/investigator-eval-stage2/pre-unblinding-snapshot/files/docs/evidence/investigator-eval-stage1-log.md",
+      "bytes": 30268,
+      "sha256": "7a850c67090b10807e4a19a9eb6f9d3a6343053df4ea11d8571ac9fc51529985"
+    },
+    {
+      "path": "docs/evidence/investigator-eval-stage2/pre-unblinding-snapshot/files/docs/evidence/investigator-eval-stage2/claude-stage1.csv",
+      "bytes": 11169,
+      "sha256": "4576c21881356f39baa1181538d2efe6bce300e7767d3ab6cfb95201752ae9d5"
+    },
+    {
+      "path": "docs/evidence/investigator-eval-stage2/pre-unblinding-snapshot/files/docs/evidence/investigator-eval-stage2/claude-stage2.csv",
+      "bytes": 11044,
+      "sha256": "f40daa0ae886d6641247ffb79173e87b5b23294f94fa5bb5990111e3f6043994"
+    },
+    {
+      "path": "docs/evidence/investigator-eval-stage2/pre-unblinding-snapshot/files/docs/evidence/investigator-eval-stage2/codex-csv-normalization.json",
+      "bytes": 766,
+      "sha256": "690d85efcc3011edfded4ddfb562a66cfe1249c9e51c5d32d00bec1aa6f299ff"
+    },
+    {
+      "path": "docs/evidence/investigator-eval-stage2/pre-unblinding-snapshot/files/docs/evidence/investigator-eval-stage2/codex-review-audit.json",
+      "bytes": 1949,
+      "sha256": "2f517abef65cf479e3d0ea98bcdf6a173578bafc6430819be53aedae7ab88886"
+    },
+    {
+      "path": "docs/evidence/investigator-eval-stage2/pre-unblinding-snapshot/files/docs/evidence/investigator-eval-stage2/codex-stage1.csv",
+      "bytes": 7581,
+      "sha256": "3d64511a9260ddf7892ba14f254af610a9cd9c9a2d013453dbffd571b31b0601"
+    },
+    {
+      "path": "docs/evidence/investigator-eval-stage2/pre-unblinding-snapshot/files/docs/evidence/investigator-eval-stage2/codex-stage2-normalized.csv",
+      "bytes": 2713,
+      "sha256": "1abfb656537cf4a229f66e739564502ed0b45262a2713eba81c71e7eec736bcc"
+    },
+    {
+      "path": "docs/evidence/investigator-eval-stage2/pre-unblinding-snapshot/files/docs/evidence/investigator-eval-stage2/codex-stage2-original.csv",
+      "bytes": 2711,
+      "sha256": "35820663a4292d9a9c81f9890035ee0bfdfe3b43f398bf25c2727bdfde38c9c0"
+    },
+    {
+      "path": "docs/evidence/investigator-eval-stage2/pre-unblinding-snapshot/files/docs/evidence/investigator-eval-stage2/README.md",
+      "bytes": 1253,
+      "sha256": "3d48910dc02e7957bafe79dfa2d4b9fed6999e78979e4c9c233c7ff80215e37c"
+    },
+    {
+      "path": "docs/evidence/investigator-eval-stage2/pre-unblinding-snapshot/files/docs/evidence/investigator-eval-stage2/stage2-input-manifest.json",
+      "bytes": 1140,
+      "sha256": "8e4dc914a59c3b07b2e972cbe946abec4fb33e818716fe6672dbdb1e62427cd6"
+    },
+    {
+      "path": "docs/evidence/investigator-eval-stage2/pre-unblinding-snapshot/files/docs/INVESTIGATOR_EVAL_PREREGISTRATION.md",
+      "bytes": 65815,
+      "sha256": "e7a19ebfbaa89af32db27205213051aaae15799909954cadc045a4d32ccd3d29"
+    },
+    {
+      "path": "docs/evidence/investigator-eval-stage2/pre-unblinding-snapshot/files/local-records/metrics/investigator-eval-live-2026-10-23T08-26-02-339Z/SEAL-MANIFEST.txt",
+      "bytes": 958,
+      "sha256": "c77ca74266e0bf9e70d81dd7924a90092868c3d90b046640f521c0d230365d11"
+    },
+    {
+      "path": "docs/evidence/investigator-eval-stage2/pre-unblinding-snapshot/files/local-records/metrics/investigator-eval-prereg-e72556e.json",
+      "bytes": 6471,
+      "sha256": "46241a2c2ca5fbac3fd5770a98fc8fa88b07b2a025f71ea49faf9ab3bd65923e"
+    },
+    {
+      "path": "docs/evidence/investigator-eval-stage2/pre-unblinding-snapshot/files/local-records/runs/ai-analysis-completion/A4-snapshot-review.md",
+      "bytes": 978,
+      "sha256": "7a222a4523ee5db4cd05d8acd363f66d87bb218efc3b39d627352518860bb48f"
+    },
+    {
+      "path": "docs/evidence/investigator-eval-stage2/pre-unblinding-snapshot/files/local-records/runs/ai-analysis-completion/adapter-tests-06.log",
+      "bytes": 194,
+      "sha256": "034c9ad022e6be88f16f90ed6c1d6150c6bb3c1fd7f3a435f4f8034e2ddea1bd"
+    },
+    {
+      "path": "docs/evidence/investigator-eval-stage2/pre-unblinding-snapshot/files/local-records/runs/ai-analysis-completion/adapter-tests-A4.log",
+      "bytes": 192,
+      "sha256": "40fd649db8015f86985bed7a217c6f24b8b304018743f882807acb60c79cfe5e"
+    },
+    {
+      "path": "docs/evidence/investigator-eval-stage2/pre-unblinding-snapshot/files/local-records/runs/ai-analysis-completion/claude-stage2-audit.json",
+      "bytes": 1091,
+      "sha256": "cb812a533faacba7552de8ce81075453376fd5a27c6cccafb0687ab266769f52"
+    },
+    {
+      "path": "docs/evidence/investigator-eval-stage2/pre-unblinding-snapshot/files/local-records/runs/ai-analysis-completion/claude-stage2-execution.json",
+      "bytes": 235,
+      "sha256": "11e850d479d955c942bc7210261d1d04349b06935f6d5270a3e75ca69d777fe2"
+    },
+    {
+      "path": "docs/evidence/investigator-eval-stage2/pre-unblinding-snapshot/files/local-records/runs/ai-analysis-completion/claude-stage2-validation.json",
+      "bytes": 406,
+      "sha256": "0715cd0f296eb6f528ee7dd5b5b6967d5284220e7187f42ebe9b12541a0e50fc"
+    },
+    {
+      "path": "docs/evidence/investigator-eval-stage2/pre-unblinding-snapshot/files/local-records/runs/ai-analysis-completion/codex-stage2-execution.json",
+      "bytes": 483,
+      "sha256": "853bbf9e9d891bce56c04cf8b339326e132d5bf49202f772c506a55ef793edfa"
+    },
+    {
+      "path": "docs/evidence/investigator-eval-stage2/pre-unblinding-snapshot/files/local-records/runs/ai-analysis-completion/codex-stage2-preflight.json",
+      "bytes": 1622,
+      "sha256": "ce151ff6d430269eea9a3b70b493e19d0d527e4d9e80d9292d1ceee51a0d720a"
+    },
+    {
+      "path": "docs/evidence/investigator-eval-stage2/pre-unblinding-snapshot/files/local-records/runs/ai-analysis-completion/codex-stage2-validation.json",
+      "bytes": 984,
+      "sha256": "7855a8ce99baec4df58f54a9a70388538191bf7a70d44f35621abfb5b07a7aac"
+    },
+    {
+      "path": "docs/evidence/investigator-eval-stage2/pre-unblinding-snapshot/files/local-records/runs/ai-analysis-completion/freeze-identity-check.json",
+      "bytes": 2018,
+      "sha256": "4054df68833a7f4669f1f1507c24ce3490c940d011cab4c2e8504fc04de7d5cd"
+    },
+    {
+      "path": "docs/evidence/investigator-eval-stage2/pre-unblinding-snapshot/files/local-records/runs/ai-analysis-completion/full-offline-03.log",
+      "bytes": 3807,
+      "sha256": "685e2810f36eedd8dbcc0e9b57372a4ac1b41b208da35e94fe1e820b47d56675"
+    },
+    {
+      "path": "docs/evidence/investigator-eval-stage2/pre-unblinding-snapshot/files/local-records/runs/ai-analysis-completion/independent-adapter-review.md",
+      "bytes": 1330,
+      "sha256": "01b79a61641ee6c7a44a039b3f918c0c67ff13c67adc22707cb3acf9aad0d42e"
+    },
+    {
+      "path": "docs/evidence/investigator-eval-stage2/pre-unblinding-snapshot/files/local-records/runs/ai-analysis-completion/snapshot-checkpoint.mjs",
+      "bytes": 4941,
+      "sha256": "bfbb6981ae80a16e41089c94a6ffd38ec47a0324794c21a97fc95d2f6718141b"
+    },
+    {
+      "path": "docs/evidence/investigator-eval-stage2/pre-unblinding-snapshot/files/local-records/runs/ai-analysis-completion/test-snapshot.mjs",
+      "bytes": 2026,
+      "sha256": "2474852d6dab834a580dcdbd6c6daea4815ef63dd46f457663c4521d81483fdf"
+    },
+    {
+      "path": "docs/evidence/investigator-eval-stage2/pre-unblinding-snapshot/files/local-records/runs/ai-analysis-completion/unblind-and-analyze.ts",
+      "bytes": 7566,
+      "sha256": "7f4741b8cc9286bfa9b3d127290e5fd5a1aa39ffa4e39d73ea6a26e71e6b3add"
+    },
+    {
+      "path": "docs/evidence/investigator-eval-stage2/pre-unblinding-snapshot/files/package.json",
+      "bytes": 2173,
+      "sha256": "1aa4d122acd489a116f22d80ec80f51748652c1d74a09c233ac9296dbf87383e"
+    },
+    {
+      "path": "docs/evidence/investigator-eval-stage2/pre-unblinding-snapshot/files/pnpm-lock.yaml",
+      "bytes": 71033,
+      "sha256": "9b283707149cc5fca3cbb3e60ecc526188b8b9295c8ab7e058120f9cf95ccf8a"
+    },
+    {
+      "path": "docs/evidence/investigator-eval-stage2/pre-unblinding-snapshot/files/src/ai/investigation.ts",
+      "bytes": 8122,
+      "sha256": "85d4ff1ef351350e4dd22a8d61c53dfcdb0166b4fda599aebbc88adfc3f98cd8"
+    },
+    {
+      "path": "docs/evidence/investigator-eval-stage2/pre-unblinding-snapshot/files/src/ai/investigator-eval/blind.ts",
+      "bytes": 6966,
+      "sha256": "dc4281b937fbdb5cb56781d6ffa028dc5a46ce19d6416cb34d2cc014c71a8c2d"
+    },
+    {
+      "path": "docs/evidence/investigator-eval-stage2/pre-unblinding-snapshot/files/src/ai/investigator-eval/control.ts",
+      "bytes": 5327,
+      "sha256": "4d0e9a563aac9bfd65c5186a0acdb10fe72fe6a636a57ecc56394c44c333c248"
+    },
+    {
+      "path": "docs/evidence/investigator-eval-stage2/pre-unblinding-snapshot/files/src/ai/investigator-eval/decision.ts",
+      "bytes": 7871,
+      "sha256": "95f31be79b29c93e343b32689613109c9a981a366720630169b35518ed36db59"
+    },
+    {
+      "path": "docs/evidence/investigator-eval-stage2/pre-unblinding-snapshot/files/src/ai/investigator-eval/fixtures.ts",
+      "bytes": 11894,
+      "sha256": "d0a9fbbff7541da91d58441a5ce76ba388feea2d9f063e4c7ad76be072cb54af"
+    },
+    {
+      "path": "docs/evidence/investigator-eval-stage2/pre-unblinding-snapshot/files/src/ai/investigator-eval/guard.ts",
+      "bytes": 2787,
+      "sha256": "8688c9b8b1deffcafc9818592ea5b63e3f9063ce3d6130be4ba726896ce36d76"
+    },
+    {
+      "path": "docs/evidence/investigator-eval-stage2/pre-unblinding-snapshot/files/src/ai/investigator-eval/runner.ts",
+      "bytes": 10531,
+      "sha256": "d4100c48b66e5baf4a65b7b4c2f5cbaefb788fbe491901f0675a36cdb84fa9b8"
+    },
+    {
+      "path": "docs/evidence/investigator-eval-stage2/pre-unblinding-snapshot/files/src/ai/investigator-eval/score.ts",
+      "bytes": 6073,
+      "sha256": "a2e808e1c9b7a1e86bbf7832f141f8f858019d4a9afd0d755f447c3b5d87a726"
+    },
+    {
+      "path": "docs/evidence/investigator-eval-stage2/pre-unblinding-snapshot/files/src/ai/reviewer-analysis/adapter.ts",
+      "bytes": 13245,
+      "sha256": "75e06003dcd5f02ddc7d3dfdd8f15d4a286f04a8f77c716dbdf99c07598e8605"
+    },
+    {
+      "path": "docs/evidence/investigator-eval-stage2/pre-unblinding-snapshot/files/src/ai/reviewer-analysis/cli.ts",
+      "bytes": 2262,
+      "sha256": "df66f23ae79e4f628a578c18b5b798276f90f0cb867f96a14e8208c738a19652"
+    },
+    {
+      "path": "docs/evidence/investigator-eval-stage2/pre-unblinding-snapshot/files/src/ai/reviewer-analysis/normalize-csv.ts",
+      "bytes": 3119,
+      "sha256": "b76b4af8ef0cb53da2a0c6053329fe5938ca9eecb97bd3391e4f8af8980de60a"
+    },
+    {
+      "path": "docs/evidence/investigator-eval-stage2/pre-unblinding-snapshot/files/tests/reviewer-analysis.test.ts",
+      "bytes": 14545,
+      "sha256": "60ed90f6fdac397227c593706aa02ebeedd3bda1243504ff5935a3637677af34"
+    },
+    {
+      "path": "docs/evidence/investigator-eval-stage2/pre-unblinding-snapshot/files/tsconfig.json",
+      "bytes": 746,
+      "sha256": "48625bc80d8c8c82c67725ee000b481e556d663ed90e65d30164f6e0135d578e"
+    },
+    {
+      "path": "docs/evidence/investigator-eval-stage2/pre-unblinding-snapshot/files/vitest.config.ts",
+      "bytes": 270,
+      "sha256": "d252b7ffec4948c47b49db3bee199860994f554a2e4ba57d4841b02a022bbbf5"
+    },
+    {
+      "path": "docs/evidence/investigator-eval-stage2/pre-unblinding-snapshot/manifest.json",
+      "bytes": 14514,
+      "sha256": "f5f91ad9db185b00b4ab93317c21603e20527178bed5ff7a9d3b67db6b23cc03"
+    },
+    {
+      "path": "docs/evidence/investigator-eval-stage2/README.md",
+      "bytes": 2017,
+      "sha256": "c14604b8db46e4d575ff4f91bec1654764fc9cde541ee498e20919419329c700"
+    },
+    {
+      "path": "docs/evidence/investigator-eval-stage2/stage2-input-manifest.json",
+      "bytes": 1140,
+      "sha256": "8e4dc914a59c3b07b2e972cbe946abec4fb33e818716fe6672dbdb1e62427cd6"
+    },
+    {
+      "path": "docs/evidence/investigator-eval-stage2/unblinding-audit.json",
+      "bytes": 19255,
+      "sha256": "3dacd40736a1d0f972f3026379f85341beac92302b2da75acaa80efd504eea17"
+    },
+    {
+      "path": "docs/evidence/investigator-eval-stage2/verification/independent-arithmetic.py",
+      "bytes": 3418,
+      "sha256": "4cfde7362ffef647758af0a0d3aa56f122a83f40ddfe426806254d516454cc0d"
+    },
+    {
+      "path": "docs/evidence/investigator-eval-stage2/verification/results-review.md",
+      "bytes": 1286,
+      "sha256": "4c52dbcc18afbff2b353efd97dfe670a5d56204ccc120ec3e6290797caa4dd81"
+    },
+    {
+      "path": "docs/GATE2C_AI_RESULTS.md",
+      "bytes": 26817,
+      "sha256": "9e1b3d783771922c88dc7332c7fc368156b0a996ec5b478eb9502e5de9a11e6c"
+    },
+    {
+      "path": "docs/INVESTIGATOR_EVAL_PREREGISTRATION.md",
+      "bytes": 67061,
+      "sha256": "3f376f0660afeccd01663359ea81902d9fcdeb8dee9d6505a8d51462d83bd5c0"
+    },
+    {
+      "path": "docs/INVESTIGATOR_EVAL_RESULTS.md",
+      "bytes": 19357,
+      "sha256": "5711e5288863a201e51feb5243438c8e3d3b5fb43de19f56ec4ba575c98f6040"
+    },
+    {
+      "path": "docs/QUALITY_GATE_MATRIX.md",
+      "bytes": 13105,
+      "sha256": "e0b6d588df9fb0617ba0bac9621037a874f446013556ea2c0d57ecb04e78a21c"
+    },
+    {
+      "path": "docs/RELEASE_CHECKLIST.md",
+      "bytes": 3530,
+      "sha256": "2682ccc7489ea1e4cac1ad08fd485ae4cf3509d0b19fa09b72872f04006d9863"
+    },
+    {
+      "path": "README.md",
+      "bytes": 15404,
+      "sha256": "ce683a1e0966065b72913f83456f4242c2f73ba5b9f364eba6e43340deb0de56"
+    },
+    {
+      "path": "src/ai/investigator-eval/blind.ts",
+      "bytes": 7493,
+      "sha256": "b6693af522eb68184b7e2e927f77bbadbcd33ea723324acc37023620f527d8ed"
+    },
+    {
+      "path": "src/ai/reviewer-analysis/adapter.ts",
+      "bytes": 13245,
+      "sha256": "75e06003dcd5f02ddc7d3dfdd8f15d4a286f04a8f77c716dbdf99c07598e8605"
+    },
+    {
+      "path": "src/ai/reviewer-analysis/cli.ts",
+      "bytes": 2262,
+      "sha256": "df66f23ae79e4f628a578c18b5b798276f90f0cb867f96a14e8208c738a19652"
+    },
+    {
+      "path": "src/ai/reviewer-analysis/normalize-csv.ts",
+      "bytes": 3119,
+      "sha256": "b76b4af8ef0cb53da2a0c6053329fe5938ca9eecb97bd3391e4f8af8980de60a"
+    },
+    {
+      "path": "tests/investigator-pack-definitions.test.ts",
+      "bytes": 1255,
+      "sha256": "2d04731b541ae21c192454037ef59fa8ffee73dd39f32951470da5874a5df886"
+    },
+    {
+      "path": "tests/reviewer-analysis.test.ts",
+      "bytes": 14545,
+      "sha256": "60ed90f6fdac397227c593706aa02ebeedd3bda1243504ff5935a3637677af34"
+    }
+  ]
+}

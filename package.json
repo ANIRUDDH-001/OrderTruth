@@ -34,6 +34,8 @@
     "cli": "tsx src/cli.ts",
     "gate0:ai": "tsx src/ai/gate0-eval.ts",
     "gate2c:eval": "tsx src/ai/holdout-eval.ts",
+    "gate2c:live": "tsx src/ai/holdout-live-eval.ts",
+    "ie:eval": "tsx src/ai/investigator-eval/runner.ts",
     "stage1c": "tsx src/merchant/demo.ts",
     "repair": "tsx src/merchant/repair-cli.ts",
     "incidents": "tsx src/merchant/api-main.ts",
