@@ -49,6 +49,7 @@ describe("answer key loading",() => {
     ["a missing snapshot row",header+rows.split("\n").filter(l => !l.startsWith("Q01,PRE")).join("\n"),["Q01","Q02"],/no key row for Q01\/PRE/],
     ["an unknown expected value",header+rows.replace("REFUSE","MAYBE"),["Q01","Q02"],/Q02\/PRE: expected must be ANSWER, ABSTAIN or REFUSE/],
     ["a question with no key",header+rows,["Q01","Q02","Q03"],/no key row for Q03\/PRE/],
+    ["a non-english tag on only one state",header+rows.replace("Q02,POST,REFUSE,,POLICY,no,non-english","Q02,POST,REFUSE,,POLICY,no,"),["Q01","Q02"],/Q02: non-english must tag both states/],
     ["a disputed tag on only one state",header+rows.replace("Q02,POST,REFUSE,,POLICY,no,non-english","Q02,POST,REFUSE,,POLICY,no,non-english;disputed"),["Q01","Q02"],/Q02: disputed must tag both states/],
   ] as const) it(`refuses ${name}`,() => {
     const f = file(`k-${name.length}.csv`,text);

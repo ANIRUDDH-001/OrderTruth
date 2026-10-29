@@ -26,13 +26,13 @@
     "maxMedianLatencyMs": 10000,
     "maxDisputedQuestions": 5
   },
-  "catalogSha256": "0d0c4d2eefa3c7d4577a886a58b22b9edaaa49b31e2fe358e61a96b4a55b5658",
+  "catalogSha256": "b0b72b50839c81e627e38691ac1f3b5c24e7c809114593af8b041fc4a963c196",
   "systemPromptSha256": "72801844df1fb4093b745275611c2f2874c6d882ffd0d427e30091f94a0fb42e",
   "generationConfigSha256": "242a5fa40ab23aa32f338d63549abe820ea3c9f859290163fd7cb3d1e404619a",
   "files": [
     {
       "path": "src/ai/ask-eval/catalog.ts",
-      "sha256": "248edf508223e7d4534af7694cbe731b616dc6eee9046799994d543e4ed3822a"
+      "sha256": "ca61ac4defee3bdc2a535306149d2f810fe5cfa560fa3f06ffafd3a4bff87ca0"
     },
     {
       "path": "src/ai/ask-eval/contract.ts",
@@ -48,11 +48,11 @@
     },
     {
       "path": "src/ai/ask-eval/score.ts",
-      "sha256": "dc6f5353140ea8d9be2940d48a88cee739eb65306c89924b888813b384e8b0bd"
+      "sha256": "eec8c0589fbc1311a7ef9e0925d02de4893f53c9694d5a3b5e54748b06a35530"
     },
     {
       "path": "src/ai/ask-eval/holdout.ts",
-      "sha256": "957daa3486712097733ee48adebe7fc3e25d29e127894e08847f450c49023fdb"
+      "sha256": "4fe3e4f7f397ef659b355807b9ec964d9548a77cf273e9a5e49dbdf454697753"
     },
     {
       "path": "src/ai/ask-eval/runner.ts",
@@ -64,7 +64,7 @@
     },
     {
       "path": "src/ai/ask-eval/reference.ts",
-      "sha256": "edb577a6efa3a811ae9fd22ef7b4579f5254dd32fd57987d551acf99db49db8f"
+      "sha256": "d56f277d02011caea2cc59db93ad631b1cffa58c7d484213d086b5822104fb45"
     },
     {
       "path": "src/ai/investigator-eval/guard.ts",
@@ -72,7 +72,7 @@
     },
     {
       "path": "tests/ask-eval-score.test.ts",
-      "sha256": "1b9d960737fa3bd9121421bf008b3904c375a6fc62e65ee4d064f48000ca82b4"
+      "sha256": "d48172ff6173009b31075475a78373f8a5b0359db9c2e4628e576a73d0bd61ec"
     },
     {
       "path": "tests/ask-eval-rules.test.ts",
@@ -84,19 +84,19 @@
     },
     {
       "path": "tests/ask-eval-runner.test.ts",
-      "sha256": "099abae0a56a49f0dbba2f5012497b85d91190293708abfe50fdb046e1bcfb73"
+      "sha256": "7260958ca163ec0b75677399b97cbd15aa48c8a8aa8e5dc26fbf118865181eac"
     },
     {
       "path": "tests/ask-eval-catalog.test.ts",
-      "sha256": "9bd39701ee772c26b2c350c960da6cba69f757c6911aff96a7a4859f6668e264"
+      "sha256": "3a08f6a46cc022f1153e7403dc5bf848bd99674d053deed2ebbbf5dab3bdaf69"
     },
     {
       "path": "docs/ASK_EVAL_PROTOCOL.md",
-      "sha256": "afd466ccbfc0709f8bac577b84372e7b637828dd3247f3af33961e74814e4a30"
+      "sha256": "9610c066eecdc5043415a3810ce8074e6fd32ca7dfc1d730d79fd2e932edc917"
     },
     {
       "path": "docs/ASK_EVAL_EVIDENCE_REFERENCE.md",
-      "sha256": "664e806b013ee091ea8af32610216f599821bb529871273cac9ae0e553df36ff"
+      "sha256": "ca5e5e4d00cb8fe5b137cb939e2a71450b8c6313a8e4608361fc52c71e8e1200"
     },
     {
       "path": "package.json",

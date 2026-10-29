@@ -70,6 +70,8 @@ export function loadKey(path: string,expectedSha: string,questionIds: readonly s
     if (byItem.has(where)) throw new Error(`${where}: duplicate key row`);
     byItem.set(where,{ questionId,snapshot: snapshot as SnapshotId,expected,required,acceptable,mustFlagUnknown: flag === "yes" || flag === "true",tags: list(r[col.tags]).map(t => t.toLowerCase()) });
   }
-  for (const q of questionIds) if ((byItem.get(`${q}/PRE`)?.tags.includes("disputed") === true) !== (byItem.get(`${q}/POST`)?.tags.includes("disputed") === true)) throw new Error(`${q}: disputed must tag both states of the question`);
+  // Question-level tags: a question is disputed, or not in English, in both states or in neither.
+  for (const q of questionIds) for (const tag of ["disputed","non-english"])
+    if ((byItem.get(`${q}/PRE`)?.tags.includes(tag) === true) !== (byItem.get(`${q}/POST`)?.tags.includes(tag) === true)) throw new Error(`${q}: ${tag} must tag both states of the question`);
   return questionIds.flatMap(q => (["PRE","POST"] as const).map(s => { const k = byItem.get(`${q}/${s}`); if (!k) throw new Error(`Answer key: no key row for ${q}/${s}`); return k; }));
 }

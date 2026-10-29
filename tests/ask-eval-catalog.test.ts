@@ -21,6 +21,15 @@ describe("frozen fact catalog",() => {
     expect(SNAPSHOTS.POST.find(f => f.id === "ORD_B")!.source).toMatch(/merchant_order_voids/);
     expect(SNAPSHOTS.POST.find(f => f.id === "APPROVAL")!.source).toMatch(/approved_at/);
   });
+  it("scopes POLICY to the judge experience and the repair, since the owner can create and capture Sandbox payments",() => {
+    const p = SNAPSHOTS.PRE.find(f => f.id === "POLICY")!;
+    expect(p.text).not.toMatch(/never (?:captures|refunds|changes)|never contacts/i);
+    expect(p.text).toMatch(/judge experience/);
+    expect(p.text).toMatch(/owner/);
+    expect(p.text).toMatch(/merchant/);
+    expect(p.source).toMatch(/documented system behaviour, not a case record or payment-event evidence/);
+    expect(SNAPSHOTS.POST.find(f => f.id === "POLICY")!.text).toBe(p.text);
+  });
   it("uses only well-formed evidence identifiers",() => {
     for (const s of ["PRE","POST"] as const) for (const f of SNAPSHOTS[s])
       expect(f.evidenceId,`${s}/${f.id}`).toMatch(/^(E\d+|M_run_[0-9a-f-]{36}|D_[0-9a-f-]{36}|rp_[0-9a-f-]{36}|POLICY)$/);

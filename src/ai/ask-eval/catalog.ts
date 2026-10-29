@@ -37,8 +37,8 @@ const shared: Fact[] = [
     source: "scenario_diagnostics kind MERCHANT_WRITE_OUTCOMES facts_json.committedWrites, limitation" },
   { id: "PLAN",evidenceId: PLAN,text: `Repair plan ${PLAN} (hash ${PLAN_HASH}): keep ${ORDER_A}, void ${ORDER_B} on the merchant side only. Approval window ends 2026-10-29 06:27:49 UTC.`,tokens: [PLAN,PLAN_HASH,ORDER_A,ORDER_B,"2026-10-29","06:27:49"],
     source: "repair_plans (id, plan_sha256, keep_order_id, void_order_ids_json, expires_at) via scenario_run_plans" },
-  { id: "POLICY",evidenceId: "POLICY",text: "By design, OrderTruth never captures, refunds or changes PayPal payments, and never contacts customers. Its only repair is a merchant-side void of a duplicate order, after explicit approval of the exact plan.",tokens: [],
-    source: "documented system behaviour, not a case record or payment-event evidence: the judge API has no refund, capture or contact route, and its only repair action is a merchant-side void (src/merchant/postgres-recovery.ts)" },
+  { id: "POLICY",evidenceId: "POLICY",text: "By design, operators in this judge experience cannot create, capture or refund PayPal payments; only the store owner can create and capture Sandbox payments. The approved duplicate-order repair voids the extra order in the merchant's own records only and does not change the original PayPal payment.",tokens: [],
+    source: "documented system behaviour, not a case record or payment-event evidence: judge routes have no create, capture or refund route (src/server/judge-api.ts); creating and capturing Sandbox orders are owner-only routes (src/server/hosted-app.ts); the only repair action is a merchant-side void (src/merchant/postgres-recovery.ts); README Security" },
 ];
 const orderA: Fact = { id: "ORD_A",evidenceId: RUN,text: `Order ${ORDER_A} (USD 1.00) was written by the capture_return handler at 2026-10-29 06:11:34.511 UTC. Status: active.`,
   tokens: [ORDER_A,"USD 1.00","1.00","capture_return","2026-10-29","06:11:34.511","06:11:34"],source: "merchant_orders (id, amount_minor, currency, created_by_path, created_at) via scenario_run_orders" };

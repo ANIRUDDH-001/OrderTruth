@@ -38,7 +38,7 @@ questionId,snapshot,expected,required,acceptable,mustFlagUnknown,tags
 | \`required\` | for ANSWER: the **smallest** set of fact IDs a correct answer must cite, separated by \`;\`. Empty for ABSTAIN/REFUSE |
 | \`acceptable\` | other relevant fact IDs that should not be penalised, separated by \`;\` (e.g. \`POLICY\` on a refusal) |
 | \`mustFlagUnknown\` | \`yes\` if a correct answer must say something stays unknown (e.g. *why* both handlers wrote, or anything only partly covered); otherwise \`no\` |
-| \`tags\` | \`non-english\` for a question not in English; \`disputed\` only as set by the resolution step below |
+| \`tags\` | \`non-english\` for a question not in English; \`disputed\` only as set by the resolution step below. Both describe the question, so put them on **both** states or neither; the runner refuses a key that doesn't |
 
 Example rows (development questions, NOT from the holdout):
 \`\`\`
