@@ -1,7 +1,8 @@
 {
   "protocol": "ask-eval-v1",
   "fileHashing": "sha256 of UTF-8 text with CRLF normalized to LF",
-  "holdoutSha256": "df2fe5b4a3786c3ccaa76962fb0a24eb46b00ffd5cd195091fec71ac37f66bdf",
+  "holdoutSourceTxtSha256": "df2fe5b4a3786c3ccaa76962fb0a24eb46b00ffd5cd195091fec71ac37f66bdf",
+  "holdoutSha256": "5a0146ca40219840e6de190f8cc4c407607ba416b6553373b600b176aceb59fe",
   "plannedModel": "gemini-3.5-flash-lite",
   "runs": 2,
   "liveCap": 120,
@@ -52,11 +53,11 @@
     },
     {
       "path": "src/ai/ask-eval/holdout.ts",
-      "sha256": "4fe3e4f7f397ef659b355807b9ec964d9548a77cf273e9a5e49dbdf454697753"
+      "sha256": "5116598d35c6a6827008f84956e868a1d25d913b89b5270f4a51cf9810cf179d"
     },
     {
       "path": "src/ai/ask-eval/runner.ts",
-      "sha256": "ed79870d39a43302516ff3de37561e1010f9903938443955dc22e5b23e7fc80e"
+      "sha256": "4c3ad0fe7dd906b06ad66f627a423a9239e748fb879fa67765a3995b34e80043"
     },
     {
       "path": "src/ai/ask-eval/devset.ts",
@@ -84,7 +85,7 @@
     },
     {
       "path": "tests/ask-eval-runner.test.ts",
-      "sha256": "7260958ca163ec0b75677399b97cbd15aa48c8a8aa8e5dc26fbf118865181eac"
+      "sha256": "996deb44e89f6da617e3a93a2267ac70de84f591201d003679a72c8d193465ad"
     },
     {
       "path": "tests/ask-eval-catalog.test.ts",
@@ -92,7 +93,7 @@
     },
     {
       "path": "docs/ASK_EVAL_PROTOCOL.md",
-      "sha256": "9610c066eecdc5043415a3810ce8074e6fd32ca7dfc1d730d79fd2e932edc917"
+      "sha256": "8fda8af72bf74b60084b751cd95593bd23da752a0773a72991040acaa26d1fd2"
     },
     {
       "path": "docs/ASK_EVAL_EVIDENCE_REFERENCE.md",

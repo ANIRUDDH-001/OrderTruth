@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { afterAll,describe,expect,it } from "vitest";
 import { guardedGeminiFetch } from "../src/ai/investigator-eval/guard.ts";
 import { DEV,devItems } from "../src/ai/ask-eval/devset.ts";
-import { FROZEN_HOLDOUT_SHA256,loadHoldout,loadKey } from "../src/ai/ask-eval/holdout.ts";
+import { FROZEN_HOLDOUT_SHA256,ORIGINAL_TXT_HOLDOUT_SHA256,loadHoldout,loadKey } from "../src/ai/ask-eval/holdout.ts";
 import { callAsk } from "../src/ai/ask-eval/prompt.ts";
 import { freezeDrift,freezeManifest,liveGateErrors,mockedProvider,runEvaluation,summaryLines,textSha } from "../src/ai/ask-eval/runner.ts";
 import { rulesAnswer } from "../src/ai/ask-eval/rules.ts";
@@ -18,7 +18,8 @@ describe("holdout loading",() => {
   it("refuses any question file whose SHA-256 is not the frozen one",() => {
     const f = file("q.csv","id,question\nQ01,hello\n");
     expect(() => loadHoldout(f.path)).toThrow(/SHA-256 mismatch/);
-    expect(FROZEN_HOLDOUT_SHA256).toBe("df2fe5b4a3786c3ccaa76962fb0a24eb46b00ffd5cd195091fec71ac37f66bdf");
+    expect(FROZEN_HOLDOUT_SHA256).toBe("5a0146ca40219840e6de190f8cc4c407607ba416b6553373b600b176aceb59fe");
+    expect(ORIGINAL_TXT_HOLDOUT_SHA256).toBe("df2fe5b4a3786c3ccaa76962fb0a24eb46b00ffd5cd195091fec71ac37f66bdf");
   });
   it("passes on only the id and question columns, parsing quotes, commas, newlines and a BOM",() => {
     const f = file("q2.csv","﻿id,question,answerable,good_answer\nQ01,\"Was it, really, \"\"twice\"\"?\",yes,\"one capture\"\nQ02,\"two\nlines\",no,x\nQ03,plain,partly,y\n");
@@ -138,6 +139,7 @@ describe("freeze manifest",() => {
     expect(a.stopErrors).toEqual(["QUOTA_OR_RATE_LIMIT","PROVIDER_REJECTED"]);
     for (const f of a.files) expect(f.sha256).toMatch(/^[0-9a-f]{64}$/);
     expect(a.holdoutSha256).toBe(FROZEN_HOLDOUT_SHA256);
+    expect(a.holdoutSourceTxtSha256).toBe(ORIGINAL_TXT_HOLDOUT_SHA256);
     expect(a.catalogSha256).toMatch(/^[0-9a-f]{64}$/);
     expect(a.systemPromptSha256).toMatch(/^[0-9a-f]{64}$/);
   });

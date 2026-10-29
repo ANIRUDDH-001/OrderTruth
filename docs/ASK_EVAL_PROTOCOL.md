@@ -5,13 +5,14 @@
 **Unit of analysis:** **30 questions, each evaluated in 2 case states.** That gives 60 scored items, which are paired and **not** 60 independent questions.
 
 ## 1. Blinding and provenance
-- **Holdout:** 30 operator questions, frozen 2026-10-29 17:34:49 IST, SHA-256 `df2fe5b4a3786c3ccaa76962fb0a24eb46b00ffd5cd195091fec71ac37f66bdf` (supersedes `d2745612…`).
+- **Holdout provenance (original TXT):** 30 operator questions, frozen 2026-10-29 17:34:49 IST, SHA-256 `df2fe5b4a3786c3ccaa76962fb0a24eb46b00ffd5cd195091fec71ac37f66bdf` (supersedes `d2745612…`). The original TXT remains unchanged and outside Git.
+- **Format-only evaluator input (derived CSV):** Exactly two columns, `id,question`, with 30 rows (`Q01`–`Q30`). Original wording and order are unchanged. The derived CSV raw-byte SHA-256 is `5a0146ca40219840e6de190f8cc4c407607ba416b6553373b600b176aceb59fe`. Independent byte-for-byte reconstruction passed; second-human verification was not performed. This change does not amend the questions.
 - **Label:** *AI-assisted (GPT-6), contributor-reviewed, evaluation-design-blind exploratory holdout.* Drafted with an AI model and reviewed by a team member with prior project exposure. It does not represent real merchant phrasing.
 - **Custody:**
   - The canonical file stays with its author (Aniruddh); a backup is kept outside the repository.
   - The implementer (Claude) has not seen the questions. Every rule, prompt and test was built from the implementer's own development set (`src/ai/ask-eval/devset.ts`).
   - The questions, the answer key, the disagreement log, credentials and private data never go into Git before the evaluation.
-- **Hash check:** the runner reads the file only if its raw bytes match the hash (`loadHoldout`). It passes on only the `id` and `question` columns, so the author's other columns never reach either arm.
+- **Hash check:** `loadHoldout` accepts the derived CSV only when its raw bytes match `5a0146ca40219840e6de190f8cc4c407607ba416b6553373b600b176aceb59fe`. The original TXT hash is retained as provenance, not used for evaluator input validation. Only the `id` and `question` columns reach either arm.
 
 ## 2. Task and shared output contract
 Both arms return the same JSON contract (`src/ai/ask-eval/contract.ts`):

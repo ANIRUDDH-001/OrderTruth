@@ -8,7 +8,10 @@ import { readFileSync } from "node:fs";
 import { factIds,type SnapshotId } from "./catalog.ts";
 import type { KeyItem } from "./score.ts";
 
-export const FROZEN_HOLDOUT_SHA256 = "df2fe5b4a3786c3ccaa76962fb0a24eb46b00ffd5cd195091fec71ac37f66bdf";
+/** Original frozen TXT: provenance only, not accepted as evaluator input. */
+export const ORIGINAL_TXT_HOLDOUT_SHA256 = "df2fe5b4a3786c3ccaa76962fb0a24eb46b00ffd5cd195091fec71ac37f66bdf";
+/** Format-only derived CSV: checked over raw bytes before parsing. */
+export const FROZEN_HOLDOUT_SHA256 = "5a0146ca40219840e6de190f8cc4c407607ba416b6553373b600b176aceb59fe";
 export const HOLDOUT_COUNT = 30;
 const sha = (b: Buffer) => createHash("sha256").update(b).digest("hex");
 

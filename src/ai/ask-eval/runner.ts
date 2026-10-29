@@ -16,7 +16,7 @@ import { GEMINI_ORIGIN,guardedGeminiFetch } from "../investigator-eval/guard.ts"
 import { SNAPSHOTS,type SnapshotId } from "./catalog.ts";
 import type { Answer } from "./contract.ts";
 import { DEV,devItems } from "./devset.ts";
-import { FROZEN_HOLDOUT_SHA256,loadHoldout,loadKey } from "./holdout.ts";
+import { FROZEN_HOLDOUT_SHA256,ORIGINAL_TXT_HOLDOUT_SHA256,loadHoldout,loadKey } from "./holdout.ts";
 import { buildRequest,callAsk,SYSTEM_PROMPT,type AskCall } from "./prompt.ts";
 import { evidenceReference } from "./reference.ts";
 import { rulesAnswer } from "./rules.ts";
@@ -43,7 +43,7 @@ export const textSha = (bytes: Buffer) => sha(bytes.toString("utf8").replace(/\r
 
 /** Deterministic record of everything decision-relevant that must not change between freeze and unblinding. */
 export function freezeManifest() {
-  return { protocol: "ask-eval-v1",fileHashing: "sha256 of UTF-8 text with CRLF normalized to LF",holdoutSha256: FROZEN_HOLDOUT_SHA256,plannedModel: PLANNED_MODEL,runs: RUNS,liveCap: LIVE_CAP,spacingMs: SPACING_MS,
+  return { protocol: "ask-eval-v1",fileHashing: "sha256 of UTF-8 text with CRLF normalized to LF",holdoutSourceTxtSha256: ORIGINAL_TXT_HOLDOUT_SHA256,holdoutSha256: FROZEN_HOLDOUT_SHA256,plannedModel: PLANNED_MODEL,runs: RUNS,liveCap: LIVE_CAP,spacingMs: SPACING_MS,
     stopErrors: [...STOP_ERRORS],requiredLiveFlags: [APPROVAL_FLAG,FREE_TIER_FLAG],thresholds: THRESHOLDS,
     catalogSha256: sha(JSON.stringify(SNAPSHOTS)),systemPromptSha256: sha(SYSTEM_PROMPT),generationConfigSha256: sha(JSON.stringify(buildRequest("","PRE").generationConfig)),
     files: FROZEN_FILES.map(path => ({ path,sha256: textSha(readFileSync(join(ROOT,path))) })) };
@@ -51,7 +51,7 @@ export function freezeManifest() {
 /** Names every file or setting that differs from the recorded freeze; empty means unchanged. */
 export function freezeDrift(recorded: Record<string,unknown> & { files: ReadonlyArray<{ path: string; sha256: string }> },current = freezeManifest()) {
   const out: string[] = [];
-  for (const k of ["fileHashing","holdoutSha256","plannedModel","runs","liveCap","spacingMs","stopErrors","requiredLiveFlags","catalogSha256","systemPromptSha256","generationConfigSha256"] as const)
+  for (const k of ["fileHashing","holdoutSourceTxtSha256","holdoutSha256","plannedModel","runs","liveCap","spacingMs","stopErrors","requiredLiveFlags","catalogSha256","systemPromptSha256","generationConfigSha256"] as const)
     if (JSON.stringify(recorded[k]) !== JSON.stringify(current[k])) out.push(k);
   if (JSON.stringify(recorded.thresholds) !== JSON.stringify(current.thresholds)) out.push("thresholds");
   for (const f of current.files) if (recorded.files.find(r => r.path === f.path)?.sha256 !== f.sha256) out.push(f.path);
