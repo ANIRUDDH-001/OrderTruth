@@ -1,0 +1,10 @@
+{
+  "startedAt": "2026-10-24T12:30:12.088Z",
+  "finishedAt": "2026-10-24T12:30:53.649Z",
+  "status": 0,
+  "signal": null,
+  "error": null,
+  "log": "C:\\projects\\ordertruth\\.work\\runs\\ai-analysis-completion\\codex-stage2-stream.jsonl",
+  "output": "C:\\Users\\agarw\\.codex\\visualizations\\2026\\10\\24\\01a16d28-064b-7b92-9d1c-74aafff4cf63\\ordertruth-stage2-codex\\stage2-sheet-codex.csv",
+  "outputSha256": "35820663a4292d9a9c81f9890035ee0bfdfe3b43f398bf25c2727bdfde38c9c0"
+}

@@ -1,0 +1,62 @@
+reviewer,case_code,output,P1_correctness,P1k_topk,P4_uncertainty_handling,note
+codex,Q01,X,correct,no,N/A,
+codex,Q01,Y,correct,yes,N/A,
+codex,Q01,Z,correct,yes,N/A,
+codex,Q02,X,correct,no,N/A,
+codex,Q02,Y,correct,yes,N/A,
+codex,Q02,Z,incorrect,yes,N/A,
+codex,Q03,X,incorrect,yes,N/A,
+codex,Q03,Y,correct,yes,N/A,
+codex,Q03,Z,correct,yes,N/A,
+codex,Q04,X,correct,yes,N/A,
+codex,Q04,Y,correct,no,N/A,
+codex,Q04,Z,correct,no,N/A,
+codex,Q05,X,correct,no,N/A,
+codex,Q05,Y,correct,yes,N/A,
+codex,Q05,Z,correct,yes,N/A,
+codex,Q06,X,correct,yes,N/A,
+codex,Q06,Y,correct,yes,N/A,
+codex,Q06,Z,incorrect,no,N/A,
+codex,Q07,X,incorrect,no,not handled,
+codex,Q07,Y,incorrect,no,not handled,
+codex,Q07,Z,correct,yes,handled,
+codex,Q08,X,correct,yes,N/A,
+codex,Q08,Y,correct,no,N/A,
+codex,Q08,Z,correct,yes,N/A,
+codex,Q09,X,incorrect,yes,N/A,
+codex,Q09,Y,incorrect,yes,N/A,
+codex,Q09,Z,incorrect,no,N/A,
+codex,Q10,X,incorrect,no,handled,
+codex,Q10,Y,incorrect,no,not handled,
+codex,Q10,Z,correct,no,not handled,
+codex,Q11,X,correct,no,not handled,
+codex,Q11,Y,correct,no,handled,
+codex,Q11,Z,correct,no,handled,
+codex,Q12,X,correct,yes,N/A,
+codex,Q12,Y,correct,yes,N/A,
+codex,Q12,Z,correct,yes,N/A,
+codex,Q13,X,incorrect,yes,N/A,
+codex,Q13,Y,incorrect,no,N/A,
+codex,Q13,Z,incorrect,yes,N/A,
+codex,Q14,X,correct,yes,N/A,
+codex,Q14,Y,incorrect,yes,N/A,
+codex,Q14,Z,correct,yes,N/A,
+codex,Q15,X,correct,yes,N/A,
+codex,Q15,Y,correct,no,N/A,
+codex,Q15,Z,correct,yes,N/A,
+codex,Q16,X,correct,yes,N/A,
+codex,Q16,Y,correct,no,N/A,
+codex,Q16,Z,correct,yes,N/A,
+reviewer,transition,letter,P5_moves_with_evidence,note
+codex,T1,P,yes,Distinct keys are supported; the output notes they can bypass shared deduplication and requests timing.
+codex,T1,S,yes,Distinct keys raise the sequential mechanism from low to medium confidence.
+codex,T1,T,no,The new key evidence does not support the shift toward concurrent retries.
+codex,T2,P,yes,"Disjoint timing supports the move toward sequential writes, though the output invents triggers."
+codex,T2,S,no,The output remains generic despite the distinct key and timing evidence.
+codex,T2,T,yes,Disjoint timing shifts emphasis from concurrency toward sequential writes.
+codex,T3,P,no,The output remains generic despite disjoint timing weakening concurrency.
+codex,T3,S,yes,Disjoint timing raises the sequential mechanism to medium confidence.
+codex,T3,T,yes,Disjoint timing strengthens sequential writes and weakens concurrency.
+codex,T4,P,yes,Distinct keys and disjoint intervals strengthen the sequential hypothesis.
+codex,T4,S,no,The output stays generic despite the added key and timing evidence.
+codex,T4,T,yes,Disjoint intervals strengthen the sequential hypothesis while concurrency remains low.

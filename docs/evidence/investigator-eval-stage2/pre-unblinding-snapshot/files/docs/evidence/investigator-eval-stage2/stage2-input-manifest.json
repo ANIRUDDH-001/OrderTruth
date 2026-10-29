@@ -1,0 +1,34 @@
+{
+  "createdAt": "2026-10-24T12:36:19.334Z",
+  "status": "PRE_UNBLINDING; both returns preserved; commit gates pending",
+  "files": {
+    "codex-stage1.csv": {
+      "sha256": "3d64511a9260ddf7892ba14f254af610a9cd9c9a2d013453dbffd571b31b0601",
+      "bytes": 7581
+    },
+    "claude-stage1.csv": {
+      "sha256": "4576c21881356f39baa1181538d2efe6bce300e7767d3ab6cfb95201752ae9d5",
+      "bytes": 11169
+    },
+    "codex-stage2-original.csv": {
+      "sha256": "35820663a4292d9a9c81f9890035ee0bfdfe3b43f398bf25c2727bdfde38c9c0",
+      "bytes": 2711
+    },
+    "codex-stage2-normalized.csv": {
+      "sha256": "1abfb656537cf4a229f66e739564502ed0b45262a2713eba81c71e7eec736bcc",
+      "bytes": 2713
+    },
+    "claude-stage2.csv": {
+      "sha256": "f40daa0ae886d6641247ffb79173e87b5b23294f94fa5bb5990111e3f6043994",
+      "bytes": 11044
+    },
+    "codex-review-audit.json": {
+      "sha256": "2f517abef65cf479e3d0ea98bcdf6a173578bafc6430819be53aedae7ab88886",
+      "bytes": 1949
+    },
+    "codex-csv-normalization.json": {
+      "sha256": "690d85efcc3011edfded4ddfb562a66cfe1249c9e51c5d32d00bec1aa6f299ff",
+      "bytes": 766
+    }
+  }
+}

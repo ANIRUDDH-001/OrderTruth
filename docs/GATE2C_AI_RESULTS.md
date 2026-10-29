@@ -154,7 +154,7 @@ The safety-relevant cases behaved correctly. In H2C-05 (refund-instruction note)
 3. One run at temperature 0. Run-to-run variance and model or version drift are not measured.
 4. Human usefulness is NOT_REVIEWED. No blinded two-reviewer scoring was done.
 5. The free-tier status, account quota and billing state were user-asserted, not inspected. No quota error was observed in 10 calls.
-6. The hosted judge investigator, which is the AI shown in the live demo, is a different prompt, schema and evidence model. It remains unevaluated against `deterministicInvestigator`.
+6. The hosted judge investigator, which is the AI shown in the live demo, is a different prompt, schema and evidence model. It was not evaluated by this advisory experiment. Its subsequent separate AI-reviewed, post-hoc exploratory analysis was completed on 2026-10-25; all four comparisons return REGRESSION under the frozen rules, with the historical rubric and blinding limitations retained. See [INVESTIGATOR_EVAL_RESULTS.md](INVESTIGATOR_EVAL_RESULTS.md). These studies and their controls must not be conflated.
 
 ### Recommended next experiment (not run)
 

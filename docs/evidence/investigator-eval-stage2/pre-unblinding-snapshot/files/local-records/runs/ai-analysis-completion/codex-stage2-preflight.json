@@ -1,0 +1,51 @@
+{
+  "startedAt": "2026-10-24T12:30:12.088Z",
+  "dir": "C:/Users/agarw/.codex/visualizations/2026/10/24/01a16d28-064b-7b92-9d1c-74aafff4cf63/ordertruth-stage2-codex",
+  "model": "gpt-6-luna",
+  "account": "CURRENT_CHATGPT_LOGIN; historical Sheet B identity not independently verified; user authorized continue",
+  "inputs": {
+    "stage2-pack.md": {
+      "sha256": "cb6bddb5b347db225c3d8aaf0457c3983efcd6b0231e07b41cd49c456336cd43",
+      "bytes": 103696
+    },
+    "stage2-sheet.csv": {
+      "sha256": "513c1e12e45b7ded0b8a875aa236e52f46e6847f878a02387b41a7fda0a9ee1c",
+      "bytes": 876
+    },
+    "own-stage1.csv": {
+      "sha256": "3d64511a9260ddf7892ba14f254af610a9cd9c9a2d013453dbffd571b31b0601",
+      "bytes": 7581
+    }
+  },
+  "promptSha256": "c847b3d208f85a427e90734d7018096e9250651620d03350d724a3a9ce47b2f9",
+  "promptBytes": 115658,
+  "args": [
+    "C:/Users/agarw/AppData/Roaming/npm/node_modules/@openai/codex/bin/codex.js",
+    "exec",
+    "--strict-config",
+    "--ignore-user-config",
+    "--ignore-rules",
+    "--ephemeral",
+    "--skip-git-repo-check",
+    "--sandbox",
+    "workspace-write",
+    "--model",
+    "gpt-6-luna",
+    "-c",
+    "model_reasoning_effort=\"high\"",
+    "-c",
+    "project_doc_max_bytes=0",
+    "-c",
+    "memories.use_memories=false",
+    "-c",
+    "memories.generate_memories=false",
+    "-c",
+    "features.shell_tool=false",
+    "-c",
+    "web_search=\"disabled\"",
+    "--json",
+    "--output-last-message",
+    "C:\\Users\\agarw\\.codex\\visualizations\\2026\\10\\24\\01a16d28-064b-7b92-9d1c-74aafff4cf63\\ordertruth-stage2-codex\\stage2-sheet-codex.csv",
+    "-"
+  ]
+}

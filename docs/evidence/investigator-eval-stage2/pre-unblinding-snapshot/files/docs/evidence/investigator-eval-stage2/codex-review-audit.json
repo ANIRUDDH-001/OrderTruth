@@ -1,0 +1,56 @@
+{
+  "reviewer": "codex",
+  "threadId": "01a16de3-e2c9-78d3-80df-e45bf6c93e1c",
+  "requestedModel": "gpt-6-luna",
+  "requestedReasoningEffort": "high",
+  "accountIdentityRelativeToStage1": "UNVERIFIED; user authorized current login",
+  "invocationControls": {
+    "fresh": true,
+    "resumeOrFork": false,
+    "ephemeral": true,
+    "ignoreUserConfig": true,
+    "ignoreRules": true,
+    "projectDocMaxBytes": 0,
+    "useMemories": false,
+    "generateMemories": false,
+    "shellTool": false,
+    "webSearch": "disabled",
+    "strictConfig": true,
+    "outsideRepository": true
+  },
+  "modelProviderAttestation": "No separate provider model identity returned by the CLI event stream; requested model and no configured fallback are recorded.",
+  "inputHashes": {
+    "stage2-pack.md": {
+      "sha256": "cb6bddb5b347db225c3d8aaf0457c3983efcd6b0231e07b41cd49c456336cd43",
+      "bytes": 103696
+    },
+    "stage2-sheet.csv": {
+      "sha256": "513c1e12e45b7ded0b8a875aa236e52f46e6847f878a02387b41a7fda0a9ee1c",
+      "bytes": 876
+    },
+    "own-stage1.csv": {
+      "sha256": "3d64511a9260ddf7892ba14f254af610a9cd9c9a2d013453dbffd571b31b0601",
+      "bytes": 7581
+    }
+  },
+  "promptSha256": "c847b3d208f85a427e90734d7018096e9250651620d03350d724a3a9ce47b2f9",
+  "eventTypes": [
+    "thread.started",
+    "turn.started",
+    "item.completed",
+    "turn.completed"
+  ],
+  "toolEvents": 0,
+  "usage": {
+    "input_tokens": 45725,
+    "cached_input_tokens": 3968,
+    "cache_write_input_tokens": 0,
+    "output_tokens": 3684,
+    "reasoning_output_tokens": 2831
+  },
+  "rawOutputSha256": "35820663a4292d9a9c81f9890035ee0bfdfe3b43f398bf25c2727bdfde38c9c0",
+  "limitations": [
+    "Account identity is not verified; controls do not prove perfect blinding or prevent inference from writing style.",
+    "Ephemeral output and disabled memories do not establish absence of all provider-side account state. No old conversation was resumed or supplied."
+  ]
+}

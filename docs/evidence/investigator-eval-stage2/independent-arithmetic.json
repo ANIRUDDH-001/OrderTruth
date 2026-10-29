@@ -1,0 +1,71 @@
+{
+  "method": "Independent Python standard-library CSV/JSON arithmetic; no TypeScript adapter import",
+  "comparisons": [
+    {
+      "reviewer": "codex",
+      "control": "C",
+      "matched": true,
+      "model": {
+        "P1correct": 7,
+        "P2": 5,
+        "P3flags": 8
+      },
+      "comparator": {
+        "P1correct": 8,
+        "P2": 5,
+        "P3flags": 5
+      },
+      "outcome": "REGRESSION"
+    },
+    {
+      "reviewer": "codex",
+      "control": "A",
+      "matched": true,
+      "model": {
+        "P1correct": 7,
+        "P2": 5,
+        "P3flags": 8
+      },
+      "comparator": {
+        "P1correct": 6,
+        "P2": 5,
+        "P3flags": 3
+      },
+      "outcome": "REGRESSION"
+    },
+    {
+      "reviewer": "claude",
+      "control": "C",
+      "matched": true,
+      "model": {
+        "P1correct": 3,
+        "P2": 5,
+        "P3flags": 7
+      },
+      "comparator": {
+        "P1correct": 8,
+        "P2": 5,
+        "P3flags": 3
+      },
+      "outcome": "REGRESSION"
+    },
+    {
+      "reviewer": "claude",
+      "control": "A",
+      "matched": true,
+      "model": {
+        "P1correct": 3,
+        "P2": 5,
+        "P3flags": 7
+      },
+      "comparator": {
+        "P1correct": 5,
+        "P2": 5,
+        "P3flags": 3
+      },
+      "outcome": "REGRESSION"
+    }
+  ],
+  "snapshotCopiesVerified": 45,
+  "allPassed": true
+}

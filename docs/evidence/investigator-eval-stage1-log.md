@@ -219,3 +219,103 @@ The manifest says to open `stage2-pack.md` and `stage2-sheet.csv` only "after BO
 7. **Session timestamps.** These come from local transcripts written by the coordinator's own tooling. They are not externally attested.
 8. **No protocol decisions.** This log decides nothing about Option A or B or the reviewer amendment. Sheet A's exclusion and the D/B designation are operator decisions made after results were seen. They are not preregistered.
 9. **Other copies of Sheet A.** Copies of Sheet A's contents also exist outside the files listed above: in both session transcripts, in the superseded `E:\` note (A/B figures), and presumably in the ChatGPT conversation. Deleting the listed files would not remove those copies.
+
+## 11. Stage 2 continuation — 2026-10-24 (partial; no unblinding)
+
+This section is additive. Sections 1–10 describe the historical checkpoint; their statements about an amendment pending at that time are not current execution instructions. A2 and this original evidence log were subsequently committed together in `09fbde56864b91ef9dce67a72bea5f9cd2fbaf5f`.
+
+### 11.1 Preflight and opening
+
+- **VERIFIED:** all seven artifact hashes in `SEAL-MANIFEST.txt` matched before Stage 2 preparation. Original Stage 1 Sheets B and D matched the A2.1 hashes. The evaluator's committed blob identities match the live freeze except the documented A1 changes (`blind.ts`, its original tests) and A1/A2 preregistration amendments. The decision/scoring/fixture/runner implementation remains unchanged.
+- The permitted Stage 2 pack and blank sheet were opened for copying at **2026-10-24T12:08:27.748Z**. Their SHA-256 values are respectively `cb6bddb5b347db225c3d8aaf0457c3983efcd6b0231e07b41cd49c456336cd43` and `513c1e12e45b7ded0b8a875aa236e52f46e6847f878a02387b41a7fda0a9ee1c`, matching the original manifest.
+- Copies and briefs were prepared in `.work/reviews/stage2-claude/` and `.work/reviews/stage2-codex/`. Each brief contains the P1, P1k, P4 and P5 definitions copied verbatim, requires retention of that reviewer's own unchanged Stage 1 sheet and keeps arms hidden. Original live artifacts were not rewritten.
+- **Codex held by the user:** the current CLI reports a ChatGPT login, but the user answered **"No or unsure—hold the Codex review"** when asked whether it was the account used for Sheet B. No Codex Stage 2 session was launched. No substitute account/model is assumed.
+
+### 11.2 Claude Stage 2 return
+
+| Item | Recorded observation |
+|---|---|
+| Output | `.work/reviews/stage2-claude/stage2-sheet-claude.csv` |
+| SHA-256 | `f40daa0ae886d6641247ffb79173e87b5b23294f94fa5bb5990111e3f6043994` |
+| Reviewer | Fresh Claude Code session `f6e9cfb8-3c04-4cd4-83c9-d0d384df84b5` |
+| Model | `claude-opus-5-5`, as recorded in initialization |
+| CLI | `2.1.301`; this differs from Stage 1's `2.1.308`, and is not presented as the same binary |
+| Invocation | Restricted, Read/Write only, strict MCP configuration, acceptEdits, no session persistence, slash commands disabled, effort high, maximum 16 turns, outer 15-minute deadline |
+| Started / finished | `2026-10-24T12:13:59.740Z` / `2026-10-24T12:16:40.854Z` |
+| Execution | Success, exit 0, seven turns |
+| Structural validation | 48 case/output rows, 12 transition rows, expected identities, no missing rows, blank scoring fields or explicit UNRESOLVED values |
+
+The user expressly approved sending the Stage 2 pack, blank sheet, Claude's own Stage 1 sheet and scoring instructions to Anthropic through the existing Pro login. The initial launch was rejected by automatic approval review before execution; the approved launch then ran once. No retry or replacement scoring was performed.
+
+**Access evidence and limits.** Initialization exposed only Read and Write tools, with no MCP servers. The tool log records six calls: reads of the brief, template, own Stage 1 sheet and Stage 2 pack (twice), followed by a write of the new Stage 2 sheet. Every recorded file-tool path is inside the designated reviewer folder. Restricted mode confines file tools to working directories. Automatic startup context is not independently attested by this tool log; the folder is nested in the repository and the invocation did not explicitly disable `CLAUDE.md` discovery. Do not infer absence of all automatically supplied context from the permitted file-tool paths. The return is preserved unchanged; this limitation is recorded rather than silently replacing the review.
+
+Local execution records: `.work/runs/ai-analysis-completion/{preparation.json,freeze-identity-check.json,claude-stage2-execution.json,claude-stage2-audit.json,claude-stage2-validation.json,claude-stage2-stream.jsonl}`. The stream is preserved locally; no credentials or root `.env` were intentionally supplied to the reviewer. Structural validation does not judge correctness or identify arms.
+
+### 11.3 Current gate
+
+**Stage 2 is incomplete.** Claude's return has been hashed; the required Codex return is held. The two-sheet commit gate has not been satisfied. A synthetic-only adapter and tests are being prepared outside the frozen evaluator directory; their presence is not an adapter commit or permission to unblind. `sealed/arm-key.json`, `sealed/report.json` and `sealed/consensus.csv` remain unopened by this coordinator, and no live decision result has been computed. Unknown prior access by other actors remains unverified.
+
+**Adapter checkpoint (uncommitted).** `src/ai/reviewer-analysis/{adapter,cli}.ts` and `tests/reviewer-analysis.test.ts` implement synthetic-tested parsing, complete reviewer records, conservative unresolved handling and separate calls to the unchanged decision function. Focused tests passed 31/31; type checking passed. An independent read-only code reviewer found and then verified the correction of missing A2.2–A2.5 disclosures; no scoped code blocker remained. The full offline run initially recorded 695 passes and one legacy child-process timeout, that unchanged file passed 23/23 alone, and a full two-worker rerun passed **696/696 in 32 files**. All attempts are retained locally; no timeout/assertion was relaxed. This validates code against synthetic/local fixtures only, not the live reviewer decisions. The adapter commit gate is still pending, and the forward-only P3 fix remains deferred until the historical analysis is finalized.
+
+## 12. Codex Stage 2 and pre-unblinding evidence — 2026-10-24
+
+The user released the hold and explicitly approved the exact permitted materials being sent to OpenAI through the current ChatGPT login, with historical account identity remaining unverified. A3 records that prospective deviation and stronger session controls. The initial launch was rejected by automatic approval review before execution; after the user's specific consent, one review ran. No failed or inconvenient score was replaced.
+
+| Item | Recorded observation |
+|---|---|
+| New thread | `01a16de3-e2c9-78d3-80df-e45bf6c93e1c` |
+| Invocation | Codex CLI `0.157.1`; requested `gpt-6-luna`, high effort; no fallback configured |
+| Account | Current ChatGPT CLI login; relation to original Sheet B account **UNVERIFIED** |
+| Started / finished | `2026-10-24T12:30:12.088Z` / `2026-10-24T12:30:53.649Z` |
+| Original return SHA-256 | `35820663a4292d9a9c81f9890035ee0bfdfe3b43f398bf25c2727bdfde38c9c0` |
+| Original return | `docs/evidence/investigator-eval-stage2/codex-stage2-original.csv` (byte-identical preserved copy) |
+| Derived CSV SHA-256 | `1abfb656537cf4a229f66e739564502ed0b45262a2713eba81c71e7eec736bcc` |
+| Derived CSV | `docs/evidence/investigator-eval-stage2/codex-stage2-normalized.csv` |
+| Structural result | 48 case/output rows and 12 transition rows; expected identities and no blank scoring fields |
+| Usage reported by CLI | 45,725 input tokens, including 3,968 cached input tokens; 3,684 output tokens, including 2,831 reasoning output tokens. These are recorded CLI fields, not billing verification. |
+
+**Blinding evidence.** The harness supplied only the scoring brief, blank Stage 2 template, own Stage 1 Sheet B and Stage 2 pack. The input hashes match the original manifest and Sheet B hash. A new session ran outside the repository, without `resume`/`fork`, with strict configuration, user-config/rules disabled, zero project-document bytes, memory use/generation disabled, web search disabled, shell tool disabled and ephemeral storage. The returned stream contains a new-thread event, one agent message and completion, with **zero recorded tool events**. No arm key, automated report, Claude sheet or coordinator conversation was supplied. The CLI stream does not independently attest the responding provider model identity; it records successful completion under the requested-model invocation. Cached-token counts do not establish previous-conversation exposure. Account identity, provider-side state and perfect blinding are not independently established; style-based arm inference remains possible.
+
+**Formatting defect preserved.** The original return had an unquoted comma in transition `T2/P`'s final note (row 54 when blank lines are omitted). A derived copy rejoins that note and quotes it. The first four identity/scoring fields remain exactly the same values. The original return is untouched. `codex-csv-normalization.json` records the sole affected row and both hashes. The generic normalizer validates all fixed scoring/identity fields before accepting overflow and rejects missing columns or ambiguous invalid prefixes. Its behavior and the adapter's explicit P3 label-plus-explanation parsing were fixed and tested before unblinding; no live arm mapping or outcome was available during those corrections.
+
+**Portable inputs.** The evidence directory also preserves byte-identical Stage 1 B/D sheets and the Claude Stage 2 sheet. `stage2-input-manifest.json` lists their hashes; `.gitattributes` preserves exact CSV/JSON bytes across platforms. `codex-review-audit.json` records invocation controls and event evidence without credentials. Neither account authentication files nor root `.env` were read.
+
+**Gate at this checkpoint:** both Stage 2 returns now exist and are hashed. The Stage 2 evidence and tested adapter still require separate commits before opening the live arm key/report. `consensus.csv` remains unopened and unused. No four live decisions or final usefulness result has been computed yet.
+
+## 13. A4 uncommitted checkpoint — 2026-10-25, before unblinding
+
+The user declined the two local commits on 2026-10-24. On 2026-10-25 the user explicitly selected **"Approve A4 and continue uncommitted"** for the proposed replacement: a dated, verified SHA-256 snapshot instead of the two Git checkpoints. A4 was appended to the protocol before the arm key/report were opened. No staging, commit or push is authorized or performed.
+
+The snapshot implementation received independent, read-only inspection with no remaining concrete blocker. Eight synthetic integrity/tamper/path checks passed; the current adapter's 35 synthetic tests passed. The prior full offline run remains 700/700. No assertion, case or decision threshold changed. The snapshot preserves protocol, adapter/tests/dependencies, both selected Stage 1 sheets, both original Stage 2 returns, the derived Codex CSV/audit, and validation records. The manifest hash will be published in the conversation and appended here before semantic unblinding. Source and preserved-copy hashes must verify before the analysis runs.
+
+This replacement is a disclosed prospective protocol deviation, not a claim that the original two-commit condition was met. Timestamp and prior-access limitations remain. `consensus.csv` may be read as bytes for integrity hashing only; it remains unparsed and unused.
+
+**Published checkpoint:** `pre-unblinding-snapshot/manifest.json`, SHA-256 `f5f91ad9db185b00b4ab93317c21603e20527178bed5ff7a9d3b67db6b23cc03`, created `2026-10-25T16:27:17.099Z`, 45 preserved files. Copy/source verification passed, and the exact manifest hash was printed into the user conversation before executing the unblinding command. This additive line is deliberately outside the preserved historical evidence-log copy.
+
+## 14. Historical analysis completed — 2026-10-25
+
+The original arm key and automated report were semantically opened at `2026-10-25T16:27:38.892Z`, after exact snapshot verification. No prior unblinding attempt existed. The original consensus file was read only as bytes for integrity hashing, not parsed or used. All seven original manifest hashes matched.
+
+Each reviewer produced 48 complete normalized case/arm records. The unchanged `decision.ts` ran against C and A separately for each reviewer. All four outcomes are `REGRESSION`, with `OBSERVED` trigger bases and no failures/unresolved decision fields. This means observed **reviewer judgments**, not independently established financial harm or confirmatory causal truth. The missing historical P3 definition and every A2–A4 limitation remain.
+
+| Reviewer | Control | Model / control P1 | Model / control P2 | Model / control P3 case flags | Observed trigger |
+|---|---|---|---|---|---|
+| Codex | C | 7/8 / 8/8 | 5/5 / 5/5 | 8/8 / 5/8 | P3 |
+| Codex | A | 7/8 / 6/8 | 5/5 / 5/5 | 8/8 / 3/8 | P3 |
+| Claude | C | 3/8 / 8/8 | 5/5 / 5/5 | 7/8 / 3/8 | P1 and P3 |
+| Claude | A | 3/8 / 5/8 | 5/5 / 5/5 | 7/8 / 3/8 | P1 and P3 |
+
+Both per-reviewer analysis outputs reproduced byte-for-byte: Codex SHA-256 `8f5b4a0a3acf9497579ffd864d58a7aec8e4a0d965e6c6e37edafaecf4ebf5a8`; Claude SHA-256 `4f527117823dcc1d83523ee0716e6620fff9c77eea3deafbaf50886532a8c483`. A separate Python standard-library CSV/JSON check matched all four primary tables/outcomes without importing the TypeScript adapter, and verified all45 preserved snapshot copies.
+
+`docs/INVESTIGATOR_EVAL_RESULTS.md` records separate R/S/V/X results, P3 rates, other review measures, automation, costs/usage boundaries, reproduction commands and limitations. All original per-case outputs and mappings are preserved in the evidence bundle. The original automated report's `PENDING_TWO_STAGE_REVIEW` metadata is retained as historical bytes; completed review results live in the new analysis/audit files rather than overwriting it. No new Gemini/PayPal request or production behavior change occurred.
+
+After recording those results, the separate A5 forward-only pack correction was started: a new synthetic test failed because P3 was absent, and `blind.ts` was then changed to include it. No original sheet, pack, report, key or snapshot was rewritten. Future pack validation and final integrity checks are recorded at closeout; all files remain uncommitted under the user's instruction.
+
+## 15. Analysis closeout — 2026-10-25
+
+- **VERIFIED:** full offline 701/701 in33files,0failed/skipped,66.06seconds; focused adapter+future-pack36/36; typecheck and diff whitespace checks passed. Eight synthetic snapshot checks passed. Runtime Node24.11.0, installed dependencies; supported Node22/fresh install not newly qualified.
+- A separate read-only reviewer reported88 matching checks against the archived result JSON: all24 stratum reviewer/arm rows,12 automated rows,16 per-case rows,30 descriptive cells,2 analysis hashes and4 audit/analysis decision objects. No model answers were rescored; consensus remained unparsed. This review corroborates the independently reproduced coordinator arithmetic rather than creating a new study outcome.
+- A5 is complete for future generated packs only. Historical packs, sheets, the original evaluation test file, live report/key and pre-unblinding snapshot remain unchanged. The only frozen-generator source change is the added P3 instruction and its explanatory comment; decision/scoring/fixtures and the production AI prompt remain unchanged.
+- Current README, advisory-results follow-up, quality matrix and release checklist now link the completed investigator analysis. The meaningful-AI-benefit checklist remains open; a finished negative/exploratory analysis is not a passed usefulness gate.
+- Four separate decisions, both reproduced analysis files, descriptive records, original outputs/mappings, snapshot, independent arithmetic and final integrity/evidence manifests are retained under `docs/evidence/investigator-eval-stage2/`. No Stage1 revision, reviewer pooling, favorable-result selection, Git staging/commit/push or deployment occurred.
+- No new Gemini or PayPal call was needed in this completion session. Prior subscription reviewer usage/billing remains bounded by its recorded evidence; no current quota/billing guarantee or production readiness is inferred.

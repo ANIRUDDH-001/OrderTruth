@@ -1,0 +1,176 @@
+{
+  "frozenAt": "2026-10-23T08:12:11.201Z",
+  "rubric": "ie-v1",
+  "revision": "e72556ef775b540a4ba09436326689f4b91c12ee",
+  "workingTreeChanges": [],
+  "environment": {
+    "node": "v24.11.0",
+    "pnpm": "pnpm/11.4.0 npm/? node/v24.11.0 win32 x64",
+    "os": "win32 10.0.26300"
+  },
+  "model": "gemini-3.5-flash-lite",
+  "files": {
+    "src/ai/investigation.ts": "85d4ff1ef351350e4dd22a8d61c53dfcdb0166b4fda599aebbc88adfc3f98cd8",
+    "src/ai/investigator-eval/fixtures.ts": "d0a9fbbff7541da91d58441a5ce76ba388feea2d9f063e4c7ad76be072cb54af",
+    "src/ai/investigator-eval/control.ts": "4d0e9a563aac9bfd65c5186a0acdb10fe72fe6a636a57ecc56394c44c333c248",
+    "src/ai/investigator-eval/score.ts": "a2e808e1c9b7a1e86bbf7832f141f8f858019d4a9afd0d755f447c3b5d87a726",
+    "src/ai/investigator-eval/guard.ts": "8688c9b8b1deffcafc9818592ea5b63e3f9063ce3d6130be4ba726896ce36d76",
+    "src/ai/investigator-eval/runner.ts": "d4100c48b66e5baf4a65b7b4c2f5cbaefb788fbe491901f0675a36cdb84fa9b8",
+    "src/ai/investigator-eval/blind.ts": "32ea8253c62e33c98e168c32431d5ac5b9a3c447f4a71e332728db2c7522b980",
+    "src/ai/investigator-eval/decision.ts": "95f31be79b29c93e343b32689613109c9a981a366720630169b35518ed36db59",
+    "tests/investigator-eval.test.ts": "abf4a47dc851177bdc8cfc340451c11e2b27048e6c9a1d71fc8fffefded0edd6",
+    "docs/INVESTIGATOR_EVAL_PREREGISTRATION.md": "a331388757787c5f67131db29b4350cb9309f4ebe5855b4f7096f1c09ccadfa9",
+    "package.json": "1aa4d122acd489a116f22d80ec80f51748652c1d74a09c233ac9296dbf87383e",
+    "pnpm-lock.yaml": "9b283707149cc5fca3cbb3e60ecc526188b8b9295c8ab7e058120f9cf95ccf8a",
+    ".github/workflows/ci.yml": "1d20208570a55a787ff75fb3581a7343440bbebc0ab37f9504f5c86459ed8aa4"
+  },
+  "gitBlobs": {
+    "src/ai/investigation.ts": {
+      "blob": "7c2ccfce89858df6812e76e22fd1f8f70daeeb8d",
+      "matchesHead": true
+    },
+    "src/ai/investigator-eval/fixtures.ts": {
+      "blob": "469062ee64f6d412bf7fb9dfc11b200cd6c73227",
+      "matchesHead": true
+    },
+    "src/ai/investigator-eval/control.ts": {
+      "blob": "04a1538de575f12c44891315792c4a191077cdca",
+      "matchesHead": true
+    },
+    "src/ai/investigator-eval/score.ts": {
+      "blob": "fd4fe9e1d510b631014a43daffe6ae6b02c52fc3",
+      "matchesHead": true
+    },
+    "src/ai/investigator-eval/guard.ts": {
+      "blob": "826e53a82f2837fb24a12f0d0ad3dc6e5e909d47",
+      "matchesHead": true
+    },
+    "src/ai/investigator-eval/runner.ts": {
+      "blob": "4a2ccd6ecbc7dbb4c8888426fc1cd9b20ea7decc",
+      "matchesHead": true
+    },
+    "src/ai/investigator-eval/blind.ts": {
+      "blob": "f4759be99b150f1dc83f4f464ced017a587d27ba",
+      "matchesHead": true
+    },
+    "src/ai/investigator-eval/decision.ts": {
+      "blob": "95ddcb20b1d361316dcc1c63d735026ac507373e",
+      "matchesHead": true
+    },
+    "tests/investigator-eval.test.ts": {
+      "blob": "df53ae9ae889cd29d5f98195e08e2114edac1a0f",
+      "matchesHead": true
+    },
+    "docs/INVESTIGATOR_EVAL_PREREGISTRATION.md": {
+      "blob": "fcba5b9206fcf7d850d278d280666265d1a78b35",
+      "matchesHead": true
+    },
+    "package.json": {
+      "blob": "c0cf774a0bfe4aa55b2a4a47d17339eb1a3429bb",
+      "matchesHead": true
+    },
+    "pnpm-lock.yaml": {
+      "blob": "40b9ca5636d1667ca07d83f3b9d632c7ddf2f874",
+      "matchesHead": true
+    },
+    ".github/workflows/ci.yml": {
+      "blob": "0f7af933ade5a6c392faa247bfbda47ebcf0f4ab",
+      "matchesHead": true
+    }
+  },
+  "cases": {
+    "R1": {
+      "stratum": "R",
+      "inputPath": "HOSTED_REACHABLE",
+      "evidenceSha256": "2f577d34ff246a4f0a01225b5698274d61cf1844ee0c7108f73474d3d75f3bdb"
+    },
+    "R2": {
+      "stratum": "R",
+      "inputPath": "HOSTED_REACHABLE",
+      "evidenceSha256": "8ab5d3ac223a6de9e76a4d50d905fbceeeb14b165369654179205fce9575493a"
+    },
+    "R3": {
+      "stratum": "R",
+      "inputPath": "HOSTED_REACHABLE",
+      "evidenceSha256": "094818633239508d2e1716021ec01d87fef4098e9b298bb498cd46346df77820"
+    },
+    "R4": {
+      "stratum": "R",
+      "inputPath": "HOSTED_REACHABLE",
+      "evidenceSha256": "c709836181ceba8ad86374c969ceaa369457b77312ec6e4c444d8bd875eb08ff"
+    },
+    "R5": {
+      "stratum": "R",
+      "inputPath": "HOSTED_REACHABLE",
+      "evidenceSha256": "7e58627786e5f6fa73d6572f2891348b1d9d0dfbd8f2f2b38628e9f236834b57"
+    },
+    "R6": {
+      "stratum": "R",
+      "inputPath": "HOSTED_REACHABLE",
+      "evidenceSha256": "aee3d6bfc17f2a483e41f68299795bfa390e38619af920f79eb858d9b6c529c4"
+    },
+    "R7": {
+      "stratum": "R",
+      "inputPath": "HOSTED_REACHABLE",
+      "evidenceSha256": "f9a652f804fffdbc1a42be14724237acf3ba1d847be856aca1198e8ed76e5620"
+    },
+    "R9": {
+      "stratum": "R",
+      "inputPath": "HOSTED_REACHABLE",
+      "evidenceSha256": "ba23ff0876f18cd0097eb2e83b5ed7b08f23cbeb42498ebe434d947bad6115e3"
+    },
+    "S1": {
+      "stratum": "S",
+      "inputPath": "TEST_MODE_ONLY",
+      "evidenceSha256": "b7b410b5195ae4f8221e4c838f1135b1bd1684239f2191045000376340486467"
+    },
+    "V1": {
+      "stratum": "V",
+      "inputPath": "COUNTERFACTUAL",
+      "evidenceSha256": "87ec1620d3e48afedaead317d028d36d78442af15ef54f504459543b8a68b533"
+    },
+    "V2": {
+      "stratum": "V",
+      "inputPath": "COUNTERFACTUAL",
+      "evidenceSha256": "a0361a2079486e335c20217118e45e8aec93e7c6903ad66c84769681080f7c0f"
+    },
+    "V3": {
+      "stratum": "V",
+      "inputPath": "COUNTERFACTUAL",
+      "evidenceSha256": "5a7dbf8c080f40734aa098b6b0b825200776979661d1bcb507b63dc34c1e1517"
+    },
+    "X1": {
+      "stratum": "X",
+      "inputPath": "UNREACHABLE_VALUES",
+      "evidenceSha256": "3968f4f4d3b51f945076efcd36a3d735409632725a6e6b13d56ae742fe957c5b"
+    },
+    "X2": {
+      "stratum": "X",
+      "inputPath": "OUT_OF_COLLECTOR_SCHEMA",
+      "evidenceSha256": "34319c4f32005ac36c79a1320a4fe201a18551c0f66c985480f44ccafc45fa7b"
+    },
+    "X3": {
+      "stratum": "X",
+      "inputPath": "UNREACHABLE_VALUES",
+      "evidenceSha256": "469575a4c8343d3a055398c139978cee90814e7ecf49ef5a7b225fe532796347"
+    },
+    "X4": {
+      "stratum": "X",
+      "inputPath": "UNREACHABLE_VALUES",
+      "evidenceSha256": "5cbc3b69881175390a2c4f615ab56badde0fa17b24ccf0e8cebd27b03ba99cd4"
+    }
+  },
+  "blindingSeed": 3500800959,
+  "cap": 16,
+  "retries": 0,
+  "spacingMs": 6000,
+  "stopErrors": [
+    "QUOTA_OR_RATE_LIMIT",
+    "PROVIDER_REJECTED"
+  ],
+  "guard": {
+    "origin": "https://generativelanguage.googleapis.com/",
+    "redirect": "error",
+    "stopOnRefusal": true
+  }
+}

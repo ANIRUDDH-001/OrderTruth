@@ -1,0 +1,12 @@
+Sealed at 2026-10-23T08:28:51Z on commit e72556ef775b540a4ba09436326689f4b91c12ee. Open sealed/ files only per preregistration section 6:
+  stage2-pack.md and stage2-sheet.csv: after BOTH stage-1 sheets are submitted and hashed
+  consensus.csv: after both stage-2 sheets are hashed
+  arm-key.json and report.json: after consensus.csv is complete and hashed
+
+83c1dab0755c1901ad773d6430ebf7e2cf9b26c7011166f53b9802fe67835f28 *stage1-pack.md
+689907f9681a27806f65cfae22dc1d32fd1ec65c281b75e1047c5792efb1a191 *stage1-sheet.csv
+eb79aca2b44b8abf9bd8910497982ac48535db00fc6b89320824f7c788f0a315 *sealed/arm-key.json
+60eed9d1a119fb53e6d818b30df255fc12fe51538480efa4e743037ed0ca2b47 *sealed/consensus.csv
+fe2930721766e8580757a92cd11ea7fcd5c2cb092c8894e52bd964d53ea9d277 *sealed/report.json
+cb6bddb5b347db225c3d8aaf0457c3983efcd6b0231e07b41cd49c456336cd43 *sealed/stage2-pack.md
+513c1e12e45b7ded0b8a875aa236e52f46e6847f878a02387b41a7fda0a9ee1c *sealed/stage2-sheet.csv
