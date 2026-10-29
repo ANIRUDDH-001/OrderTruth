@@ -1,6 +1,7 @@
 import type { Investigation,InvestigationEvidence,DiagnosticKind } from "../../src/ai/investigation.ts";
 import { RequestError,requestJson,slowNotice,REQUEST_BUDGET_MS } from "./request.ts";
 import { readCase,readSession,parseScenario,validateHistory,type Scenario,type Plan,type Receipt,type Session,type SessionStatus } from "./recovery.ts";
+import { describeHandlerTiming,type TimingRow } from "./diagnostics.ts";
 
 type Analysis = { status: "FRESH"|"CACHED"|"UNAVAILABLE"; freshModelExecution: boolean; reason: string|null; generatedAt?: string; model?: string;
   investigation?: Investigation; snapshotSha256?: string; evidence: InvestigationEvidence[]; baseline: { summary: string; nextDiagnostic: DiagnosticKind } };
@@ -244,10 +245,10 @@ function investigationView() {
   }
   for (const evidence of state.diagnostics) {
     const facts = evidence.facts;
-    const summary = facts.diagnostic === "IDEMPOTENCY_KEYS" ? `${String(facts.distinctKeys)} distinct merchant write keys observed. Separate keys can allow duplicate writes.`
-      : facts.diagnostic === "HANDLER_TIMING" ? `${Array.isArray(facts.entries) ? facts.entries.length : 0} recorded handler intervals available. Timing alone does not establish a PayPal failure.`
-      : `${String(facts.committedWrites)} committed controlled merchant writes observed.`;
-    investigation.append(el("p",summary),json(`${String(facts.diagnostic)} · ${evidence.id}`,evidence));
+    if (facts.diagnostic === "HANDLER_TIMING") investigation.append(timingView(evidence));
+    else investigation.append(el("p",facts.diagnostic === "IDEMPOTENCY_KEYS" ? `${String(facts.distinctKeys)} distinct merchant write keys observed. Separate keys can allow duplicate writes.`
+      : `${String(facts.committedWrites)} committed controlled merchant writes observed.`));
+    investigation.append(json(`${String(facts.diagnostic)} · ${evidence.id}`,evidence));
   }
   if (state.role === "engineering") for (const kind of ["HANDLER_TIMING","IDEMPOTENCY_KEYS","MERCHANT_WRITE_OUTCOMES"] as const) investigation.append(button(diagnosticName(kind),() => diagnostic(kind),true,true));
   return investigation;
@@ -262,6 +263,33 @@ function refreshHistoryPanel() {
   }
   panel.replaceWith(investigationView());
 }
+// Recorded intervals as a table; the summary lines come only from describeHandlerTiming.
+function timingView(evidence: InvestigationEvidence) {
+  const timing = describeHandlerTiming(evidence.facts,state.scenario?.run.label === "CONTROLLED_MERCHANT_SCENARIO");
+  const view = el("div","","timing");
+  view.append(el("strong","Handler timing check"),el("p",`Evidence ${evidence.id} · recorded ${new Date(evidence.observedAt).toLocaleString()}`,"muted"));
+  if (timing.rows.length) {
+    // One column per write keeps the table inside the narrow investigation panel.
+    const wrap = el("div","","table-scroll"),table = el("table"),thead = el("thead"),head = el("tr"),body = el("tbody");
+    head.append(el("td"));
+    timing.rows.forEach((_,index) => { const th = el("th",`Write ${index+1}`); th.setAttribute("scope","col"); head.append(th); });
+    const fields: Array<[string,(row: TimingRow) => HTMLTableCellElement]> = [
+      ["Order",row => cell(row.orderId.length > 14 ? `${row.orderId.slice(0,11)}…` : row.orderId,row.orderId)],["Written by",row => cell(row.handler)],
+      ["Started",row => cell(clock(row.startedAt),row.startedAt)],["Finished",row => cell(clock(row.finishedAt),row.finishedAt)],["Took",row => cell(`${row.durationMs} ms`)]];
+    for (const [label,value] of fields) {
+      const tr = el("tr"),th = el("th",label); th.setAttribute("scope","row");
+      tr.append(th,...timing.rows.map(value)); body.append(tr);
+    }
+    thead.append(head); table.append(el("caption","When each recorded merchant write ran"),thead,body); wrap.append(table); view.append(wrap);
+  }
+  const observations = el("div","","timing-observations"),limitations = el("div","","timing-limitations");
+  for (const line of timing.observations) observations.append(el("p",line));
+  for (const line of timing.limitations) limitations.append(el("p",line));
+  view.append(observations,limitations);
+  return view;
+}
+function cell(text: string,title = "") { const node = el("td",text); if (title) node.setAttribute("title",title); return node; }
+function clock(iso: string) { return new Date(iso).toLocaleTimeString(undefined,{ hour: "2-digit",minute: "2-digit",second: "2-digit",fractionalSecondDigits: 3 }); }
 function diagnosticName(kind: DiagnosticKind) { return ({ HANDLER_TIMING: "handler timing check",IDEMPOTENCY_KEYS: "idempotency-key comparison",MERCHANT_WRITE_OUTCOMES: "merchant write-outcome check" })[kind]; }
 function ownerForm() {
   const sectionNode = section("Owner access","Owner sign-in enables genuine Sandbox checkout. Judges need no payment permissions.");
