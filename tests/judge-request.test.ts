@@ -81,6 +81,17 @@ describe("slow-request notice", () => {
     expect(slowNotice(90_000)).not.toMatch(/up to a minute/);
     expect(slowNotice(23_400)).toContain("23 s");
   });
+  it("says a read-only wait submits nothing and keeps the committed-action warning for writes",() => {
+    for (const kind of ["read","write"] as const) expect(slowNotice(1_999,kind)).toBe("");
+    expect(slowNotice(45_000,"read")).toBe("Still working (45 s). The server may be waking from idle or busy. This step only reads saved records; it does not submit or repeat a payment or repair action.");
+    expect(slowNotice(45_000,"write")).toBe("Still working (45 s). The server may be waking from idle or busy. Waiting is bounded. If this is interrupted, the action may still have committed; use Resume/Recheck Case before acting again.");
+  });
+  it("fails closed: without a kind, the notice is the write warning",() => {
+    expect(slowNotice(45_000)).toContain("the action may still have committed");
+  });
+  it("never promises when either kind of wait will finish",() => {
+    for (const kind of ["read","write"] as const) expect(slowNotice(61_000,kind).replace("(61 s)","")).not.toMatch(/\d|within|up to|will complete|guarantee/i);
+  });
 });
 
 describe("total request deadline and invalid responses",() => {
