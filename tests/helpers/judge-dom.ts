@@ -34,13 +34,14 @@ export type UiCall = { method: string; path: string };
 export function scenario(id: string) {
   return { run: { id,label: "CONTROLLED_MERCHANT_SCENARIO" },orders: [{ id: `order_${id}`,effective_status: "placed",amount_minor: 100,currency: "USD" }],paymentReference: { attemptId: "synthetic_observation",evidenceSeq: 1,observedAt: "2026-10-26T00:00:00Z",provenance: "SYNTHETIC_QUALIFICATION",note: "Synthetic UI fixture" },latestPlan: null };
 }
-export async function mountJudge(handler: (call: UiCall,body: unknown) => unknown|Promise<unknown>,runId = "",storage = new Map<string,string>()) {
+// settle: false returns while the page's first request may still be pending (slow-load tests).
+export async function mountJudge(handler: (call: UiCall,body: unknown) => unknown|Promise<unknown>,runId = "",storage = new Map<string,string>(),{ settle = true } = {}) {
   vi.useFakeTimers(); vi.resetModules(); const doc = new JudgeDocument(),location = { href: `http://127.0.0.1:3333/${runId ? `?run=${runId}` : ""}` },calls: UiCall[] = [];
   vi.stubGlobal("document",doc); vi.stubGlobal("location",location); vi.stubGlobal("history",{ replaceState: (_a: unknown,_b: unknown,url: URL|string) => { location.href = String(url); } });
   vi.stubGlobal("localStorage",{ getItem: (k: string) => storage.get(k) ?? null,setItem: (k: string,v: string) => storage.set(k,v),removeItem: (k: string) => storage.delete(k) });
   vi.stubGlobal("fetch",async (p: string,init?: RequestInit) => { const call = { method: init?.method ?? "GET",path: p }; calls.push(call); const value = await handler(call,init?.body ? JSON.parse(String(init.body)) : undefined); return value instanceof Response ? value : new Response(JSON.stringify(value),{ status: 200,headers: { "content-type": "application/json" } }); });
   const idle = async () => { for (let n = 0;n < 80;n++) { await vi.advanceTimersByTimeAsync(0); const buttons = doc.root.querySelectorAll("button"); if (buttons.length && buttons.some(b => !b.disabled)) return; } throw new Error("UI fixture failed to settle"); };
-  await import("../../web/judge/main.ts"); await idle();
+  await import("../../web/judge/main.ts"); if (settle) await idle();
   const button = (name: string) => { const b = doc.root.querySelectorAll("button").find(b => b.textContent === name); if (!b) throw new Error(`Missing control: ${name}`); return b; };
   return { doc,calls,location,storage,idle,button,async click(name: string) { button(name).fire("click"); await idle(); } };
 }

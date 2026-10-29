@@ -32,11 +32,14 @@ async function api<T>(path: string,body?: unknown): Promise<T> {
     throw error;
   }
 }
+// These run only boot()/resumeCase(), which send GET requests alone. Any other label keeps the write warning.
+const READ_ONLY_ACTIONS = new Set(["Loading your session","Resume/Recheck Case","Recheck committed receipt"]);
 async function run(label: string,action: () => Promise<void>|void) {
   state.busy = label; state.error = ""; state.notice = ""; render();
   // Update only the status text, so a slow cold start does not re-render the page or move focus.
+  const kind = READ_ONLY_ACTIONS.has(label) ? "read" : "write";
   const started = Date.now(); const timer = setInterval(() => {
-    const status = root.querySelector<HTMLElement>("p.notice[role=status]"); if (status) status.textContent = `${label}… ${slowNotice(Date.now()-started)}`.trim();
+    const status = root.querySelector<HTMLElement>("p.notice[role=status]"); if (status) status.textContent = `${label}… ${slowNotice(Date.now()-started,kind)}`.trim();
   },1000);
   try { await action(); } catch (error) { state.error = error instanceof Error ? error.message : "Request unavailable. Your committed case is preserved."; }
   finally { clearInterval(timer); state.busy = ""; render(); restoreActionFocus(label); }

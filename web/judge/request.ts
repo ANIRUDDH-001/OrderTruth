@@ -56,8 +56,11 @@ export async function requestJson<T>(path: string, body?: unknown, options: {
   }
 }
 
-/** Shown while a request is still pending, so a cold start reads as waking, not frozen. */
-export function slowNotice(elapsedMs: number) {
+/** Shown while a request is still pending, so a cold start reads as waking, not frozen.
+ * Only actions that send GET requests alone may pass "read"; anything else keeps the write warning. */
+export function slowNotice(elapsedMs: number,kind: "read"|"write" = "write") {
   if (elapsedMs < 2000) return "";
-  return `Still working (${Math.round(elapsedMs / 1000)} s). The server may be waking from idle or busy. Waiting is bounded; an interrupted action may still have committed.`;
+  const waking = `Still working (${Math.round(elapsedMs / 1000)} s). The server may be waking from idle or busy.`;
+  return kind === "read" ? `${waking} This step only reads saved records; it does not submit or repeat a payment or repair action.`
+    : `${waking} Waiting is bounded. If this is interrupted, the action may still have committed; use Resume/Recheck Case before acting again.`;
 }
