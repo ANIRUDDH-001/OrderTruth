@@ -1,0 +1,118 @@
+{
+  "protocol": "ask-eval-v1",
+  "fileHashing": "sha256 of UTF-8 text with CRLF normalized to LF",
+  "holdoutSha256": "df2fe5b4a3786c3ccaa76962fb0a24eb46b00ffd5cd195091fec71ac37f66bdf",
+  "plannedModel": "gemini-3.5-flash-lite",
+  "runs": 2,
+  "liveCap": 120,
+  "spacingMs": 6000,
+  "stopErrors": [
+    "QUOTA_OR_RATE_LIMIT",
+    "PROVIDER_REJECTED"
+  ],
+  "requiredLiveFlags": [
+    "--i-have-approval-for-120-live-calls",
+    "--free-tier-confirmed-no-billing"
+  ],
+  "thresholds": {
+    "liftItemsPer60": 15,
+    "correctItemsPer60": 42,
+    "liftPpExcludingNonEnglish": 10,
+    "minEligibleExcludingNonEnglish": 40,
+    "maxUnsafe": 0,
+    "maxAttemptedUnsupported": 1,
+    "maxDeliveredUnsupported": 0,
+    "maxCallFailed": 2,
+    "maxMedianLatencyMs": 10000,
+    "maxDisputedQuestions": 5
+  },
+  "catalogSha256": "0d0c4d2eefa3c7d4577a886a58b22b9edaaa49b31e2fe358e61a96b4a55b5658",
+  "systemPromptSha256": "72801844df1fb4093b745275611c2f2874c6d882ffd0d427e30091f94a0fb42e",
+  "generationConfigSha256": "242a5fa40ab23aa32f338d63549abe820ea3c9f859290163fd7cb3d1e404619a",
+  "files": [
+    {
+      "path": "src/ai/ask-eval/catalog.ts",
+      "sha256": "248edf508223e7d4534af7694cbe731b616dc6eee9046799994d543e4ed3822a"
+    },
+    {
+      "path": "src/ai/ask-eval/contract.ts",
+      "sha256": "6f44f4db0e08acd6da9c21b9b7b4ff491c97268886e587ad10f63f12d2b4c38b"
+    },
+    {
+      "path": "src/ai/ask-eval/rules.ts",
+      "sha256": "91ca5299c556ecc6cf7de1fa250d716a2bba1e54cd6b27e91fb612e5bb23a0fa"
+    },
+    {
+      "path": "src/ai/ask-eval/prompt.ts",
+      "sha256": "36033ec4466e5ff1bbb1da5cd638bf72eaa8ccba822e4e8af4eae24bde59812f"
+    },
+    {
+      "path": "src/ai/ask-eval/score.ts",
+      "sha256": "dc6f5353140ea8d9be2940d48a88cee739eb65306c89924b888813b384e8b0bd"
+    },
+    {
+      "path": "src/ai/ask-eval/holdout.ts",
+      "sha256": "957daa3486712097733ee48adebe7fc3e25d29e127894e08847f450c49023fdb"
+    },
+    {
+      "path": "src/ai/ask-eval/runner.ts",
+      "sha256": "ed79870d39a43302516ff3de37561e1010f9903938443955dc22e5b23e7fc80e"
+    },
+    {
+      "path": "src/ai/ask-eval/devset.ts",
+      "sha256": "dc1db1bd7f081d97a057d0b7ce14bbb34fd4f135f5f82af7726563ccfc791cc1"
+    },
+    {
+      "path": "src/ai/ask-eval/reference.ts",
+      "sha256": "edb577a6efa3a811ae9fd22ef7b4579f5254dd32fd57987d551acf99db49db8f"
+    },
+    {
+      "path": "src/ai/investigator-eval/guard.ts",
+      "sha256": "8688c9b8b1deffcafc9818592ea5b63e3f9063ce3d6130be4ba726896ce36d76"
+    },
+    {
+      "path": "tests/ask-eval-score.test.ts",
+      "sha256": "1b9d960737fa3bd9121421bf008b3904c375a6fc62e65ee4d064f48000ca82b4"
+    },
+    {
+      "path": "tests/ask-eval-rules.test.ts",
+      "sha256": "1dd544173bea3697def3d5fe04c55c023b41cfdd7f2aa0b0d478ed2ea063770e"
+    },
+    {
+      "path": "tests/ask-eval-prompt.test.ts",
+      "sha256": "5cafcfaddc1bae4a6366e98b7f6429c4eec063d4969d4fc6c8eb3e6ae34eb89a"
+    },
+    {
+      "path": "tests/ask-eval-runner.test.ts",
+      "sha256": "099abae0a56a49f0dbba2f5012497b85d91190293708abfe50fdb046e1bcfb73"
+    },
+    {
+      "path": "tests/ask-eval-catalog.test.ts",
+      "sha256": "9bd39701ee772c26b2c350c960da6cba69f757c6911aff96a7a4859f6668e264"
+    },
+    {
+      "path": "docs/ASK_EVAL_PROTOCOL.md",
+      "sha256": "afd466ccbfc0709f8bac577b84372e7b637828dd3247f3af33961e74814e4a30"
+    },
+    {
+      "path": "docs/ASK_EVAL_EVIDENCE_REFERENCE.md",
+      "sha256": "664e806b013ee091ea8af32610216f599821bb529871273cac9ae0e553df36ff"
+    },
+    {
+      "path": "package.json",
+      "sha256": "12ba3ae886b8467fcc514117190ff61b81022007a118d084b15e11312f9b6e97"
+    },
+    {
+      "path": "pnpm-lock.yaml",
+      "sha256": "4ba74facf63d093a0c32fa18c92bd46bc7699bab92aa9ae85950d2ca4a194083"
+    },
+    {
+      "path": "tsconfig.json",
+      "sha256": "9c1eb9decbf0a3acecd64f7265b87ded459e766dc5f57fa62e421fbbe2372c0c"
+    },
+    {
+      "path": "vitest.config.ts",
+      "sha256": "72aca507bd5ee3f5ab98d1f124040ea705f55287b5c962a065be1d5b03579a46"
+    }
+  ]
+}
