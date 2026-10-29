@@ -154,7 +154,7 @@ The console shows **stored** checks. It never runs the checker, never re-reads P
 
 ```bash
 pnpm typecheck
-pnpm test             # vitest; offline; 26 files / 585 tests at Gate 3A
+pnpm test             # vitest; offline; latest local check: 36 files / 761 tests
 pnpm check            # both
 ```
 
@@ -172,7 +172,7 @@ The tests cover:
 
 - A full judge rehearsal on the final deployed version, on desktop and mobile: **NOT_TESTED**. Startup, session and authorization checks on the live HTTPS deployment were recorded privately; the full browser journey has not been re-run on the final version.
 - Hosted webhook delivery (genuine signed event, duplicate retry, interruption): **NOT_TESTED**.
-- AI value: **not demonstrated.** A preregistered live evaluation of the Gate 2C advisory path (10 cases, 10 Gemini calls, 2026-10-23) found 10/10 accepted outputs and 10/10 correct classifications. A no-model control built from the same candidate policy also scored 10/10, so the model added no measurable value there. The hosted judge investigator has **not** been scored against its rules-based baseline. Details: `docs/GATE2C_AI_RESULTS.md`.
+- AI value: **not demonstrated.** The older Gate 2C advisory evaluation tied the stronger no-model control at 10/10; see `docs/GATE2C_AI_RESULTS.md`. The separate 16-case investigator analysis is now complete: both AI reviewers' comparisons against both deterministic controls return **REGRESSION** under the frozen rules. Those are AI-reviewed, post-hoc exploratory results, with substantial reviewer disagreement, missing historical rubric definitions and disclosed blinding/checkpoint limitations—not confirmatory evidence of general model inferiority. See [investigator results](docs/INVESTIGATOR_EVAL_RESULTS.md). Human merchant usefulness remains **NOT_TESTED**.
 - Free-tier availability through the judging period (Render sleep and suspension, Neon and Gemini allowances): **not guaranteed**. Availability is checked manually; no keep-alive traffic is used.
 - Role-based access beyond owner/judge, and multi-tenant isolation beyond per-session run ownership: **not built**.
 - Screen-reader use, a full WCAG 2.2 audit, performance under load, and real users: **NOT_TESTED**.
