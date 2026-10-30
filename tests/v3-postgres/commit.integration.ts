@@ -6,7 +6,7 @@ import { CommitEvidenceInconsistent, CommitOutcomeUnknown, NotCommittedEstablish
 import { migrateGuard } from "../../packages/guard/src/schema.ts";
 import { startFaultProxy, type FaultProxy } from "../../packages/verifier/src/proxy.ts";
 import { createDisposableDatabase, type DisposableDatabase } from "./harness.ts";
-import { runChild } from "./setup.ts";
+import { runChild, startPausableRelay } from "./setup.ts";
 
 let db: DisposableDatabase, proxy: FaultProxy, pools: GuardPools;
 const previousMode = process.env.ORDERTRUTH_GUARD_MODE;
@@ -141,6 +141,52 @@ describe("commit journal and resolution (spec §5.3e)", () => {
     expect(error).toBeInstanceOf(CommitOutcomeUnknown);
     expect((error as CommitOutcomeUnknown).reason).toMatch(/unreachable/);
     await dead.end();
+  });
+
+  it("a paused database during resolution stays STILL_UNKNOWN within the attempt deadline", async () => {
+    const relay = await startPausableRelay({ host: String(db.config.host), port: Number(db.config.port) });
+    const frozen = new pg.Pool({ ...auxConfig(), host: "127.0.0.1", port: relay.port }); frozen.on("error", () => {});
+    try {
+      const r = await runGuardTx(pools, "OPERATION", identity, effect, { confirm });
+      await frozen.query("SELECT 1");                     // an idle pooled connection exists, as it would in a running guard
+      relay.pause();
+      const started = Date.now();
+      const resolved = await resolveCall({ op: pools.op, aux: frozen }, r.callId, { deadlineMs: 300, attemptMs: 1000, confirm });
+      expect(resolved.state).toBe("STILL_UNKNOWN");
+      expect(resolved.reason).toMatch(/deadline/);
+      expect(Date.now() - started).toBeLessThan(2500);
+      expect(frozen.totalCount).toBe(0);                  // the frozen connections were destroyed, not leaked
+    } finally { relay.resume(); await relay.close(); await frozen.end().catch(() => {}); }
+  });
+
+  it("a lost acknowledgement while the database is paused is unknown, never a rollback", async () => {
+    const relay = await startPausableRelay({ host: String(db.config.host), port: Number(db.config.port) });
+    const frozen = new pg.Pool({ ...auxConfig(), host: "127.0.0.1", port: relay.port }); frozen.on("error", () => {});
+    try {
+      proxy.arm({ boundary: "OPERATION", mode: "drop-commit-ack" });
+      let callId = "";
+      const started = Date.now();
+      const error = await runGuardTx({ op: pools.op, aux: frozen }, "OPERATION", identity, async (tx, ctx) => { callId = ctx.callId; return effect(tx, ctx); },
+        { confirm, resolveDeadlineMs: 300, resolveAttemptMs: 1000, hooks: { afterCommitFailure: () => relay.pause() } }).then(() => null, e => e);
+      expect(error).toBeInstanceOf(CommitOutcomeUnknown);
+      expect((error as CommitOutcomeUnknown).reason).toMatch(/deadline/);
+      expect(Date.now() - started).toBeLessThan(4000);
+      relay.resume();
+      expect((await resolveCall(pools, callId, { deadlineMs: 2000, confirm })).state).toBe("COMMITTED");    // it had committed
+      expect(await effectExists(callId)).toBe(true);
+    } finally { relay.resume(); await relay.close(); await frozen.end().catch(() => {}); }
+  });
+
+  it("a client-side COMMIT timeout is decided from durable evidence", async () => {
+    const timed = new pg.Pool({ ...opConfig(), query_timeout: 300 }); timed.on("error", () => {});
+    try {
+      proxy.arm({ boundary: "OPERATION", mode: "hold-commit" });
+      let callId = "";
+      const error = await runGuardTx({ op: timed, aux: pools.aux }, "OPERATION", identity, async (tx, ctx) => { callId = ctx.callId; return effect(tx, ctx); }, { confirm })
+        .then(() => null, e => e);
+      expect(error).toBeInstanceOf(NotCommittedEstablished);    // the held COMMIT never reached the server, and the backend was proved ended
+      expect(await effectExists(callId)).toBe(false);
+    } finally { await timed.end().catch(() => {}); }
   });
 
   it("refuses to resolve as COMMITTED without a mandatory confirmation", async () => {

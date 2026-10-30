@@ -59,10 +59,17 @@ const orderIdentity = (c: { intentId: string; paypalOrderId: string; captureId: 
 export async function createGuard(o: GuardOptions): Promise<Guard> {
   if (o.paypalEnv !== "sandbox") throw new Error("createGuard: sandbox only (paypalEnv must be \"sandbox\")");
   if (!validateIdentifier(o.merchantId) || !validateIdentifier(o.buildId)) throw new Error("createGuard: invalid merchantId or buildId");
-  for (const [k, v] of Object.entries(o.timeouts)) if (!finitePositive(v)) throw new Error(`createGuard: timeouts.${k} must be a finite positive integer`);
+  // Each required timeout by name: iterating the supplied keys would let an omitted one through (review R1), and pg treats a
+  // missing connection timeout as "wait forever".
+  const timeouts: unknown = o.timeouts;
+  if (!timeouts || typeof timeouts !== "object") throw new Error("createGuard: timeouts { lockMs, statementMs, connectionMs } is required");
+  for (const k of ["lockMs", "statementMs", "connectionMs"] as const)
+    if (!finitePositive((timeouts as Record<string, unknown>)[k])) throw new Error(`createGuard: timeouts.${k} must be a finite positive integer`);
   if (!finitePositive(o.freshnessMs) || !finitePositive(o.auxMax)) throw new Error("createGuard: freshnessMs and auxMax must be finite positive integers");
   const resolveDeadlineMs = o.resolveDeadlineMs ?? 5000;
   if (!finitePositive(resolveDeadlineMs)) throw new Error("createGuard: resolveDeadlineMs must be a finite positive integer");
+  // The whole resolution attempt: termination wait plus one connection acquisition and one statement's worth of slack.
+  const resolveAttemptMs = resolveDeadlineMs + o.timeouts.connectionMs + o.timeouts.statementMs;
   // pg's default connection timeout is infinite, which could wait forever (spec §5.4b).
   if (!finitePositive((o.pool as unknown as { options?: { connectionTimeoutMillis?: unknown } }).options?.connectionTimeoutMillis))
     throw new Error("createGuard: the operation pool needs a finite, positive connectionTimeoutMillis");
@@ -122,7 +129,7 @@ export async function createGuard(o: GuardOptions): Promise<Guard> {
     return wellFormed ? null : "BINDING_MISMATCH";
   }
 
-  const txOptions = { confirm, lockMs: o.timeouts.lockMs, statementMs: o.timeouts.statementMs, resolveDeadlineMs, hooks: runHooks };
+  const txOptions = { confirm, lockMs: o.timeouts.lockMs, statementMs: o.timeouts.statementMs, resolveDeadlineMs, resolveAttemptMs, hooks: runHooks };
 
   /** A pre-transaction rejection commits its evidence in its own audit transaction; if that fails, throw instead of returning REJECTED. */
   async function audit(c: CaptureCapability, i: { intentId: string; pathId: string; siteId: string }, reason: RejectReason): Promise<CreateOrderResult> {
@@ -323,10 +330,10 @@ export async function createGuard(o: GuardOptions): Promise<Guard> {
 
   return {
     createOrderOnce,
-    async resolve(callId) { return toResolution(callId, await resolveCall(pools, callId, { deadlineMs: resolveDeadlineMs, confirm })); },
+    async resolve(callId) { return toResolution(callId, await resolveCall(pools, callId, { deadlineMs: resolveDeadlineMs, attemptMs: resolveAttemptMs, confirm })); },
     async recoverPending(r) {
       if (!Number.isInteger(r.olderThanMs) || r.olderThanMs < 0) throw new Error("recoverPending: olderThanMs must be a non-negative integer");
-      const pending = await recoverCalls(pools, { olderThanMs: r.olderThanMs, deadlineMs: resolveDeadlineMs, confirm });
+      const pending = await recoverCalls(pools, { olderThanMs: r.olderThanMs, deadlineMs: resolveDeadlineMs, attemptMs: resolveAttemptMs, confirm });
       return pending.map(p => ({ ...toResolution(p.callId, p), boundary: p.boundary }));
     },
     async close() { await aux.end(); },

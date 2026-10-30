@@ -59,13 +59,14 @@ const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
 
 export async function runGuardTx<T>(pools: GuardPools, boundary: Boundary, identity: OutcomeRecord,
   fn: (tx: pg.PoolClient, ctx: { callId: string }) => Promise<{ value: T; outcomeRecord: OutcomeRecord }>,
-  o: { confirm?: Confirm; lockMs?: number; statementMs?: number; resolveDeadlineMs?: number; hooks?: RunHooks } = {}):
+  o: { confirm?: Confirm; lockMs?: number; statementMs?: number; resolveDeadlineMs?: number; resolveAttemptMs?: number; hooks?: RunHooks } = {}):
   Promise<{ value: T; callId: string; resolved?: true }> {
   if (!BOUNDARIES.has(boundary)) throw new Error(`runGuardTx: unknown boundary ${String(boundary)}`);
   const merchantId = identity.merchantId;
   if (typeof merchantId !== "string" || merchantId.length === 0) throw new Error("runGuardTx: identity.merchantId is required");
   const lockMs = positiveInt(o.lockMs, 5000, "lockMs"), statementMs = positiveInt(o.statementMs, 10000, "statementMs");
   const deadlineMs = positiveInt(o.resolveDeadlineMs, 5000, "resolveDeadlineMs");
+  const attemptMs = positiveInt(o.resolveAttemptMs, deadlineMs + 10_000, "resolveAttemptMs");
   const hooks: RunHooks = verifierMode() ? (o.hooks ?? {}) : {};
   const callId = randomUUID();
   let client: pg.PoolClient;
@@ -77,8 +78,9 @@ export async function runGuardTx<T>(pools: GuardPools, boundary: Boundary, ident
     if (released) return;
     released = true; client.off("error", onError); client.release(destroy ? true : undefined);
   };
-  const recordResolved = (state: Exclude<EventualState, "STILL_UNKNOWN">) => pools.aux.query(
-    "UPDATE ordertruth_guard.commit_intents SET resolved_state = $2, resolved_at = now() WHERE call_id = $1 AND resolved_state IS NULL", [callId, state]).catch(() => {});
+  // Best-effort bookkeeping, bounded so an unresponsive database can't hold a decided call (an unrecorded intent is re-resolved later).
+  const recordResolved = (state: Exclude<EventualState, "STILL_UNKNOWN">) => within(pools.aux.query(
+    "UPDATE ordertruth_guard.commit_intents SET resolved_state = $2, resolved_at = now() WHERE call_id = $1 AND resolved_state IS NULL", [callId, state]), statementMs);
   try {
     // Simple-protocol statements (no parameters): BEGIN, the boundary tag the verifier's proxy keys on, and COMMIT.
     await client.query("BEGIN");
@@ -123,7 +125,7 @@ export async function runGuardTx<T>(pools: GuardPools, boundary: Boundary, ident
     // COMMIT was sent and its outcome is unknown. Destroy the client so its backend can end, then resolve from durable evidence.
     release(true);
     hooks.afterCommitFailure?.({ callId });
-    const r = await resolveCall(pools, callId, { deadlineMs, xid, ...(o.confirm ? { confirm: o.confirm } : {}),
+    const r = await resolveCall(pools, callId, { deadlineMs, attemptMs, xid, ...(o.confirm ? { confirm: o.confirm } : {}),
       hooks: hooks.xactStatusOverride ? { xactStatusOverride: hooks.xactStatusOverride } : {} });
     if (r.state === "COMMITTED" && result) return { value: result.value, callId, resolved: true };
     if (r.state === "NOT_COMMITTED_ESTABLISHED") throw new NotCommittedEstablished(callId, boundary);
@@ -132,92 +134,147 @@ export async function runGuardTx<T>(pools: GuardPools, boundary: Boundary, ident
   }
 }
 
+/** Checks that `aux` sees the `op` connection's exact backend identity (spec §5.3e step iii). */
+async function probeVisibility(op: pg.ClientBase, aux: pg.ClientBase): Promise<{ ok: boolean; reason: string }> {
+  const self = (await op.query<{ pid: number; backend_start: string | null }>(
+    "SELECT pg_backend_pid() AS pid, (SELECT backend_start::text FROM pg_stat_activity WHERE pid = pg_backend_pid()) AS backend_start")).rows[0];
+  if (!self?.backend_start) return { ok: false, reason: "probe backend not visible to itself" };
+  const seen = (await aux.query<{ same: boolean | null }>("SELECT backend_start = $2::timestamptz AS same FROM pg_stat_activity WHERE pid = $1",
+    [self.pid, self.backend_start])).rows[0];
+  return seen?.same === true ? { ok: true, reason: "" } : { ok: false, reason: "resolver role cannot see the operation role's backend identity" };
+}
+
 /** Proves, right now, that the resolver can see the operation role's backends: a probe connection's exact identity must be visible through aux. */
 export async function visibilityProof(pools: GuardPools): Promise<{ ok: boolean; reason: string }> {
   const probe = await pools.op.connect();
-  try {
-    const self = (await probe.query<{ pid: number; backend_start: string | null }>(
-      "SELECT pg_backend_pid() AS pid, (SELECT backend_start::text FROM pg_stat_activity WHERE pid = pg_backend_pid()) AS backend_start")).rows[0];
-    if (!self?.backend_start) return { ok: false, reason: "probe backend not visible to itself" };
-    const seen = (await pools.aux.query<{ same: boolean | null }>("SELECT backend_start = $2::timestamptz AS same FROM pg_stat_activity WHERE pid = $1",
-      [self.pid, self.backend_start])).rows[0];
-    return seen?.same === true ? { ok: true, reason: "" } : { ok: false, reason: "resolver role cannot see the operation role's backend identity" };
-  } finally { probe.release(); }
+  const aux = await pools.aux.connect().catch(error => { probe.release(); throw error; });
+  try { return await probeVisibility(probe, aux); } finally { probe.release(); aux.release(); }
 }
 
-export async function resolveCall(pools: GuardPools, callId: string,
-  o: { deadlineMs: number; confirm?: Confirm; xid?: string | undefined; hooks?: ResolveHooks }):
-  Promise<{ state: EventualState; outcomeRecord?: OutcomeRecord; reason?: string }> {
-  const hooks: ResolveHooks = verifierMode() ? (o.hooks ?? {}) : {};
-  const unknown = (reason: string) => ({ state: "STILL_UNKNOWN" as const, reason });
-  const inconsistent = (detail: string) => unknown(`${INCONSISTENT}: ${detail}`);
-  try {
-    const intent = (await pools.aux.query<{ merchant_id: string; boundary: string; backend_pid: number; backend_start: string; postmaster_start: string }>(
-      `SELECT merchant_id, boundary, backend_pid, backend_start::text AS backend_start, postmaster_start::text AS postmaster_start
-       FROM ordertruth_guard.commit_intents WHERE call_id = $1`, [callId])).rows[0];
-    if (!intent) return unknown("no commit intent is journaled for this call");
-    const sameServer = async () => (await pools.aux.query<{ ok: boolean }>(
-      "SELECT NOT pg_is_in_recovery() AND pg_postmaster_start_time() = $1::timestamptz AS ok", [intent.postmaster_start])).rows[0]?.ok === true;
-    // `bound`: the record names this call, its boundary and merchant, and carries exactly the identity journaled before the effect.
-    const readMarker = async () => (await pools.aux.query<{ merchant_id: string; boundary: string; outcome_record: OutcomeRecord; bound: boolean | null }>(
-      `SELECT m.merchant_id, m.boundary, m.outcome_record,
-              (m.outcome_record->>'callId' = m.call_id AND m.outcome_record->>'boundary' = m.boundary AND m.outcome_record->>'merchantId' = m.merchant_id
-               AND m.outcome_record->'identity' = i.identity) AS bound
-       FROM ordertruth_guard.commit_markers m JOIN ordertruth_guard.commit_intents i USING (call_id) WHERE m.call_id = $1`, [callId])).rows[0];
-    const diagnostic = async () => {
-      if (hooks.xactStatusOverride) return hooks.xactStatusOverride();
-      if (!o.xid) return null;
-      try { return (await pools.aux.query<{ s: string | null }>("SELECT pg_xact_status($1::xid8) AS s", [o.xid])).rows[0]?.s ?? null; } catch { return null; }
-    };
-    const record = (state: Exclude<EventualState, "STILL_UNKNOWN">) => pools.aux.query(
-      "UPDATE ordertruth_guard.commit_intents SET resolved_state = $2, resolved_at = now() WHERE call_id = $1 AND resolved_state IS NULL", [callId, state]);
+type Lease = { client: pg.PoolClient; release(destroy?: boolean): void };
+type Resolution = { state: EventualState; outcomeRecord?: OutcomeRecord; reason?: string };
 
-    if (!(await sameServer())) return unknown("server identity changed (different postmaster start) or the server is a standby");
-    let marker = await readMarker();
-    if (!marker) {
-      if (hooks.afterFirstMarkerRead) await hooks.afterFirstMarkerRead();
-      const visible = await visibilityProof(pools);
-      if (!visible.ok) return unknown(`monitoring visibility not established: ${visible.reason}`);
-      const deadline = Date.now() + o.deadlineMs;
-      for (;;) {
-        const alive = (await pools.aux.query("SELECT 1 FROM pg_stat_activity WHERE pid = $1 AND backend_start = $2::timestamptz",
-          [intent.backend_pid, intent.backend_start])).rowCount !== 0;
-        if (!alive) break;
-        if (Date.now() >= deadline) return unknown("the original backend was still present at the deadline");
-        await sleep(100);
-      }
-      if (!(await sameServer())) return unknown("server identity changed during resolution");
-      marker = await readMarker();                    // a fresh READ COMMITTED statement, taken only after termination
+/** Resolves after `p` settles or after `ms`, whichever comes first; never rejects. For best-effort bookkeeping only. */
+async function within(p: Promise<unknown>, ms: number): Promise<void> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  await Promise.race([p.catch(() => {}), new Promise<void>(r => { timer = setTimeout(r, ms); })]);
+  clearTimeout(timer);
+}
+
+/**
+ * One resolution attempt (spec §5.3e step 5), bounded end to end by `attemptMs`: connection acquisition, the probe, every
+ * query, the termination poll and the recording. Each connection it takes is tracked; when the deadline passes they are all
+ * destroyed (which also aborts any query a frozen server never answers) and the result is STILL_UNKNOWN, never a rollback.
+ */
+export async function resolveCall(pools: GuardPools, callId: string,
+  o: { deadlineMs: number; attemptMs?: number; confirm?: Confirm; xid?: string | undefined; hooks?: ResolveHooks }): Promise<Resolution> {
+  const hooks: ResolveHooks = verifierMode() ? (o.hooks ?? {}) : {};
+  const attemptMs = o.attemptMs ?? o.deadlineMs + 10_000;
+  if (!Number.isInteger(attemptMs) || attemptMs <= 0) throw new Error("resolveCall: attemptMs must be a positive integer");
+  const unknown = (reason: string): Resolution => ({ state: "STILL_UNKNOWN", reason });
+  const inconsistent = (detail: string) => unknown(`${INCONSISTENT}: ${detail}`);
+  const leases = new Set<Lease>();
+  let expired = false;
+  const take = async (pool: pg.Pool): Promise<Lease> => {
+    const client = await pool.connect();
+    const ignore = () => {};
+    client.on("error", ignore);                   // a destroyed or dropped connection must not crash the process
+    let done = false;
+    const lease: Lease = { client, release(destroy = false) {
+      if (done) return;
+      done = true; leases.delete(lease); client.off("error", ignore); client.release(destroy ? true : undefined);
+    } };
+    if (expired) { lease.release(true); throw new Error("the resolution attempt deadline has passed"); }
+    leases.add(lease);
+    return lease;
+  };
+
+  const attempt = async (): Promise<Resolution> => {
+    let a: Lease | undefined;
+    try {
+      a = await take(pools.aux);
+      const aux = a.client;
+      const intent = (await aux.query<{ merchant_id: string; boundary: string; backend_pid: number; backend_start: string; postmaster_start: string }>(
+        `SELECT merchant_id, boundary, backend_pid, backend_start::text AS backend_start, postmaster_start::text AS postmaster_start
+         FROM ordertruth_guard.commit_intents WHERE call_id = $1`, [callId])).rows[0];
+      if (!intent) return unknown("no commit intent is journaled for this call");
+      const sameServer = async () => (await aux.query<{ ok: boolean }>(
+        "SELECT NOT pg_is_in_recovery() AND pg_postmaster_start_time() = $1::timestamptz AS ok", [intent.postmaster_start])).rows[0]?.ok === true;
+      // `bound`: the record names this call, its boundary and merchant, and carries exactly the identity journaled before the effect.
+      const readMarker = async () => (await aux.query<{ merchant_id: string; boundary: string; outcome_record: OutcomeRecord; bound: boolean | null }>(
+        `SELECT m.merchant_id, m.boundary, m.outcome_record,
+                (m.outcome_record->>'callId' = m.call_id AND m.outcome_record->>'boundary' = m.boundary AND m.outcome_record->>'merchantId' = m.merchant_id
+                 AND m.outcome_record->'identity' = i.identity) AS bound
+         FROM ordertruth_guard.commit_markers m JOIN ordertruth_guard.commit_intents i USING (call_id) WHERE m.call_id = $1`, [callId])).rows[0];
+      const diagnostic = async () => {
+        if (hooks.xactStatusOverride) return hooks.xactStatusOverride();
+        if (!o.xid) return null;
+        try { return (await aux.query<{ s: string | null }>("SELECT pg_xact_status($1::xid8) AS s", [o.xid])).rows[0]?.s ?? null; } catch { return null; }
+      };
+      const record = (state: Exclude<EventualState, "STILL_UNKNOWN">) => aux.query(
+        "UPDATE ordertruth_guard.commit_intents SET resolved_state = $2, resolved_at = now() WHERE call_id = $1 AND resolved_state IS NULL", [callId, state]);
+
+      if (!(await sameServer())) return unknown("server identity changed (different postmaster start) or the server is a standby");
+      let marker = await readMarker();
       if (!marker) {
-        if ((await diagnostic()) === "committed") return inconsistent("no marker, but the diagnostic reports the transaction committed");
-        await record("NOT_COMMITTED_ESTABLISHED");
-        return { state: "NOT_COMMITTED_ESTABLISHED" };
+        if (hooks.afterFirstMarkerRead) await hooks.afterFirstMarkerRead();
+        const probe = await take(pools.op);
+        let visible: { ok: boolean; reason: string };
+        try { visible = await probeVisibility(probe.client, aux); } finally { probe.release(); }
+        if (!visible.ok) return unknown(`monitoring visibility not established: ${visible.reason}`);
+        const deadline = Date.now() + o.deadlineMs;
+        for (;;) {
+          const alive = (await aux.query("SELECT 1 FROM pg_stat_activity WHERE pid = $1 AND backend_start = $2::timestamptz",
+            [intent.backend_pid, intent.backend_start])).rowCount !== 0;
+          if (!alive) break;
+          if (Date.now() >= deadline) return unknown("the original backend was still present at the deadline");
+          await sleep(100);
+        }
+        if (!(await sameServer())) return unknown("server identity changed during resolution");
+        marker = await readMarker();                    // a fresh READ COMMITTED statement, taken only after termination
+        if (!marker) {
+          if ((await diagnostic()) === "committed") return inconsistent("no marker, but the diagnostic reports the transaction committed");
+          await record("NOT_COMMITTED_ESTABLISHED");
+          return { state: "NOT_COMMITTED_ESTABLISHED" };
+        }
       }
-    }
-    if (marker.merchant_id !== intent.merchant_id || marker.boundary !== intent.boundary) return inconsistent("the marker does not match its intent");
-    if (marker.bound !== true) return inconsistent("the outcome record is not bound to this call, boundary, merchant and journaled identity");
-    if (!o.confirm) return unknown("no mandatory confirmation was supplied for this boundary");
-    const aux = await pools.aux.connect();
-    let confirmed = false;
-    try { confirmed = await o.confirm(marker.outcome_record, aux); } finally { aux.release(); }
-    if (!confirmed) return inconsistent("durable state does not confirm the recorded outcome");
-    if ((await diagnostic()) === "aborted") return inconsistent("a marker is present, but the diagnostic reports the transaction aborted");
-    await record("COMMITTED");
-    return { state: "COMMITTED", outcomeRecord: marker.outcome_record };
-  } catch (error) {
-    return unknown(`database unreachable or failed during resolution: ${error instanceof Error ? error.message : String(error)}`);
-  }
+      if (marker.merchant_id !== intent.merchant_id || marker.boundary !== intent.boundary) return inconsistent("the marker does not match its intent");
+      if (marker.bound !== true) return inconsistent("the outcome record is not bound to this call, boundary, merchant and journaled identity");
+      if (!o.confirm) return unknown("no mandatory confirmation was supplied for this boundary");
+      if (!(await o.confirm(marker.outcome_record, aux))) return inconsistent("durable state does not confirm the recorded outcome");
+      if ((await diagnostic()) === "aborted") return inconsistent("a marker is present, but the diagnostic reports the transaction aborted");
+      await record("COMMITTED");
+      return { state: "COMMITTED", outcomeRecord: marker.outcome_record };
+    } catch (error) {
+      return unknown(`database unreachable or failed during resolution: ${error instanceof Error ? error.message : String(error)}`);
+    } finally { a?.release(); }
+  };
+
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timedOut = new Promise<Resolution>(resolve => {
+    timer = setTimeout(() => {
+      expired = true;
+      for (const lease of [...leases]) lease.release(true);
+      resolve(unknown(`the resolution attempt exceeded its ${attemptMs} ms deadline (database unresponsive or unreachable)`));
+    }, attemptMs);
+  });
+  try { return await Promise.race([attempt(), timedOut]); } finally { clearTimeout(timer); }
 }
 
 /** Resolves every unresolved journaled intent older than `olderThanMs`, from durable records only (works after a full restart). */
-export async function recoverPending(pools: GuardPools, o: { olderThanMs: number; deadlineMs: number; confirm?: Confirm }):
+export async function recoverPending(pools: GuardPools, o: { olderThanMs: number; deadlineMs: number; attemptMs?: number; confirm?: Confirm }):
   Promise<Array<{ callId: string; boundary: Boundary; state: EventualState; outcomeRecord?: OutcomeRecord }>> {
-  const pending = (await pools.aux.query<{ call_id: string; boundary: Boundary }>(
+  const attemptMs = o.attemptMs ?? o.deadlineMs + 10_000;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const listing = pools.aux.query<{ call_id: string; boundary: Boundary }>(
     `SELECT call_id, boundary FROM ordertruth_guard.commit_intents
-     WHERE resolved_state IS NULL AND created_at <= now() - ($1::int * interval '1 millisecond') ORDER BY created_at`, [o.olderThanMs])).rows;
+     WHERE resolved_state IS NULL AND created_at <= now() - ($1::int * interval '1 millisecond') ORDER BY created_at`, [o.olderThanMs]);
+  const pending = (await Promise.race([listing, new Promise<never>((_r, reject) => {
+    timer = setTimeout(() => reject(new Error(`recoverPending: the database did not list pending intents within ${attemptMs} ms`)), attemptMs);
+  })]).finally(() => clearTimeout(timer))).rows;
   const out: Array<{ callId: string; boundary: Boundary; state: EventualState; outcomeRecord?: OutcomeRecord }> = [];
   for (const p of pending) {
-    const r = await resolveCall(pools, p.call_id, { deadlineMs: o.deadlineMs, ...(o.confirm ? { confirm: o.confirm } : {}) });
+    const r = await resolveCall(pools, p.call_id, { deadlineMs: o.deadlineMs, attemptMs, ...(o.confirm ? { confirm: o.confirm } : {}) });
     out.push({ callId: p.call_id, boundary: p.boundary, state: r.state, ...(r.outcomeRecord ? { outcomeRecord: r.outcomeRecord } : {}) });
   }
   return out;

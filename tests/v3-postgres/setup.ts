@@ -1,5 +1,6 @@
 import { spawn } from "node:child_process";
 import { readFileSync } from "node:fs";
+import { connect, createServer, type AddressInfo, type Socket } from "node:net";
 import pg from "pg";
 import type { GuardPools } from "../../packages/guard/src/commit.ts";
 import { REQUIRED_CREATE_ORDER_RETURNS, type GuardConfig } from "../../packages/guard/src/config.ts";
@@ -57,6 +58,32 @@ export const V_A_CONFIG: GuardConfig = {
   singleTenantMerchantSchema: true,
   sites: [{ siteId: "checkout_return:order-write", pathId: "checkout_return" }, { siteId: "webhook:order-write", pathId: "webhook" }],
 };
+
+/**
+ * A TCP relay that can freeze like a paused PostgreSQL container: while paused it forwards nothing in either direction and
+ * accepts new connections without answering them. resume() delivers whatever was buffered.
+ */
+export async function startPausableRelay(target: { host: string; port: number }) {
+  let paused = false;
+  const sockets = new Set<Socket>(), stalled: Array<() => void> = [];
+  const pipe = (from: Socket, to: Socket) => from.on("data", chunk => {
+    if (!paused) { to.write(chunk); return; }
+    from.pause(); stalled.push(() => { to.write(chunk); from.resume(); });
+  });
+  const server = createServer(client => {
+    const upstream = connect(target.port, target.host);
+    for (const s of [client, upstream]) { sockets.add(s); s.on("error", () => { client.destroy(); upstream.destroy(); }); s.on("close", () => sockets.delete(s)); }
+    client.on("close", () => upstream.destroy()); upstream.on("close", () => client.destroy());
+    pipe(client, upstream); pipe(upstream, client);
+  });
+  await new Promise<void>(r => server.listen(0, "127.0.0.1", r));
+  return {
+    port: (server.address() as AddressInfo).port,
+    pause() { paused = true; },
+    resume() { paused = false; for (const f of stalled.splice(0)) f(); },
+    async close() { paused = false; for (const s of sockets) s.destroy(); await new Promise<void>(r => server.close(() => r())); },
+  };
+}
 
 export const until = async (check: () => boolean | Promise<boolean>, ms = 5000) => {
   const end = Date.now() + ms;

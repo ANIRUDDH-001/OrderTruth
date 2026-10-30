@@ -213,6 +213,8 @@ describe("createOrderOnce, profile P1 / tier T1 (spec §5.3a, §5.3c, §5.3d; pl
 describe("createGuard startup checks (plan Task 6)", () => {
   it("refuses unsafe or inconsistent configuration", async () => {
     await expect(createGuard(options({ timeouts: { lockMs: Infinity, statementMs: 5000, connectionMs: 5000 } }))).rejects.toThrow(/finite/);
+    const omitted = { lockMs: 2000, statementMs: 5000 } as unknown as GuardOptions["timeouts"];
+    await expect(createGuard(options({ timeouts: omitted }))).rejects.toThrow(/timeouts\.connectionMs/);
     await expect(createGuard(options({ merchantId: "SYN-M-B" }))).rejects.toThrow(/another merchant/);
     await expect(createGuard(options({ config: { ...V_A_CONFIG, createOrder: { ...V_A_CONFIG.createOrder, sql: "COMMIT", params: [] } } }))).rejects.toThrow(/transaction control/);
     const noTimeout = new pg.Pool({ ...env.opConfig(), connectionTimeoutMillis: 0 });
