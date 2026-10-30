@@ -1,0 +1,14 @@
+{
+  "protocol": "reference-source-comparison/v1",
+  "sourceCommit": "fc85ac3db1388bd84a3a55b8198d9dc3b2ad6c86",
+  "original": {
+    "path": "packages/lab-merchant/src/v-a/original.ts",
+    "content": "/**\n * V-A original (REF-BUG-1, as src/merchant/reference-merchant.ts): \"already ordered?\" is a read, then an await, then an\n * insert, with no unique key on intent_id. Two calls whose checks both finish before either insert create two orders.\n */\nimport { need, type Handler, type MerchantDeps, type HandlerInput, type Path } from \"../types.ts\";\n\nasync function placeOrder(d: MerchantDeps, i: HandlerInput, path: Path) {\n  const capture = need(d.capability, \"capability\");\n  const existing = (await d.pool.query<{ id: string }>(\"SELECT id FROM shop.orders WHERE intent_id = $1 ORDER BY created_at LIMIT 1\", [i.intentId])).rows[0];\n  if (existing) return { ok: true as const, orderId: existing.id, created: false };\n  await d.afterCheck();\n  const id = (await d.pool.query<{ id: string }>(`INSERT INTO shop.orders (intent_id, paypal_order_id, capture_id, amount_minor, currency, created_by_path)\n    VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`, [i.intentId, capture.paypalOrderId, capture.captureId, capture.amountMinor, capture.currency, path])).rows[0]!.id;\n  return { ok: true as const, orderId: id, created: true };\n}\nexport const handleCheckoutReturn: Handler = (d, i) => placeOrder(d, i, \"checkout_return\");\nexport const handleCaptureWebhook: Handler = (d, i) => placeOrder(d, i, \"webhook\");\n",
+    "sha256": "0100bab1d8565552fd9d156d72da421e9bbad390ba079a6cc6273f98b57eac3d"
+  },
+  "reference": {
+    "path": "packages/lab-merchant/src/v-a/reference-fix.ts",
+    "content": "/** V-A reference fix (human-written): the same barrier point, then the guard's one claimed obligation per capture. */\nimport { fromGuard, need, type Handler, type MerchantDeps, type HandlerInput, type Path } from \"../types.ts\";\n\nexport async function placeOrderOnce(d: MerchantDeps, i: HandlerInput, path: Path) {\n  await d.afterCheck();\n  return fromGuard(await need(d.guard, \"guard\").createOrderOnce({ capture: need(d.capability, \"capability\"), intentId: i.intentId, pathId: path, siteId: `${path}:order-write` }));\n}\nexport const handleCheckoutReturn: Handler = (d, i) => placeOrderOnce(d, i, \"checkout_return\");\nexport const handleCaptureWebhook: Handler = (d, i) => placeOrderOnce(d, i, \"webhook\");\n",
+    "sha256": "6413aea8007a5dd17f712dc591ddaa9085a07966a6e3ccda744b6b7fc064df11"
+  }
+}

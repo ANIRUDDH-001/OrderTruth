@@ -157,7 +157,8 @@ function render() {
   const identity = el("span",state.sessionStatus === "AUTHENTICATED" ? (state.session.owner ? "Owner session" : "Private judge session") : state.sessionStatus === "SIGNED_OUT" ? "Signed out" : "Session access not yet confirmed","muted");
   const ownerToggle = button(state.ownerForm ? "Close owner sign-in" : "Owner access",() => { state.ownerForm = !state.ownerForm; },true);
   ownerToggle.id = "owner-toggle"; ownerToggle.setAttribute("aria-expanded",String(state.ownerForm));
-  header.append(brand,identity,ownerToggle); root.append(header);
+  const labLink = el("a","Integration Lab"); labLink.href = "/lab/";
+  header.append(brand,identity,labLink,ownerToggle); root.append(header);
   const main = el("main"); main.id = "workspace"; main.tabIndex = -1;
   const intro = el("div","","intro"); intro.append(el("p","Investigate merchant outcomes. Verify recovery.","kicker"),el("h1",state.scenario ? "Follow the evidence to recovery." : "A payment can succeed. Its order can still be wrong."),
     el("p","Explore a controlled merchant anomaly against an original PayPal Sandbox observation. Investigate, approve a merchant-only repair, and independently check the result.","lead"));

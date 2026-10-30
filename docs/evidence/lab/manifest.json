@@ -1,0 +1,48 @@
+{
+  "protocol": "ordertruth.lab-publication/v1",
+  "hashing": "sha256 of actual artifact bytes",
+  "sourceCommit": "fc85ac3db1388bd84a3a55b8198d9dc3b2ad6c86",
+  "runId": "gate-a-2026-10-30T15-58-19-399Z",
+  "verifierManifestSha256": "b9e880ee0970c0bd0fb4bbd63086dc86beab1e179690fb4fe52f594309e44f72",
+  "subjectSha256": "7bef5fc5e0c5eaa5ac9bdcf16f6fa7c8bca86f5df83637d2e3c80f4e61f70f42",
+  "reviewEvidenceSha256": "f39cf734ce6da47a744fde1b08bffb775bf69d2054a2f7632695473e2d79a74e",
+  "execution": "LOCAL_CONTAINERS",
+  "publicSourceAvailability": "NOT_VERIFIED",
+  "files": [
+    {
+      "role": "report1",
+      "file": "gate-a-run-1.report.json",
+      "sha256": "b9e30b8cc40323950768b03caff367feeb14e5ac287e85f819262127cefd44d9"
+    },
+    {
+      "role": "report2",
+      "file": "gate-a-run-2.report.json",
+      "sha256": "8e312d86103af1cd1a8cd7c4695940954ffcbc9463bd4f4dd4e5d5194c6fce03"
+    },
+    {
+      "role": "summary",
+      "file": "gate-a-final-summary.json",
+      "sha256": "23ee9fb1742797aa445855db48ae35482065b437c088ef31fc3430d97638116d"
+    },
+    {
+      "role": "cleanup",
+      "file": "gate-a-final-cleanup.json",
+      "sha256": "f43e787ed824a362e2748770897b5af7cab733944ef84c215d723f3a6dabcefe"
+    },
+    {
+      "role": "verifier",
+      "file": "gate-a-verifier-manifest.json",
+      "sha256": "51a123338a7571182e5b873454374e6bfe931699813c23da4cec6aeb1bc79cca"
+    },
+    {
+      "role": "reference",
+      "file": "gate-a-reference-source.json",
+      "sha256": "e80b83708259b14b7f84c36f28fc9bc2bd5628294990473f70a8262843666ff5"
+    },
+    {
+      "role": "proof",
+      "file": "gate-a-proof.json",
+      "sha256": "826da76f23ed888a3819c7738006e7bb7474c12874e67f7901d021029b650840"
+    }
+  ]
+}

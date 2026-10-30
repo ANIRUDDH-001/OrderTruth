@@ -1,0 +1,128 @@
+{
+  "runId": "gate-a-2026-10-30T15-58-19-399Z",
+  "partial": false,
+  "qualifying": true,
+  "verificationQualified": true,
+  "qualificationReasons": [],
+  "cleanup": {
+    "ok": true,
+    "errors": [],
+    "downExit": 0,
+    "remaining": {
+      "containers": [],
+      "volumes": [],
+      "networks": []
+    }
+  },
+  "manifestSha256": "b9e880ee0970c0bd0fb4bbd63086dc86beab1e179690fb4fe52f594309e44f72",
+  "environment": {
+    "candidateNode": "v22.18.0",
+    "postgresVersion": "18.6 (Debian 18.6-1.pgdg13+2)",
+    "images": {
+      "ot-v3-gate-a-candidate-1": "ot-v3-gate-a-candidate:latest@sha256:f590c492ac605418f1f2f80827ba262c7cccc02211d729467ff5f95cd920172d",
+      "ot-v3-gate-a-postgres-1": "postgres:18@sha256:979bccfde35445db618c65107d27d08c6c21339d8dc3ad4c830c6633947be0e4",
+      "ot-v3-gate-a-faultproxy-1": "ot-v3-gate-a-faultproxy:latest@sha256:cb4d87691a12d99949bf09d66777bd9080610e28b2bba3ad8222d96d739c0058"
+    },
+    "controllerNode": "v24.11.0",
+    "manifestSha256": "b9e880ee0970c0bd0fb4bbd63086dc86beab1e179690fb4fe52f594309e44f72",
+    "sourceCommit": "fc85ac3db1388bd84a3a55b8198d9dc3b2ad6c86",
+    "subjectSha256": "7bef5fc5e0c5eaa5ac9bdcf16f6fa7c8bca86f5df83637d2e3c80f4e61f70f42",
+    "manifestAnchor": "committed HEAD:packages/verifier/verifier-manifest.json"
+  },
+  "comparison": {
+    "same": true,
+    "differences": []
+  },
+  "acceptance": [
+    {
+      "accepted": true,
+      "reasons": []
+    },
+    {
+      "accepted": true,
+      "reasons": []
+    }
+  ],
+  "validity": [
+    "VALID",
+    "VALID"
+  ],
+  "statuses": [
+    {
+      "ORIGINAL": {
+        "L0": "PASS",
+        "L1": "PASS",
+        "L3": "PASS",
+        "L4": "FAIL",
+        "L5": "NOT_APPLICABLE",
+        "L7": "PASS",
+        "L9": "NOT_APPLICABLE",
+        "L21": "NOT_APPLICABLE",
+        "L22": "NOT_APPLICABLE",
+        "AUTH": "NOT_APPLICABLE"
+      },
+      "REFERENCE_FIX": {
+        "L0": "PASS",
+        "L1": "PASS",
+        "L3": "PASS",
+        "L4": "PASS",
+        "L5": "PASS",
+        "L7": "PASS",
+        "L9": "PASS",
+        "L21": "PASS",
+        "L22": "PASS",
+        "AUTH": "PASS"
+      }
+    },
+    {
+      "ORIGINAL": {
+        "L0": "PASS",
+        "L1": "PASS",
+        "L3": "PASS",
+        "L4": "FAIL",
+        "L5": "NOT_APPLICABLE",
+        "L7": "PASS",
+        "L9": "NOT_APPLICABLE",
+        "L21": "NOT_APPLICABLE",
+        "L22": "NOT_APPLICABLE",
+        "AUTH": "NOT_APPLICABLE"
+      },
+      "REFERENCE_FIX": {
+        "L0": "PASS",
+        "L1": "PASS",
+        "L3": "PASS",
+        "L4": "PASS",
+        "L5": "PASS",
+        "L7": "PASS",
+        "L9": "PASS",
+        "L21": "PASS",
+        "L22": "PASS",
+        "AUTH": "PASS"
+      }
+    }
+  ],
+  "negativeControls": [
+    {
+      "NC1": "REJECTED_AS_INTENDED",
+      "NC2": "REJECTED_AS_INTENDED",
+      "NC3": "REJECTED_AS_INTENDED",
+      "NC6": "REJECTED_AS_INTENDED",
+      "NC7": "REJECTED_AS_INTENDED",
+      "NC8": "REJECTED_AS_INTENDED",
+      "NC9": "REJECTED_AS_INTENDED",
+      "NC10": "REJECTED_AS_INTENDED",
+      "NC12": "REJECTED_AS_INTENDED"
+    },
+    {
+      "NC1": "REJECTED_AS_INTENDED",
+      "NC2": "REJECTED_AS_INTENDED",
+      "NC3": "REJECTED_AS_INTENDED",
+      "NC6": "REJECTED_AS_INTENDED",
+      "NC7": "REJECTED_AS_INTENDED",
+      "NC8": "REJECTED_AS_INTENDED",
+      "NC9": "REJECTED_AS_INTENDED",
+      "NC10": "REJECTED_AS_INTENDED",
+      "NC12": "REJECTED_AS_INTENDED"
+    }
+  ]
+}

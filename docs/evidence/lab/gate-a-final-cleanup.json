@@ -1,0 +1,10 @@
+{
+  "ok": true,
+  "errors": [],
+  "downExit": 0,
+  "remaining": {
+    "containers": [],
+    "volumes": [],
+    "networks": []
+  }
+}

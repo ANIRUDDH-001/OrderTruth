@@ -1,0 +1,2157 @@
+{
+  "protocol": "ordertruth.protection-proof/v1",
+  "variant": "V-A",
+  "defect": "REF-BUG-1",
+  "profile": "P1",
+  "tier": "T1",
+  "contract": {
+    "id": "OT_V3_OBLIGATION",
+    "version": "0.1.0"
+  },
+  "sdkVersion": "0.1.0-gate-a",
+  "sourceCommit": "fc85ac3db1388bd84a3a55b8198d9dc3b2ad6c86",
+  "runId": "gate-a-2026-10-30T15-58-19-399Z",
+  "environment": {
+    "candidateNode": "v22.18.0",
+    "postgresVersion": "18.6 (Debian 18.6-1.pgdg13+2)",
+    "images": {
+      "ot-v3-gate-a-candidate-1": "ot-v3-gate-a-candidate:latest@sha256:f590c492ac605418f1f2f80827ba262c7cccc02211d729467ff5f95cd920172d",
+      "ot-v3-gate-a-postgres-1": "postgres:18@sha256:979bccfde35445db618c65107d27d08c6c21339d8dc3ad4c830c6633947be0e4",
+      "ot-v3-gate-a-faultproxy-1": "ot-v3-gate-a-faultproxy:latest@sha256:cb4d87691a12d99949bf09d66777bd9080610e28b2bba3ad8222d96d739c0058"
+    },
+    "controllerNode": "v24.11.0",
+    "manifestSha256": "b9e880ee0970c0bd0fb4bbd63086dc86beab1e179690fb4fe52f594309e44f72",
+    "sourceCommit": "fc85ac3db1388bd84a3a55b8198d9dc3b2ad6c86",
+    "subjectSha256": "7bef5fc5e0c5eaa5ac9bdcf16f6fa7c8bca86f5df83637d2e3c80f4e61f70f42",
+    "manifestAnchor": "committed HEAD:packages/verifier/verifier-manifest.json"
+  },
+  "candidate": {
+    "origin": "REFERENCE_FIX",
+    "implementationSha256": "6413aea8007a5dd17f712dc591ddaa9085a07966a6e3ccda744b6b7fc064df11",
+    "diffSha256": null,
+    "diffStatus": "NOT_RECORDED_GATE_A",
+    "referenceComparisonSha256": "e80b83708259b14b7f84c36f28fc9bc2bd5628294990473f70a8262843666ff5"
+  },
+  "policyGate": "NOT_APPLICABLE_REFERENCE_FIX",
+  "review": {
+    "decision": "RECORDED_GATE_A_PASS",
+    "evidenceSha256": "f39cf734ce6da47a744fde1b08bffb775bf69d2054a2f7632695473e2d79a74e",
+    "attestation": "NOT_INDEPENDENT"
+  },
+  "provenance": {
+    "authority": "TEST",
+    "label": "Reference integration, verified offline in an isolated container, using a synthetic PayPal-shaped fixture (no PayPal data). Separate from your judge case, which uses a genuine PayPal Sandbox observation.",
+    "execution": "LOCAL_CONTAINERS"
+  },
+  "coverage": {
+    "paths": [
+      {
+        "pathId": "checkout_return",
+        "tier": "T1"
+      },
+      {
+        "pathId": "webhook",
+        "tier": "T1"
+      }
+    ],
+    "historical": "NOT_TESTED",
+    "scope": "EXERCISED_LAB_PATHS_ONLY"
+  },
+  "qualification": {
+    "qualifying": true,
+    "cleanup": {
+      "ok": true,
+      "errors": [],
+      "downExit": 0,
+      "remaining": {
+        "containers": [],
+        "volumes": [],
+        "networks": []
+      }
+    },
+    "comparison": {
+      "same": true,
+      "differences": []
+    }
+  },
+  "runs": [
+    {
+      "runId": "gate-a-2026-10-30T15-58-19-399Z-run1",
+      "original": [
+        {
+          "id": "L0",
+          "status": "PASS",
+          "checks": [
+            {
+              "name": "candidate_node",
+              "kind": "trusted_log",
+              "ok": true,
+              "detail": "candidate node v22.18.0 (exit 0)"
+            },
+            {
+              "name": "packages_typecheck",
+              "kind": "trusted_log",
+              "ok": true,
+              "detail": "L0 packages_typecheck 0"
+            },
+            {
+              "name": "offline_tests",
+              "kind": "trusted_log",
+              "ok": true,
+              "detail": "L0 offline_tests 0 | L0-vitest:  \u001b[32m✓\u001b[39m tests/v3/identity.test.ts \u001b[2m(\u001b[22m\u001b[2m14 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 123\u001b[2mms\u001b[22m\u001b[39m | L0-vitest:  \u001b[32m✓\u001b[39m tests/v3/capability.test.ts \u001b[2m(\u001b[22m\u001b[2m4 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 99\u001b[2mms\u001b[22m\u001b[39m | L0-vitest:  \u001b[32m✓\u001b[39m tests/v3/trusted-db.test.ts \u001b[2m(\u001b[22m\u001b[2m5 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 297\u001b[2mms\u001b[22m\u001b[39m | L0-vitest:  \u001b[32m✓\u001b[39m tests/v3/guard-options.test.ts \u001b[2m(\u001b[22m\u001b[2m13 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 38\u001b[2mms\u001b[22m\u001b[39m | L0-vitest:  | L0-vitest: \u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m10 passed\u001b[39m\u001b[22m\u001b[90m (10)\u001b[39m | L0-vitest: \u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m229 passed\u001b[39m\u001b[22m\u001b[90m (229)\u001b[39m | L0-vitest: \u001b[2m   Start at \u001b[22m 16:01:14 | L0-vitest: \u001b[2m   Duration \u001b[22m 11.00s\u001b[2m (transform 61%, import 20%, tests 12%, worker 6%, environment 1%)\u001b[22m | L0-vitest:  | L0-vitest: \u001b[2m  Transform \u001b[22m \u001b[33mtransforming modules took 21.68s\u001b[39m\u001b[2m · 61% of tracked time, re-done on every run\u001b[22m | L0-vitest: \u001b[2m            \u001b[22m \u001b[2mpersist transforms across runs with \u001b[22m\u001b[33mfsModuleCache: true\u001b[39m | L0-vitest: \u001b[2m            \u001b[22m \u001b[2mon CI this only helps when the cache directory is persisted between runs\u001b[22m | L0-vitest: \u001b[2m            \u001b[22m \u001b[2mlearn more: https://vitest.dev/guide/improving-performance#caching-between-reruns\u001b[22m | L0-vitest: "
+            },
+            {
+              "name": "control_api_unreachable",
+              "kind": "trusted_log",
+              "ok": true,
+              "detail": "candidate → faultproxy: data:open control:ECONNREFUSED (exit 3)"
+            },
+            {
+              "name": "templates_unreachable",
+              "kind": "trusted_log",
+              "ok": true,
+              "detail": "candidate → merchant_template:55000 merchant_b_template:55000 postgres:42501 template1:42501 (exit 3)"
+            },
+            {
+              "name": "guard_constructs",
+              "kind": "independent_state",
+              "ok": true,
+              "detail": "construct claim {\"ok\":true,\"constructed\":true}; 0 obligations, 0 intents with orders",
+              "observed": {
+                "claimCode": null,
+                "constructed": true,
+                "obligations": 0
+              }
+            }
+          ]
+        },
+        {
+          "id": "L1",
+          "status": "PASS",
+          "checks": [
+            {
+              "name": "one_matching_order",
+              "kind": "independent_state",
+              "ok": true,
+              "detail": "SYN-INT-1: order 7c47ecfd-014c-44de-be51-8af8002ceadd",
+              "observed": {
+                "orders": 1,
+                "claimCode": null
+              }
+            },
+            {
+              "name": "obligations_backed_by_orders",
+              "kind": "independent_state",
+              "ok": true,
+              "detail": "0 obligation(s), all backed",
+              "observed": {
+                "unbacked": 0
+              }
+            },
+            {
+              "name": "claim_corroborated",
+              "kind": "independent_state",
+              "ok": true,
+              "detail": "state-only: order 7c47ecfd-014c-44de-be51-8af8002ceadd matches"
+            },
+            {
+              "name": "oracle_not_probed",
+              "kind": "trusted_log",
+              "ok": true,
+              "detail": "0 oracle access denial(s) for ot_candidate in the trusted PostgreSQL log",
+              "observed": {
+                "probed": false
+              }
+            }
+          ]
+        },
+        {
+          "id": "L3",
+          "status": "PASS",
+          "checks": [
+            {
+              "name": "one_matching_order:SYN-INT-1",
+              "kind": "independent_state",
+              "ok": true,
+              "detail": "SYN-INT-1: order 34b7d77c-80de-45bb-84df-e205cb169c53",
+              "observed": {
+                "orders": 1,
+                "claimCode": null
+              }
+            },
+            {
+              "name": "reuse_corroborated:SYN-INT-1",
+              "kind": "independent_state",
+              "ok": true,
+              "detail": "state-only: order 34b7d77c-80de-45bb-84df-e205cb169c53 matches"
+            },
+            {
+              "name": "one_matching_order:SYN-INT-2",
+              "kind": "independent_state",
+              "ok": true,
+              "detail": "SYN-INT-2: order 984902b6-2ede-48f2-b96d-ac95be740e33",
+              "observed": {
+                "orders": 1,
+                "claimCode": null
+              }
+            },
+            {
+              "name": "reuse_corroborated:SYN-INT-2",
+              "kind": "independent_state",
+              "ok": true,
+              "detail": "state-only: order 984902b6-2ede-48f2-b96d-ac95be740e33 matches"
+            }
+          ]
+        },
+        {
+          "id": "L4",
+          "status": "FAIL",
+          "checks": [
+            {
+              "name": "forced:one_matching_order",
+              "kind": "independent_state",
+              "ok": false,
+              "detail": "SYN-INT-1: 2 orders, expected exactly 1",
+              "observed": {
+                "orders": 2,
+                "claimCode": null
+              }
+            },
+            {
+              "name": "forced:outcomes_corroborated",
+              "kind": "independent_state",
+              "ok": true,
+              "detail": "state-only: order f8a45ff4-bbef-4562-bcdd-9409704213f3 matches; state-only: order 1d80c697-8fa7-474b-8496-2bb0b50f7f82 matches"
+            }
+          ],
+          "reproduced": "forced"
+        },
+        {
+          "id": "L5",
+          "status": "NOT_APPLICABLE",
+          "checks": []
+        },
+        {
+          "id": "L7",
+          "status": "PASS",
+          "checks": [
+            {
+              "name": "one_matching_order:SYN-INT-1",
+              "kind": "independent_state",
+              "ok": true,
+              "detail": "SYN-INT-1: order ab7871b8-1cbc-444d-bfe5-e1aff78dd950",
+              "observed": {
+                "orders": 1,
+                "claimCode": null
+              }
+            },
+            {
+              "name": "one_matching_order:SYN-INT-2",
+              "kind": "independent_state",
+              "ok": true,
+              "detail": "SYN-INT-2: order 2cc017be-55a7-4136-b912-165d1182248f",
+              "observed": {
+                "orders": 1,
+                "claimCode": null
+              }
+            }
+          ]
+        },
+        {
+          "id": "L9",
+          "status": "NOT_APPLICABLE",
+          "checks": []
+        },
+        {
+          "id": "L21",
+          "status": "NOT_APPLICABLE",
+          "checks": []
+        },
+        {
+          "id": "L22",
+          "status": "NOT_APPLICABLE",
+          "checks": []
+        },
+        {
+          "id": "AUTH",
+          "status": "NOT_APPLICABLE",
+          "checks": []
+        }
+      ],
+      "reference": [
+        {
+          "id": "L0",
+          "status": "PASS",
+          "checks": [
+            {
+              "name": "candidate_node",
+              "kind": "trusted_log",
+              "ok": true,
+              "detail": "candidate node v22.18.0 (exit 0)"
+            },
+            {
+              "name": "packages_typecheck",
+              "kind": "trusted_log",
+              "ok": true,
+              "detail": "L0 packages_typecheck 0"
+            },
+            {
+              "name": "offline_tests",
+              "kind": "trusted_log",
+              "ok": true,
+              "detail": "L0 offline_tests 0 | L0-vitest:  \u001b[32m✓\u001b[39m tests/v3/identity.test.ts \u001b[2m(\u001b[22m\u001b[2m14 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 123\u001b[2mms\u001b[22m\u001b[39m | L0-vitest:  \u001b[32m✓\u001b[39m tests/v3/capability.test.ts \u001b[2m(\u001b[22m\u001b[2m4 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 99\u001b[2mms\u001b[22m\u001b[39m | L0-vitest:  \u001b[32m✓\u001b[39m tests/v3/trusted-db.test.ts \u001b[2m(\u001b[22m\u001b[2m5 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 297\u001b[2mms\u001b[22m\u001b[39m | L0-vitest:  \u001b[32m✓\u001b[39m tests/v3/guard-options.test.ts \u001b[2m(\u001b[22m\u001b[2m13 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 38\u001b[2mms\u001b[22m\u001b[39m | L0-vitest:  | L0-vitest: \u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m10 passed\u001b[39m\u001b[22m\u001b[90m (10)\u001b[39m | L0-vitest: \u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m229 passed\u001b[39m\u001b[22m\u001b[90m (229)\u001b[39m | L0-vitest: \u001b[2m   Start at \u001b[22m 16:01:14 | L0-vitest: \u001b[2m   Duration \u001b[22m 11.00s\u001b[2m (transform 61%, import 20%, tests 12%, worker 6%, environment 1%)\u001b[22m | L0-vitest:  | L0-vitest: \u001b[2m  Transform \u001b[22m \u001b[33mtransforming modules took 21.68s\u001b[39m\u001b[2m · 61% of tracked time, re-done on every run\u001b[22m | L0-vitest: \u001b[2m            \u001b[22m \u001b[2mpersist transforms across runs with \u001b[22m\u001b[33mfsModuleCache: true\u001b[39m | L0-vitest: \u001b[2m            \u001b[22m \u001b[2mon CI this only helps when the cache directory is persisted between runs\u001b[22m | L0-vitest: \u001b[2m            \u001b[22m \u001b[2mlearn more: https://vitest.dev/guide/improving-performance#caching-between-reruns\u001b[22m | L0-vitest: "
+            },
+            {
+              "name": "control_api_unreachable",
+              "kind": "trusted_log",
+              "ok": true,
+              "detail": "candidate → faultproxy: data:open control:ECONNREFUSED (exit 3)"
+            },
+            {
+              "name": "templates_unreachable",
+              "kind": "trusted_log",
+              "ok": true,
+              "detail": "candidate → merchant_template:55000 merchant_b_template:55000 postgres:42501 template1:42501 (exit 3)"
+            },
+            {
+              "name": "guard_constructs",
+              "kind": "independent_state",
+              "ok": true,
+              "detail": "construct claim {\"ok\":true,\"constructed\":true}; 0 obligations, 0 intents with orders",
+              "observed": {
+                "claimCode": null,
+                "constructed": true,
+                "obligations": 0
+              }
+            }
+          ]
+        },
+        {
+          "id": "L1",
+          "status": "PASS",
+          "checks": [
+            {
+              "name": "one_matching_order",
+              "kind": "independent_state",
+              "ok": true,
+              "detail": "SYN-INT-1: order 4c13b91c-8082-4051-bff1-b0def40b5d61",
+              "observed": {
+                "orders": 1,
+                "claimCode": null
+              }
+            },
+            {
+              "name": "obligations_backed_by_orders",
+              "kind": "independent_state",
+              "ok": true,
+              "detail": "1 obligation(s), all backed",
+              "observed": {
+                "unbacked": 0
+              }
+            },
+            {
+              "name": "claim_corroborated",
+              "kind": "independent_state",
+              "ok": true,
+              "detail": "CREATED by call e9171a19-a339-42d0-816c-b5640e556d0e corroborated"
+            },
+            {
+              "name": "oracle_not_probed",
+              "kind": "trusted_log",
+              "ok": true,
+              "detail": "0 oracle access denial(s) for ot_candidate in the trusted PostgreSQL log",
+              "observed": {
+                "probed": false
+              }
+            }
+          ]
+        },
+        {
+          "id": "L3",
+          "status": "PASS",
+          "checks": [
+            {
+              "name": "one_matching_order:SYN-INT-1",
+              "kind": "independent_state",
+              "ok": true,
+              "detail": "SYN-INT-1: order a25ffccd-5866-4a64-9efd-de82f7bc8530",
+              "observed": {
+                "orders": 1,
+                "claimCode": null
+              }
+            },
+            {
+              "name": "reuse_corroborated:SYN-INT-1",
+              "kind": "independent_state",
+              "ok": true,
+              "detail": "REUSED by call 3f11ae8a-f17d-4499-9fe1-acdd061bdd45 corroborated"
+            },
+            {
+              "name": "one_matching_order:SYN-INT-2",
+              "kind": "independent_state",
+              "ok": true,
+              "detail": "SYN-INT-2: order a16f0700-1f05-4533-a26d-b899774777a7",
+              "observed": {
+                "orders": 1,
+                "claimCode": null
+              }
+            },
+            {
+              "name": "reuse_corroborated:SYN-INT-2",
+              "kind": "independent_state",
+              "ok": true,
+              "detail": "REUSED by call 2d54a6b3-c531-49fb-bc3e-6a2094a71ab6 corroborated"
+            }
+          ]
+        },
+        {
+          "id": "L4",
+          "status": "PASS",
+          "checks": [
+            {
+              "name": "forced:one_matching_order",
+              "kind": "independent_state",
+              "ok": true,
+              "detail": "SYN-INT-1: order d853b3eb-dbfe-47f2-8bc6-6045fea5cde9",
+              "observed": {
+                "orders": 1,
+                "claimCode": null
+              }
+            },
+            {
+              "name": "forced:outcomes_corroborated",
+              "kind": "independent_state",
+              "ok": true,
+              "detail": "outcomes CREATED,REUSED; CREATED by call 8400accf-ce5f-4a70-bf1f-3eee7dba11df corroborated; REUSED by call cb482d9d-06d7-41bd-9a2e-a20079ef1bda corroborated"
+            },
+            {
+              "name": "stress:one_matching_order",
+              "kind": "independent_state",
+              "ok": true,
+              "detail": "SYN-INT-1: order 169ddd7e-557e-488e-b2ad-abafcd9da5ae; 8 callers, delays 174/94/144/33/227/174/56/154 ms, exits 0,0,0,0,0,0,0,0, outcomes REUSED,REUSED,REUSED,CREATED,REUSED,REUSED,REUSED,REUSED"
+            }
+          ],
+          "seed": "764181674"
+        },
+        {
+          "id": "L5",
+          "status": "PASS",
+          "checks": [
+            {
+              "name": "crashed_call_left_nothing",
+              "kind": "independent_state",
+              "ok": true,
+              "detail": "exit 137; 0 obligations, 0 orders, 0 claimed events, operation markers 0"
+            },
+            {
+              "name": "issuance_evidence_present",
+              "kind": "independent_state",
+              "ok": true,
+              "detail": "1 evidence row(s)"
+            },
+            {
+              "name": "intent_unresolved_until_recovery",
+              "kind": "independent_state",
+              "ok": true,
+              "detail": "1 unresolved OPERATION intent(s) before recovery"
+            },
+            {
+              "name": "recovery_not_committed_established",
+              "kind": "independent_state",
+              "ok": true,
+              "detail": "intent f0d46e74-bcbb-4f55-9632-a9a0f938fbba → NOT_COMMITTED_ESTABLISHED"
+            },
+            {
+              "name": "retry_one_matching_order",
+              "kind": "independent_state",
+              "ok": true,
+              "detail": "SYN-INT-1: order d14c423b-10d4-4849-9910-505ffce3e3d5; CREATED by call 888d0552-9d58-49ea-9f85-46acfb9dc45f corroborated"
+            }
+          ]
+        },
+        {
+          "id": "L7",
+          "status": "PASS",
+          "checks": [
+            {
+              "name": "one_matching_order:SYN-INT-1",
+              "kind": "independent_state",
+              "ok": true,
+              "detail": "SYN-INT-1: order ae636341-6838-484d-9b58-0ec0f91d7176",
+              "observed": {
+                "orders": 1,
+                "claimCode": null
+              }
+            },
+            {
+              "name": "one_matching_order:SYN-INT-2",
+              "kind": "independent_state",
+              "ok": true,
+              "detail": "SYN-INT-2: order 4a33fd24-25dd-4b08-beed-138a575607b3",
+              "observed": {
+                "orders": 1,
+                "claimCode": null
+              }
+            }
+          ]
+        },
+        {
+          "id": "L9",
+          "status": "PASS",
+          "checks": [
+            {
+              "name": "conflict_primary",
+              "kind": "independent_state",
+              "ok": true,
+              "detail": "IDENTITY_CONFLICT by call 549c09e2-17c6-4b2d-b6ab-05ef899669e8 corroborated"
+            },
+            {
+              "name": "orders_unchanged_primary",
+              "kind": "independent_state",
+              "ok": true,
+              "detail": "SYN-INT-1: order dcfa05bc-90cc-4433-95b1-97c6a215b74f"
+            },
+            {
+              "name": "conflict_fingerprints",
+              "kind": "independent_state",
+              "ok": true,
+              "detail": "attempted 8e7147015edeaa118ab2a9ded8890caae78d6a24eb80ca6954a47cdfc4aff2c6, existing 1b1ca56a9907f5440224b668a323eb34ffa725283012693d011d98dd5f80e6d4"
+            },
+            {
+              "name": "conflict_secondary",
+              "kind": "independent_state",
+              "ok": true,
+              "detail": "IDENTITY_CONFLICT by call a35bc48e-bc3a-4f9c-b91e-977fa8d82111 corroborated"
+            },
+            {
+              "name": "no_claim_secondary_capture",
+              "kind": "independent_state",
+              "ok": true,
+              "detail": "0 SYN-CAP-4 obligation(s), 1 SYN-INT-1 order(s)"
+            }
+          ]
+        },
+        {
+          "id": "L21",
+          "status": "PASS",
+          "checks": [
+            {
+              "name": "a:committed_from_marker",
+              "kind": "independent_state",
+              "ok": true,
+              "detail": "call c03fbef7-9509-4fd9-9070-2d92ae0840d5: marker CREATED, intent COMMITTED"
+            },
+            {
+              "name": "a:one_order",
+              "kind": "independent_state",
+              "ok": true,
+              "detail": "SYN-INT-1: order 622b1afe-236b-4195-8a20-a40a6220dfc6"
+            },
+            {
+              "name": "b:not_committed_established",
+              "kind": "independent_state",
+              "ok": true,
+              "detail": "claim code NotCommittedEstablished; 1 established intent(s); 0 orders"
+            },
+            {
+              "name": "b:retry_one_order",
+              "kind": "independent_state",
+              "ok": true,
+              "detail": "SYN-INT-1: order d2724827-1737-4f6b-ac8d-e681c64c321f; CREATED by call dbb2b2a4-5778-4168-86e8-2720c4307258 corroborated"
+            },
+            {
+              "name": "c:still_unknown_while_held",
+              "kind": "independent_state",
+              "ok": true,
+              "detail": "held intent 3842fb93-0b3f-4dfa-b527-32faae83f9d4; recover [{\"callId\":\"3842fb93-0b3f-4dfa-b527-32faae83f9d4\",\"state\":\"STILL_UNKNOWN\",\"boundary\":\"OPERATION\"}]"
+            },
+            {
+              "name": "c:resolved_after_release",
+              "kind": "independent_state",
+              "ok": true,
+              "detail": "intent → COMMITTED"
+            },
+            {
+              "name": "d:still_unknown_paused",
+              "kind": "independent_state",
+              "ok": true,
+              "detail": "claim code CommitOutcomeUnknown; intent c5970c98-509f-45c6-a7ac-51dfe609d814 null; 0 orders; recovered [{\"callId\":\"c5970c98-509f-45c6-a7ac-51dfe609d814\",\"state\":\"NOT_COMMITTED_ESTABLISHED\",\"boundary\":\"OPERATION\"}]"
+            },
+            {
+              "name": "e:issuance_committed",
+              "kind": "independent_state",
+              "ok": true,
+              "detail": "issuance intent COMMITTED; claim CREATED"
+            },
+            {
+              "name": "f:still_unknown_after_restart",
+              "kind": "independent_state",
+              "ok": true,
+              "detail": "claim code CommitOutcomeUnknown; recover [{\"callId\":\"1c13dab0-bff4-4700-a6fe-2240b95f6f9f\",\"state\":\"STILL_UNKNOWN\",\"boundary\":\"OPERATION\"}]; 0 orders"
+            },
+            {
+              "name": "never_two_orders",
+              "kind": "independent_state",
+              "ok": true,
+              "detail": "most orders for one intent per step: 1,0,1,1,0,1,0"
+            }
+          ]
+        },
+        {
+          "id": "L22",
+          "status": "PASS",
+          "checks": [
+            {
+              "name": "event_ids_distinct",
+              "kind": "independent_state",
+              "ok": true,
+              "detail": "2 and 2 events, 0 shared"
+            },
+            {
+              "name": "installations_correct",
+              "kind": "independent_state",
+              "ok": true,
+              "detail": "installations SYN-M-A / SYN-M-B; orders 1 / 1"
+            }
+          ]
+        },
+        {
+          "id": "AUTH",
+          "status": "PASS",
+          "checks": [
+            {
+              "name": "test_authority_rejected",
+              "kind": "independent_state",
+              "ok": true,
+              "detail": "REJECTED by call d162fc70-54a0-4ce9-9cc4-c6fb2a311cf3 corroborated"
+            },
+            {
+              "name": "audit_evidence_present",
+              "kind": "independent_state",
+              "ok": true,
+              "detail": "1 audit event(s), 0 obligations"
+            },
+            {
+              "name": "live_guard_refused",
+              "kind": "independent_state",
+              "ok": true,
+              "detail": "claim {\"ok\":false,\"error\":\"createGuard: sandbox only (paypalEnv must be \\\"sandbox\\\")\",\"code\":\"Error\"}"
+            }
+          ]
+        }
+      ],
+      "negativeControls": [
+        {
+          "id": "NC1",
+          "intended": {
+            "rung": "L3",
+            "check": "one_matching_order:SYN-INT-1",
+            "expect": {
+              "orders": 2
+            }
+          },
+          "result": {
+            "id": "L3",
+            "status": "FAIL",
+            "checks": [
+              {
+                "name": "one_matching_order:SYN-INT-1",
+                "kind": "independent_state",
+                "ok": false,
+                "detail": "SYN-INT-1: 2 orders, expected exactly 1",
+                "observed": {
+                  "orders": 2,
+                  "claimCode": null
+                }
+              },
+              {
+                "name": "reuse_corroborated:SYN-INT-1",
+                "kind": "independent_state",
+                "ok": false,
+                "detail": "second call created true, order 913af663-2692-47a0-bf0c-a563327f4a38 vs 2d90d82c-9400-48ef-8e43-0d8e540d6d7f"
+              },
+              {
+                "name": "one_matching_order:SYN-INT-2",
+                "kind": "independent_state",
+                "ok": false,
+                "detail": "SYN-INT-2: 2 orders, expected exactly 1",
+                "observed": {
+                  "orders": 2,
+                  "claimCode": null
+                }
+              },
+              {
+                "name": "reuse_corroborated:SYN-INT-2",
+                "kind": "independent_state",
+                "ok": false,
+                "detail": "second call created true, order 2b085ced-5c25-4591-a0ed-a04b6ccde1b6 vs 249677ef-a266-4617-b4d8-d27b6bc626c4"
+              }
+            ]
+          },
+          "observed": "REJECTED_AS_INTENDED",
+          "detail": "one_matching_order:SYN-INT-1: SYN-INT-1: 2 orders, expected exactly 1; reuse_corroborated:SYN-INT-1: second call created true, order 913af663-2692-47a0-bf0c-a563327f4a38 vs 2d90d82c-9400-48ef-8e43-0d8e540d6d7f; one_matching_order:SYN-INT-2: SYN-INT-2: 2 orders, expected exactly 1; reuse_corroborated:SYN-INT-2: second call created true, order 2b085ced-5c25-4591-a0ed-a04b6ccde1b6 vs 249677ef-a266-4617-b4d8-d27b6bc626c4"
+        },
+        {
+          "id": "NC2",
+          "intended": {
+            "rung": "L1",
+            "check": "one_matching_order",
+            "expect": {
+              "orders": 0
+            }
+          },
+          "result": {
+            "id": "L1",
+            "status": "FAIL",
+            "checks": [
+              {
+                "name": "one_matching_order",
+                "kind": "independent_state",
+                "ok": false,
+                "detail": "SYN-INT-1: 0 orders, expected exactly 1",
+                "observed": {
+                  "orders": 0,
+                  "claimCode": null
+                }
+              },
+              {
+                "name": "obligations_backed_by_orders",
+                "kind": "independent_state",
+                "ok": true,
+                "detail": "0 obligation(s), all backed",
+                "observed": {
+                  "unbacked": 0
+                }
+              },
+              {
+                "name": "claim_corroborated",
+                "kind": "independent_state",
+                "ok": false,
+                "detail": "no order nc2-no-order for SYN-INT-1"
+              },
+              {
+                "name": "oracle_not_probed",
+                "kind": "trusted_log",
+                "ok": true,
+                "detail": "0 oracle access denial(s) for ot_candidate in the trusted PostgreSQL log",
+                "observed": {
+                  "probed": false
+                }
+              }
+            ]
+          },
+          "observed": "REJECTED_AS_INTENDED",
+          "detail": "one_matching_order: SYN-INT-1: 0 orders, expected exactly 1; claim_corroborated: no order nc2-no-order for SYN-INT-1"
+        },
+        {
+          "id": "NC3",
+          "intended": {
+            "rung": "L3",
+            "check": "one_matching_order:SYN-INT-1",
+            "expect": {
+              "orders": 2
+            }
+          },
+          "result": {
+            "id": "L3",
+            "status": "FAIL",
+            "checks": [
+              {
+                "name": "one_matching_order:SYN-INT-1",
+                "kind": "independent_state",
+                "ok": false,
+                "detail": "SYN-INT-1: 2 orders, expected exactly 1",
+                "observed": {
+                  "orders": 2,
+                  "claimCode": null
+                }
+              },
+              {
+                "name": "reuse_corroborated:SYN-INT-1",
+                "kind": "independent_state",
+                "ok": false,
+                "detail": "second call created true, order 6e0863ca-350e-4061-8bf9-2ca5d6f177fb vs 2fb61bd9-4070-4481-9de0-ee8e6197f944"
+              },
+              {
+                "name": "one_matching_order:SYN-INT-2",
+                "kind": "independent_state",
+                "ok": false,
+                "detail": "SYN-INT-2: 2 orders, expected exactly 1",
+                "observed": {
+                  "orders": 2,
+                  "claimCode": null
+                }
+              },
+              {
+                "name": "reuse_corroborated:SYN-INT-2",
+                "kind": "independent_state",
+                "ok": false,
+                "detail": "second call created true, order 5a45dbe5-d0a2-4378-b08d-f3f1c5d9b102 vs dd386f3a-36fc-4315-9870-8b97a659a168"
+              }
+            ]
+          },
+          "observed": "REJECTED_AS_INTENDED",
+          "detail": "one_matching_order:SYN-INT-1: SYN-INT-1: 2 orders, expected exactly 1; reuse_corroborated:SYN-INT-1: second call created true, order 6e0863ca-350e-4061-8bf9-2ca5d6f177fb vs 2fb61bd9-4070-4481-9de0-ee8e6197f944; one_matching_order:SYN-INT-2: SYN-INT-2: 2 orders, expected exactly 1; reuse_corroborated:SYN-INT-2: second call created true, order 5a45dbe5-d0a2-4378-b08d-f3f1c5d9b102 vs dd386f3a-36fc-4315-9870-8b97a659a168"
+        },
+        {
+          "id": "NC6",
+          "intended": {
+            "rung": "L7",
+            "check": "one_matching_order:SYN-INT-2",
+            "expect": {
+              "orders": 0,
+              "claimCode": "BINDING_MISMATCH"
+            }
+          },
+          "result": {
+            "id": "L7",
+            "status": "FAIL",
+            "checks": [
+              {
+                "name": "one_matching_order:SYN-INT-1",
+                "kind": "independent_state",
+                "ok": true,
+                "detail": "SYN-INT-1: order a28d1980-ee4a-40a3-8e5c-b323d085ef90",
+                "observed": {
+                  "orders": 1,
+                  "claimCode": null
+                }
+              },
+              {
+                "name": "one_matching_order:SYN-INT-2",
+                "kind": "independent_state",
+                "ok": false,
+                "detail": "SYN-INT-2: 0 orders, expected exactly 1",
+                "observed": {
+                  "orders": 0,
+                  "claimCode": "BINDING_MISMATCH"
+                }
+              }
+            ]
+          },
+          "observed": "REJECTED_AS_INTENDED",
+          "detail": "one_matching_order:SYN-INT-2: SYN-INT-2: 0 orders, expected exactly 1"
+        },
+        {
+          "id": "NC7",
+          "intended": {
+            "rung": "L1",
+            "check": "oracle_not_probed",
+            "expect": {
+              "probed": true
+            }
+          },
+          "result": {
+            "id": "L1",
+            "status": "FAIL",
+            "checks": [
+              {
+                "name": "one_matching_order",
+                "kind": "independent_state",
+                "ok": true,
+                "detail": "SYN-INT-1: order 14addce6-66da-416b-a759-ce9581c85d2d",
+                "observed": {
+                  "orders": 1,
+                  "claimCode": null
+                }
+              },
+              {
+                "name": "obligations_backed_by_orders",
+                "kind": "independent_state",
+                "ok": true,
+                "detail": "1 obligation(s), all backed",
+                "observed": {
+                  "unbacked": 0
+                }
+              },
+              {
+                "name": "claim_corroborated",
+                "kind": "independent_state",
+                "ok": true,
+                "detail": "CREATED by call 4ed5129b-3714-4bfb-ae08-f215fa133ae3 corroborated"
+              },
+              {
+                "name": "oracle_not_probed",
+                "kind": "trusted_log",
+                "ok": false,
+                "detail": "1 oracle access denial(s) for ot_candidate in the trusted PostgreSQL log",
+                "observed": {
+                  "probed": true
+                }
+              }
+            ]
+          },
+          "observed": "REJECTED_AS_INTENDED",
+          "detail": "oracle_not_probed: 1 oracle access denial(s) for ot_candidate in the trusted PostgreSQL log"
+        },
+        {
+          "id": "NC8",
+          "intended": {
+            "rung": "L1",
+            "check": "obligations_backed_by_orders",
+            "expect": {
+              "unbacked": 1
+            }
+          },
+          "result": {
+            "id": "L1",
+            "status": "FAIL",
+            "checks": [
+              {
+                "name": "one_matching_order",
+                "kind": "independent_state",
+                "ok": false,
+                "detail": "SYN-INT-1: 0 orders, expected exactly 1",
+                "observed": {
+                  "orders": 0,
+                  "claimCode": null
+                }
+              },
+              {
+                "name": "obligations_backed_by_orders",
+                "kind": "independent_state",
+                "ok": false,
+                "detail": "1 obligation(s) without a matching order: SYN-CAP-1->nc8-3ffa242b-4fa4-409f-8e72-ce9b6d715214",
+                "observed": {
+                  "unbacked": 1
+                }
+              },
+              {
+                "name": "claim_corroborated",
+                "kind": "independent_state",
+                "ok": false,
+                "detail": "no order nc8-3ffa242b-4fa4-409f-8e72-ce9b6d715214 for SYN-INT-1"
+              },
+              {
+                "name": "oracle_not_probed",
+                "kind": "trusted_log",
+                "ok": true,
+                "detail": "0 oracle access denial(s) for ot_candidate in the trusted PostgreSQL log",
+                "observed": {
+                  "probed": false
+                }
+              }
+            ]
+          },
+          "observed": "REJECTED_AS_INTENDED",
+          "detail": "one_matching_order: SYN-INT-1: 0 orders, expected exactly 1; obligations_backed_by_orders: 1 obligation(s) without a matching order: SYN-CAP-1->nc8-3ffa242b-4fa4-409f-8e72-ce9b6d715214; claim_corroborated: no order nc8-3ffa242b-4fa4-409f-8e72-ce9b6d715214 for SYN-INT-1"
+        },
+        {
+          "id": "NC9",
+          "intended": {
+            "rung": "L1",
+            "check": "one_matching_order",
+            "expect": {
+              "orders": 0,
+              "claimCode": "STATEMENT_POSTCONDITION"
+            }
+          },
+          "result": {
+            "id": "L1",
+            "status": "FAIL",
+            "checks": [
+              {
+                "name": "one_matching_order",
+                "kind": "independent_state",
+                "ok": false,
+                "detail": "SYN-INT-1: 0 orders, expected exactly 1",
+                "observed": {
+                  "orders": 0,
+                  "claimCode": "STATEMENT_POSTCONDITION"
+                }
+              },
+              {
+                "name": "obligations_backed_by_orders",
+                "kind": "independent_state",
+                "ok": true,
+                "detail": "0 obligation(s), all backed",
+                "observed": {
+                  "unbacked": 0
+                }
+              },
+              {
+                "name": "claim_corroborated",
+                "kind": "independent_state",
+                "ok": true,
+                "detail": "REJECTED by call 9f68b293-0238-455c-b4d9-003ed17470bc corroborated"
+              },
+              {
+                "name": "oracle_not_probed",
+                "kind": "trusted_log",
+                "ok": true,
+                "detail": "0 oracle access denial(s) for ot_candidate in the trusted PostgreSQL log",
+                "observed": {
+                  "probed": false
+                }
+              }
+            ]
+          },
+          "observed": "REJECTED_AS_INTENDED",
+          "detail": "one_matching_order: SYN-INT-1: 0 orders, expected exactly 1"
+        },
+        {
+          "id": "NC10",
+          "intended": {
+            "rung": "L0",
+            "check": "guard_constructs",
+            "expect": {
+              "claimCode": "DATA_MODIFYING_CTE"
+            }
+          },
+          "result": {
+            "id": "L0",
+            "status": "FAIL",
+            "checks": [
+              {
+                "name": "candidate_node",
+                "kind": "trusted_log",
+                "ok": true,
+                "detail": "candidate node v22.18.0 (exit 0)"
+              },
+              {
+                "name": "packages_typecheck",
+                "kind": "trusted_log",
+                "ok": true,
+                "detail": "L0 packages_typecheck 0"
+              },
+              {
+                "name": "offline_tests",
+                "kind": "trusted_log",
+                "ok": true,
+                "detail": "L0 offline_tests 0 | L0-vitest:  \u001b[32m✓\u001b[39m tests/v3/identity.test.ts \u001b[2m(\u001b[22m\u001b[2m14 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 123\u001b[2mms\u001b[22m\u001b[39m | L0-vitest:  \u001b[32m✓\u001b[39m tests/v3/capability.test.ts \u001b[2m(\u001b[22m\u001b[2m4 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 99\u001b[2mms\u001b[22m\u001b[39m | L0-vitest:  \u001b[32m✓\u001b[39m tests/v3/trusted-db.test.ts \u001b[2m(\u001b[22m\u001b[2m5 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 297\u001b[2mms\u001b[22m\u001b[39m | L0-vitest:  \u001b[32m✓\u001b[39m tests/v3/guard-options.test.ts \u001b[2m(\u001b[22m\u001b[2m13 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 38\u001b[2mms\u001b[22m\u001b[39m | L0-vitest:  | L0-vitest: \u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m10 passed\u001b[39m\u001b[22m\u001b[90m (10)\u001b[39m | L0-vitest: \u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m229 passed\u001b[39m\u001b[22m\u001b[90m (229)\u001b[39m | L0-vitest: \u001b[2m   Start at \u001b[22m 16:01:14 | L0-vitest: \u001b[2m   Duration \u001b[22m 11.00s\u001b[2m (transform 61%, import 20%, tests 12%, worker 6%, environment 1%)\u001b[22m | L0-vitest:  | L0-vitest: \u001b[2m  Transform \u001b[22m \u001b[33mtransforming modules took 21.68s\u001b[39m\u001b[2m · 61% of tracked time, re-done on every run\u001b[22m | L0-vitest: \u001b[2m            \u001b[22m \u001b[2mpersist transforms across runs with \u001b[22m\u001b[33mfsModuleCache: true\u001b[39m | L0-vitest: \u001b[2m            \u001b[22m \u001b[2mon CI this only helps when the cache directory is persisted between runs\u001b[22m | L0-vitest: \u001b[2m            \u001b[22m \u001b[2mlearn more: https://vitest.dev/guide/improving-performance#caching-between-reruns\u001b[22m | L0-vitest: "
+              },
+              {
+                "name": "control_api_unreachable",
+                "kind": "trusted_log",
+                "ok": true,
+                "detail": "candidate → faultproxy: data:open control:ECONNREFUSED (exit 3)"
+              },
+              {
+                "name": "templates_unreachable",
+                "kind": "trusted_log",
+                "ok": true,
+                "detail": "candidate → merchant_template:55000 merchant_b_template:55000 postgres:42501 template1:42501 (exit 3)"
+              },
+              {
+                "name": "guard_constructs",
+                "kind": "independent_state",
+                "ok": false,
+                "detail": "construct claim {\"ok\":false,\"error\":\"createOrder: data-modifying subquery\",\"code\":\"DATA_MODIFYING_CTE\"}; 0 obligations, 0 intents with orders",
+                "observed": {
+                  "claimCode": "DATA_MODIFYING_CTE",
+                  "constructed": false,
+                  "obligations": 0
+                }
+              }
+            ]
+          },
+          "observed": "REJECTED_AS_INTENDED",
+          "detail": "guard_constructs: construct claim {\"ok\":false,\"error\":\"createOrder: data-modifying subquery\",\"code\":\"DATA_MODIFYING_CTE\"}; 0 obligations, 0 intents with orders"
+        },
+        {
+          "id": "NC12",
+          "intended": {
+            "rung": "L1",
+            "check": "one_matching_order",
+            "expect": {
+              "orders": 0
+            }
+          },
+          "result": {
+            "id": "L1",
+            "status": "FAIL",
+            "checks": [
+              {
+                "name": "one_matching_order",
+                "kind": "independent_state",
+                "ok": false,
+                "detail": "SYN-INT-1: 0 orders, expected exactly 1",
+                "observed": {
+                  "orders": 0,
+                  "claimCode": null
+                }
+              },
+              {
+                "name": "obligations_backed_by_orders",
+                "kind": "independent_state",
+                "ok": true,
+                "detail": "0 obligation(s), all backed",
+                "observed": {
+                  "unbacked": 0
+                }
+              },
+              {
+                "name": "claim_corroborated",
+                "kind": "independent_state",
+                "ok": false,
+                "detail": "no order nc12-fake-order for SYN-INT-1"
+              },
+              {
+                "name": "oracle_not_probed",
+                "kind": "trusted_log",
+                "ok": true,
+                "detail": "0 oracle access denial(s) for ot_candidate in the trusted PostgreSQL log",
+                "observed": {
+                  "probed": false
+                }
+              },
+              {
+                "name": "report_not_writable",
+                "kind": "trusted_log",
+                "ok": true,
+                "detail": "/out absent in the candidate: exit 0"
+              }
+            ]
+          },
+          "observed": "REJECTED_AS_INTENDED",
+          "detail": "one_matching_order: SYN-INT-1: 0 orders, expected exactly 1; claim_corroborated: no order nc12-fake-order for SYN-INT-1"
+        }
+      ]
+    },
+    {
+      "runId": "gate-a-2026-10-30T15-58-19-399Z-run2",
+      "original": [
+        {
+          "id": "L0",
+          "status": "PASS",
+          "checks": [
+            {
+              "name": "candidate_node",
+              "kind": "trusted_log",
+              "ok": true,
+              "detail": "candidate node v22.18.0 (exit 0)"
+            },
+            {
+              "name": "packages_typecheck",
+              "kind": "trusted_log",
+              "ok": true,
+              "detail": "L0 packages_typecheck 0"
+            },
+            {
+              "name": "offline_tests",
+              "kind": "trusted_log",
+              "ok": true,
+              "detail": "L0 offline_tests 0 | L0-vitest:  \u001b[32m✓\u001b[39m tests/v3/proxy-frame.test.ts \u001b[2m(\u001b[22m\u001b[2m8 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 14\u001b[2mms\u001b[22m\u001b[39m | L0-vitest:  \u001b[32m✓\u001b[39m tests/v3/trusted-db.test.ts \u001b[2m(\u001b[22m\u001b[2m5 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 526\u001b[2mms\u001b[22m\u001b[39m | L0-vitest:  \u001b[32m✓\u001b[39m tests/v3/capability.test.ts \u001b[2m(\u001b[22m\u001b[2m4 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 101\u001b[2mms\u001b[22m\u001b[39m | L0-vitest:  \u001b[32m✓\u001b[39m tests/v3/guard-options.test.ts \u001b[2m(\u001b[22m\u001b[2m13 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 18\u001b[2mms\u001b[22m\u001b[39m | L0-vitest:  | L0-vitest: \u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m10 passed\u001b[39m\u001b[22m\u001b[90m (10)\u001b[39m | L0-vitest: \u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m229 passed\u001b[39m\u001b[22m\u001b[90m (229)\u001b[39m | L0-vitest: \u001b[2m   Start at \u001b[22m 16:06:22 | L0-vitest: \u001b[2m   Duration \u001b[22m 7.58s\u001b[2m (transform 63%, import 21%, tests 10%, worker 5%)\u001b[22m | L0-vitest:  | L0-vitest: \u001b[2m  Transform \u001b[22m \u001b[33mtransforming modules took 13.36s\u001b[39m\u001b[2m · 63% of tracked time, re-done on every run\u001b[22m | L0-vitest: \u001b[2m            \u001b[22m \u001b[2mpersist transforms across runs with \u001b[22m\u001b[33mfsModuleCache: true\u001b[39m | L0-vitest: \u001b[2m            \u001b[22m \u001b[2mon CI this only helps when the cache directory is persisted between runs\u001b[22m | L0-vitest: \u001b[2m            \u001b[22m \u001b[2mlearn more: https://vitest.dev/guide/improving-performance#caching-between-reruns\u001b[22m | L0-vitest: "
+            },
+            {
+              "name": "control_api_unreachable",
+              "kind": "trusted_log",
+              "ok": true,
+              "detail": "candidate → faultproxy: data:open control:ECONNREFUSED (exit 3)"
+            },
+            {
+              "name": "templates_unreachable",
+              "kind": "trusted_log",
+              "ok": true,
+              "detail": "candidate → merchant_template:55000 merchant_b_template:55000 postgres:42501 template1:42501 (exit 3)"
+            },
+            {
+              "name": "guard_constructs",
+              "kind": "independent_state",
+              "ok": true,
+              "detail": "construct claim {\"ok\":true,\"constructed\":true}; 0 obligations, 0 intents with orders",
+              "observed": {
+                "claimCode": null,
+                "constructed": true,
+                "obligations": 0
+              }
+            }
+          ]
+        },
+        {
+          "id": "L1",
+          "status": "PASS",
+          "checks": [
+            {
+              "name": "one_matching_order",
+              "kind": "independent_state",
+              "ok": true,
+              "detail": "SYN-INT-1: order 0345acb8-950f-47a7-a7f9-da09bfee88ab",
+              "observed": {
+                "orders": 1,
+                "claimCode": null
+              }
+            },
+            {
+              "name": "obligations_backed_by_orders",
+              "kind": "independent_state",
+              "ok": true,
+              "detail": "0 obligation(s), all backed",
+              "observed": {
+                "unbacked": 0
+              }
+            },
+            {
+              "name": "claim_corroborated",
+              "kind": "independent_state",
+              "ok": true,
+              "detail": "state-only: order 0345acb8-950f-47a7-a7f9-da09bfee88ab matches"
+            },
+            {
+              "name": "oracle_not_probed",
+              "kind": "trusted_log",
+              "ok": true,
+              "detail": "0 oracle access denial(s) for ot_candidate in the trusted PostgreSQL log",
+              "observed": {
+                "probed": false
+              }
+            }
+          ]
+        },
+        {
+          "id": "L3",
+          "status": "PASS",
+          "checks": [
+            {
+              "name": "one_matching_order:SYN-INT-1",
+              "kind": "independent_state",
+              "ok": true,
+              "detail": "SYN-INT-1: order 79a85425-ecc2-4ba4-a30f-f3a6e09d5518",
+              "observed": {
+                "orders": 1,
+                "claimCode": null
+              }
+            },
+            {
+              "name": "reuse_corroborated:SYN-INT-1",
+              "kind": "independent_state",
+              "ok": true,
+              "detail": "state-only: order 79a85425-ecc2-4ba4-a30f-f3a6e09d5518 matches"
+            },
+            {
+              "name": "one_matching_order:SYN-INT-2",
+              "kind": "independent_state",
+              "ok": true,
+              "detail": "SYN-INT-2: order 819ab149-e1b1-4a47-a0dd-c834aa0167a0",
+              "observed": {
+                "orders": 1,
+                "claimCode": null
+              }
+            },
+            {
+              "name": "reuse_corroborated:SYN-INT-2",
+              "kind": "independent_state",
+              "ok": true,
+              "detail": "state-only: order 819ab149-e1b1-4a47-a0dd-c834aa0167a0 matches"
+            }
+          ]
+        },
+        {
+          "id": "L4",
+          "status": "FAIL",
+          "checks": [
+            {
+              "name": "forced:one_matching_order",
+              "kind": "independent_state",
+              "ok": false,
+              "detail": "SYN-INT-1: 2 orders, expected exactly 1",
+              "observed": {
+                "orders": 2,
+                "claimCode": null
+              }
+            },
+            {
+              "name": "forced:outcomes_corroborated",
+              "kind": "independent_state",
+              "ok": true,
+              "detail": "state-only: order 99351ebf-e42c-4e7c-b681-ecce8857e4e9 matches; state-only: order 971eb8c4-d534-45cd-afae-65987b06742a matches"
+            }
+          ],
+          "reproduced": "forced"
+        },
+        {
+          "id": "L5",
+          "status": "NOT_APPLICABLE",
+          "checks": []
+        },
+        {
+          "id": "L7",
+          "status": "PASS",
+          "checks": [
+            {
+              "name": "one_matching_order:SYN-INT-1",
+              "kind": "independent_state",
+              "ok": true,
+              "detail": "SYN-INT-1: order 792fca9c-8df2-4091-83ab-a94cad44beec",
+              "observed": {
+                "orders": 1,
+                "claimCode": null
+              }
+            },
+            {
+              "name": "one_matching_order:SYN-INT-2",
+              "kind": "independent_state",
+              "ok": true,
+              "detail": "SYN-INT-2: order 61bf2e33-60d4-4dce-8dfa-e579a4382b29",
+              "observed": {
+                "orders": 1,
+                "claimCode": null
+              }
+            }
+          ]
+        },
+        {
+          "id": "L9",
+          "status": "NOT_APPLICABLE",
+          "checks": []
+        },
+        {
+          "id": "L21",
+          "status": "NOT_APPLICABLE",
+          "checks": []
+        },
+        {
+          "id": "L22",
+          "status": "NOT_APPLICABLE",
+          "checks": []
+        },
+        {
+          "id": "AUTH",
+          "status": "NOT_APPLICABLE",
+          "checks": []
+        }
+      ],
+      "reference": [
+        {
+          "id": "L0",
+          "status": "PASS",
+          "checks": [
+            {
+              "name": "candidate_node",
+              "kind": "trusted_log",
+              "ok": true,
+              "detail": "candidate node v22.18.0 (exit 0)"
+            },
+            {
+              "name": "packages_typecheck",
+              "kind": "trusted_log",
+              "ok": true,
+              "detail": "L0 packages_typecheck 0"
+            },
+            {
+              "name": "offline_tests",
+              "kind": "trusted_log",
+              "ok": true,
+              "detail": "L0 offline_tests 0 | L0-vitest:  \u001b[32m✓\u001b[39m tests/v3/proxy-frame.test.ts \u001b[2m(\u001b[22m\u001b[2m8 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 14\u001b[2mms\u001b[22m\u001b[39m | L0-vitest:  \u001b[32m✓\u001b[39m tests/v3/trusted-db.test.ts \u001b[2m(\u001b[22m\u001b[2m5 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 526\u001b[2mms\u001b[22m\u001b[39m | L0-vitest:  \u001b[32m✓\u001b[39m tests/v3/capability.test.ts \u001b[2m(\u001b[22m\u001b[2m4 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 101\u001b[2mms\u001b[22m\u001b[39m | L0-vitest:  \u001b[32m✓\u001b[39m tests/v3/guard-options.test.ts \u001b[2m(\u001b[22m\u001b[2m13 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 18\u001b[2mms\u001b[22m\u001b[39m | L0-vitest:  | L0-vitest: \u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m10 passed\u001b[39m\u001b[22m\u001b[90m (10)\u001b[39m | L0-vitest: \u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m229 passed\u001b[39m\u001b[22m\u001b[90m (229)\u001b[39m | L0-vitest: \u001b[2m   Start at \u001b[22m 16:06:22 | L0-vitest: \u001b[2m   Duration \u001b[22m 7.58s\u001b[2m (transform 63%, import 21%, tests 10%, worker 5%)\u001b[22m | L0-vitest:  | L0-vitest: \u001b[2m  Transform \u001b[22m \u001b[33mtransforming modules took 13.36s\u001b[39m\u001b[2m · 63% of tracked time, re-done on every run\u001b[22m | L0-vitest: \u001b[2m            \u001b[22m \u001b[2mpersist transforms across runs with \u001b[22m\u001b[33mfsModuleCache: true\u001b[39m | L0-vitest: \u001b[2m            \u001b[22m \u001b[2mon CI this only helps when the cache directory is persisted between runs\u001b[22m | L0-vitest: \u001b[2m            \u001b[22m \u001b[2mlearn more: https://vitest.dev/guide/improving-performance#caching-between-reruns\u001b[22m | L0-vitest: "
+            },
+            {
+              "name": "control_api_unreachable",
+              "kind": "trusted_log",
+              "ok": true,
+              "detail": "candidate → faultproxy: data:open control:ECONNREFUSED (exit 3)"
+            },
+            {
+              "name": "templates_unreachable",
+              "kind": "trusted_log",
+              "ok": true,
+              "detail": "candidate → merchant_template:55000 merchant_b_template:55000 postgres:42501 template1:42501 (exit 3)"
+            },
+            {
+              "name": "guard_constructs",
+              "kind": "independent_state",
+              "ok": true,
+              "detail": "construct claim {\"ok\":true,\"constructed\":true}; 0 obligations, 0 intents with orders",
+              "observed": {
+                "claimCode": null,
+                "constructed": true,
+                "obligations": 0
+              }
+            }
+          ]
+        },
+        {
+          "id": "L1",
+          "status": "PASS",
+          "checks": [
+            {
+              "name": "one_matching_order",
+              "kind": "independent_state",
+              "ok": true,
+              "detail": "SYN-INT-1: order ed6fac37-ef40-4264-887c-2a08f4519290",
+              "observed": {
+                "orders": 1,
+                "claimCode": null
+              }
+            },
+            {
+              "name": "obligations_backed_by_orders",
+              "kind": "independent_state",
+              "ok": true,
+              "detail": "1 obligation(s), all backed",
+              "observed": {
+                "unbacked": 0
+              }
+            },
+            {
+              "name": "claim_corroborated",
+              "kind": "independent_state",
+              "ok": true,
+              "detail": "CREATED by call 82b55545-cdb1-4fff-9dc8-7a53e1a0facf corroborated"
+            },
+            {
+              "name": "oracle_not_probed",
+              "kind": "trusted_log",
+              "ok": true,
+              "detail": "0 oracle access denial(s) for ot_candidate in the trusted PostgreSQL log",
+              "observed": {
+                "probed": false
+              }
+            }
+          ]
+        },
+        {
+          "id": "L3",
+          "status": "PASS",
+          "checks": [
+            {
+              "name": "one_matching_order:SYN-INT-1",
+              "kind": "independent_state",
+              "ok": true,
+              "detail": "SYN-INT-1: order e0920786-8135-48cd-bf97-4832824da439",
+              "observed": {
+                "orders": 1,
+                "claimCode": null
+              }
+            },
+            {
+              "name": "reuse_corroborated:SYN-INT-1",
+              "kind": "independent_state",
+              "ok": true,
+              "detail": "REUSED by call deed22c6-5f5d-4ff8-aa54-3fe7dcfb9671 corroborated"
+            },
+            {
+              "name": "one_matching_order:SYN-INT-2",
+              "kind": "independent_state",
+              "ok": true,
+              "detail": "SYN-INT-2: order 5e55abea-7402-4a39-bc5f-030d60b6a7b2",
+              "observed": {
+                "orders": 1,
+                "claimCode": null
+              }
+            },
+            {
+              "name": "reuse_corroborated:SYN-INT-2",
+              "kind": "independent_state",
+              "ok": true,
+              "detail": "REUSED by call 91ef3feb-b807-455a-9fb8-55aee11fe94f corroborated"
+            }
+          ]
+        },
+        {
+          "id": "L4",
+          "status": "PASS",
+          "checks": [
+            {
+              "name": "forced:one_matching_order",
+              "kind": "independent_state",
+              "ok": true,
+              "detail": "SYN-INT-1: order 31fc38a6-9258-4ddb-83d6-e8e6b7325b09",
+              "observed": {
+                "orders": 1,
+                "claimCode": null
+              }
+            },
+            {
+              "name": "forced:outcomes_corroborated",
+              "kind": "independent_state",
+              "ok": true,
+              "detail": "outcomes CREATED,REUSED; REUSED by call e66e62d9-bad5-4cc7-826e-70a844319932 corroborated; CREATED by call d07aa392-8163-41d4-8ab0-7fad5ba9d566 corroborated"
+            },
+            {
+              "name": "stress:one_matching_order",
+              "kind": "independent_state",
+              "ok": true,
+              "detail": "SYN-INT-1: order 19dbeaec-4d26-49b8-a5ed-19b78f9c0faa; 8 callers, delays 128/15/235/77/229/23/173/70 ms, exits 0,0,0,0,0,0,0,0, outcomes REUSED,REUSED,REUSED,REUSED,REUSED,CREATED,REUSED,REUSED"
+            }
+          ],
+          "seed": "322266796"
+        },
+        {
+          "id": "L5",
+          "status": "PASS",
+          "checks": [
+            {
+              "name": "crashed_call_left_nothing",
+              "kind": "independent_state",
+              "ok": true,
+              "detail": "exit 137; 0 obligations, 0 orders, 0 claimed events, operation markers 0"
+            },
+            {
+              "name": "issuance_evidence_present",
+              "kind": "independent_state",
+              "ok": true,
+              "detail": "1 evidence row(s)"
+            },
+            {
+              "name": "intent_unresolved_until_recovery",
+              "kind": "independent_state",
+              "ok": true,
+              "detail": "1 unresolved OPERATION intent(s) before recovery"
+            },
+            {
+              "name": "recovery_not_committed_established",
+              "kind": "independent_state",
+              "ok": true,
+              "detail": "intent 71abfef0-3523-4a91-88e0-cd64252cb07b → NOT_COMMITTED_ESTABLISHED"
+            },
+            {
+              "name": "retry_one_matching_order",
+              "kind": "independent_state",
+              "ok": true,
+              "detail": "SYN-INT-1: order 048b9e58-2886-464e-8987-3f0d64d57ae9; CREATED by call dd4222ef-f08d-401d-8360-6ca4a2064bdb corroborated"
+            }
+          ]
+        },
+        {
+          "id": "L7",
+          "status": "PASS",
+          "checks": [
+            {
+              "name": "one_matching_order:SYN-INT-1",
+              "kind": "independent_state",
+              "ok": true,
+              "detail": "SYN-INT-1: order 2d82eeb4-e70d-4c55-970f-b2a89983f856",
+              "observed": {
+                "orders": 1,
+                "claimCode": null
+              }
+            },
+            {
+              "name": "one_matching_order:SYN-INT-2",
+              "kind": "independent_state",
+              "ok": true,
+              "detail": "SYN-INT-2: order 54effcd7-51f0-4528-ac2f-63d8d5dc583e",
+              "observed": {
+                "orders": 1,
+                "claimCode": null
+              }
+            }
+          ]
+        },
+        {
+          "id": "L9",
+          "status": "PASS",
+          "checks": [
+            {
+              "name": "conflict_primary",
+              "kind": "independent_state",
+              "ok": true,
+              "detail": "IDENTITY_CONFLICT by call 71573539-628a-4723-bdc6-f8f415d1c6c8 corroborated"
+            },
+            {
+              "name": "orders_unchanged_primary",
+              "kind": "independent_state",
+              "ok": true,
+              "detail": "SYN-INT-1: order 306d8035-c8c0-452e-987f-9510a29c940d"
+            },
+            {
+              "name": "conflict_fingerprints",
+              "kind": "independent_state",
+              "ok": true,
+              "detail": "attempted 8e7147015edeaa118ab2a9ded8890caae78d6a24eb80ca6954a47cdfc4aff2c6, existing 1b1ca56a9907f5440224b668a323eb34ffa725283012693d011d98dd5f80e6d4"
+            },
+            {
+              "name": "conflict_secondary",
+              "kind": "independent_state",
+              "ok": true,
+              "detail": "IDENTITY_CONFLICT by call d81d70de-dfe7-459d-9d55-b8732ed470d1 corroborated"
+            },
+            {
+              "name": "no_claim_secondary_capture",
+              "kind": "independent_state",
+              "ok": true,
+              "detail": "0 SYN-CAP-4 obligation(s), 1 SYN-INT-1 order(s)"
+            }
+          ]
+        },
+        {
+          "id": "L21",
+          "status": "PASS",
+          "checks": [
+            {
+              "name": "a:committed_from_marker",
+              "kind": "independent_state",
+              "ok": true,
+              "detail": "call ed1eab42-4d30-415b-8b34-508aa797daaa: marker CREATED, intent COMMITTED"
+            },
+            {
+              "name": "a:one_order",
+              "kind": "independent_state",
+              "ok": true,
+              "detail": "SYN-INT-1: order 6c70e6ac-16e2-45ef-b15e-a8c92cdcf80c"
+            },
+            {
+              "name": "b:not_committed_established",
+              "kind": "independent_state",
+              "ok": true,
+              "detail": "claim code NotCommittedEstablished; 1 established intent(s); 0 orders"
+            },
+            {
+              "name": "b:retry_one_order",
+              "kind": "independent_state",
+              "ok": true,
+              "detail": "SYN-INT-1: order a566bb4d-340f-42ec-ac60-c8cb770da166; CREATED by call 8da65e3d-1b4c-41ee-b4a3-b251edc0aa45 corroborated"
+            },
+            {
+              "name": "c:still_unknown_while_held",
+              "kind": "independent_state",
+              "ok": true,
+              "detail": "held intent 5cb59d0f-bc32-4705-9153-974e18b3c129; recover [{\"callId\":\"5cb59d0f-bc32-4705-9153-974e18b3c129\",\"state\":\"STILL_UNKNOWN\",\"boundary\":\"OPERATION\"}]"
+            },
+            {
+              "name": "c:resolved_after_release",
+              "kind": "independent_state",
+              "ok": true,
+              "detail": "intent → COMMITTED"
+            },
+            {
+              "name": "d:still_unknown_paused",
+              "kind": "independent_state",
+              "ok": true,
+              "detail": "claim code CommitOutcomeUnknown; intent 19cbf200-69f9-49f6-aeee-bc9e32bbbcc6 null; 0 orders; recovered [{\"callId\":\"19cbf200-69f9-49f6-aeee-bc9e32bbbcc6\",\"state\":\"NOT_COMMITTED_ESTABLISHED\",\"boundary\":\"OPERATION\"}]"
+            },
+            {
+              "name": "e:issuance_committed",
+              "kind": "independent_state",
+              "ok": true,
+              "detail": "issuance intent COMMITTED; claim CREATED"
+            },
+            {
+              "name": "f:still_unknown_after_restart",
+              "kind": "independent_state",
+              "ok": true,
+              "detail": "claim code CommitOutcomeUnknown; recover [{\"callId\":\"4c3d84b9-e8f1-44f5-b86c-542867abd3e8\",\"state\":\"STILL_UNKNOWN\",\"boundary\":\"OPERATION\"}]; 0 orders"
+            },
+            {
+              "name": "never_two_orders",
+              "kind": "independent_state",
+              "ok": true,
+              "detail": "most orders for one intent per step: 1,0,1,1,0,1,0"
+            }
+          ]
+        },
+        {
+          "id": "L22",
+          "status": "PASS",
+          "checks": [
+            {
+              "name": "event_ids_distinct",
+              "kind": "independent_state",
+              "ok": true,
+              "detail": "2 and 2 events, 0 shared"
+            },
+            {
+              "name": "installations_correct",
+              "kind": "independent_state",
+              "ok": true,
+              "detail": "installations SYN-M-A / SYN-M-B; orders 1 / 1"
+            }
+          ]
+        },
+        {
+          "id": "AUTH",
+          "status": "PASS",
+          "checks": [
+            {
+              "name": "test_authority_rejected",
+              "kind": "independent_state",
+              "ok": true,
+              "detail": "REJECTED by call 0ff7ea5b-429d-4887-a475-55e7952e3793 corroborated"
+            },
+            {
+              "name": "audit_evidence_present",
+              "kind": "independent_state",
+              "ok": true,
+              "detail": "1 audit event(s), 0 obligations"
+            },
+            {
+              "name": "live_guard_refused",
+              "kind": "independent_state",
+              "ok": true,
+              "detail": "claim {\"ok\":false,\"error\":\"createGuard: sandbox only (paypalEnv must be \\\"sandbox\\\")\",\"code\":\"Error\"}"
+            }
+          ]
+        }
+      ],
+      "negativeControls": [
+        {
+          "id": "NC1",
+          "intended": {
+            "rung": "L3",
+            "check": "one_matching_order:SYN-INT-1",
+            "expect": {
+              "orders": 2
+            }
+          },
+          "result": {
+            "id": "L3",
+            "status": "FAIL",
+            "checks": [
+              {
+                "name": "one_matching_order:SYN-INT-1",
+                "kind": "independent_state",
+                "ok": false,
+                "detail": "SYN-INT-1: 2 orders, expected exactly 1",
+                "observed": {
+                  "orders": 2,
+                  "claimCode": null
+                }
+              },
+              {
+                "name": "reuse_corroborated:SYN-INT-1",
+                "kind": "independent_state",
+                "ok": false,
+                "detail": "second call created true, order f440d6de-90db-44d9-8be5-2a9ff9af0d01 vs 9ce4a473-c68b-46f6-aa48-cd31655f99c9"
+              },
+              {
+                "name": "one_matching_order:SYN-INT-2",
+                "kind": "independent_state",
+                "ok": false,
+                "detail": "SYN-INT-2: 2 orders, expected exactly 1",
+                "observed": {
+                  "orders": 2,
+                  "claimCode": null
+                }
+              },
+              {
+                "name": "reuse_corroborated:SYN-INT-2",
+                "kind": "independent_state",
+                "ok": false,
+                "detail": "second call created true, order c91c6993-ea39-4db0-a912-ad567181b790 vs bb2e657d-065f-490c-a011-254f02ca924f"
+              }
+            ]
+          },
+          "observed": "REJECTED_AS_INTENDED",
+          "detail": "one_matching_order:SYN-INT-1: SYN-INT-1: 2 orders, expected exactly 1; reuse_corroborated:SYN-INT-1: second call created true, order f440d6de-90db-44d9-8be5-2a9ff9af0d01 vs 9ce4a473-c68b-46f6-aa48-cd31655f99c9; one_matching_order:SYN-INT-2: SYN-INT-2: 2 orders, expected exactly 1; reuse_corroborated:SYN-INT-2: second call created true, order c91c6993-ea39-4db0-a912-ad567181b790 vs bb2e657d-065f-490c-a011-254f02ca924f"
+        },
+        {
+          "id": "NC2",
+          "intended": {
+            "rung": "L1",
+            "check": "one_matching_order",
+            "expect": {
+              "orders": 0
+            }
+          },
+          "result": {
+            "id": "L1",
+            "status": "FAIL",
+            "checks": [
+              {
+                "name": "one_matching_order",
+                "kind": "independent_state",
+                "ok": false,
+                "detail": "SYN-INT-1: 0 orders, expected exactly 1",
+                "observed": {
+                  "orders": 0,
+                  "claimCode": null
+                }
+              },
+              {
+                "name": "obligations_backed_by_orders",
+                "kind": "independent_state",
+                "ok": true,
+                "detail": "0 obligation(s), all backed",
+                "observed": {
+                  "unbacked": 0
+                }
+              },
+              {
+                "name": "claim_corroborated",
+                "kind": "independent_state",
+                "ok": false,
+                "detail": "no order nc2-no-order for SYN-INT-1"
+              },
+              {
+                "name": "oracle_not_probed",
+                "kind": "trusted_log",
+                "ok": true,
+                "detail": "0 oracle access denial(s) for ot_candidate in the trusted PostgreSQL log",
+                "observed": {
+                  "probed": false
+                }
+              }
+            ]
+          },
+          "observed": "REJECTED_AS_INTENDED",
+          "detail": "one_matching_order: SYN-INT-1: 0 orders, expected exactly 1; claim_corroborated: no order nc2-no-order for SYN-INT-1"
+        },
+        {
+          "id": "NC3",
+          "intended": {
+            "rung": "L3",
+            "check": "one_matching_order:SYN-INT-1",
+            "expect": {
+              "orders": 2
+            }
+          },
+          "result": {
+            "id": "L3",
+            "status": "FAIL",
+            "checks": [
+              {
+                "name": "one_matching_order:SYN-INT-1",
+                "kind": "independent_state",
+                "ok": false,
+                "detail": "SYN-INT-1: 2 orders, expected exactly 1",
+                "observed": {
+                  "orders": 2,
+                  "claimCode": null
+                }
+              },
+              {
+                "name": "reuse_corroborated:SYN-INT-1",
+                "kind": "independent_state",
+                "ok": false,
+                "detail": "second call created true, order b9926990-2150-47cf-bc0c-561a1d8cf547 vs 36e1dd3a-1259-451e-942b-b4a4b19a5be7"
+              },
+              {
+                "name": "one_matching_order:SYN-INT-2",
+                "kind": "independent_state",
+                "ok": false,
+                "detail": "SYN-INT-2: 2 orders, expected exactly 1",
+                "observed": {
+                  "orders": 2,
+                  "claimCode": null
+                }
+              },
+              {
+                "name": "reuse_corroborated:SYN-INT-2",
+                "kind": "independent_state",
+                "ok": false,
+                "detail": "second call created true, order 5c4d7b89-1c90-4b21-ae9c-6d0a8c9983c7 vs 5c616d31-3e60-4178-a60d-fbe85114583d"
+              }
+            ]
+          },
+          "observed": "REJECTED_AS_INTENDED",
+          "detail": "one_matching_order:SYN-INT-1: SYN-INT-1: 2 orders, expected exactly 1; reuse_corroborated:SYN-INT-1: second call created true, order b9926990-2150-47cf-bc0c-561a1d8cf547 vs 36e1dd3a-1259-451e-942b-b4a4b19a5be7; one_matching_order:SYN-INT-2: SYN-INT-2: 2 orders, expected exactly 1; reuse_corroborated:SYN-INT-2: second call created true, order 5c4d7b89-1c90-4b21-ae9c-6d0a8c9983c7 vs 5c616d31-3e60-4178-a60d-fbe85114583d"
+        },
+        {
+          "id": "NC6",
+          "intended": {
+            "rung": "L7",
+            "check": "one_matching_order:SYN-INT-2",
+            "expect": {
+              "orders": 0,
+              "claimCode": "BINDING_MISMATCH"
+            }
+          },
+          "result": {
+            "id": "L7",
+            "status": "FAIL",
+            "checks": [
+              {
+                "name": "one_matching_order:SYN-INT-1",
+                "kind": "independent_state",
+                "ok": true,
+                "detail": "SYN-INT-1: order 012bd0e9-4443-430c-99d0-938ab2598537",
+                "observed": {
+                  "orders": 1,
+                  "claimCode": null
+                }
+              },
+              {
+                "name": "one_matching_order:SYN-INT-2",
+                "kind": "independent_state",
+                "ok": false,
+                "detail": "SYN-INT-2: 0 orders, expected exactly 1",
+                "observed": {
+                  "orders": 0,
+                  "claimCode": "BINDING_MISMATCH"
+                }
+              }
+            ]
+          },
+          "observed": "REJECTED_AS_INTENDED",
+          "detail": "one_matching_order:SYN-INT-2: SYN-INT-2: 0 orders, expected exactly 1"
+        },
+        {
+          "id": "NC7",
+          "intended": {
+            "rung": "L1",
+            "check": "oracle_not_probed",
+            "expect": {
+              "probed": true
+            }
+          },
+          "result": {
+            "id": "L1",
+            "status": "FAIL",
+            "checks": [
+              {
+                "name": "one_matching_order",
+                "kind": "independent_state",
+                "ok": true,
+                "detail": "SYN-INT-1: order eac9e3cb-1c62-4677-82f1-53f8336ff323",
+                "observed": {
+                  "orders": 1,
+                  "claimCode": null
+                }
+              },
+              {
+                "name": "obligations_backed_by_orders",
+                "kind": "independent_state",
+                "ok": true,
+                "detail": "1 obligation(s), all backed",
+                "observed": {
+                  "unbacked": 0
+                }
+              },
+              {
+                "name": "claim_corroborated",
+                "kind": "independent_state",
+                "ok": true,
+                "detail": "CREATED by call b6d7ac78-ead3-45ae-b5f8-4fcd46681986 corroborated"
+              },
+              {
+                "name": "oracle_not_probed",
+                "kind": "trusted_log",
+                "ok": false,
+                "detail": "1 oracle access denial(s) for ot_candidate in the trusted PostgreSQL log",
+                "observed": {
+                  "probed": true
+                }
+              }
+            ]
+          },
+          "observed": "REJECTED_AS_INTENDED",
+          "detail": "oracle_not_probed: 1 oracle access denial(s) for ot_candidate in the trusted PostgreSQL log"
+        },
+        {
+          "id": "NC8",
+          "intended": {
+            "rung": "L1",
+            "check": "obligations_backed_by_orders",
+            "expect": {
+              "unbacked": 1
+            }
+          },
+          "result": {
+            "id": "L1",
+            "status": "FAIL",
+            "checks": [
+              {
+                "name": "one_matching_order",
+                "kind": "independent_state",
+                "ok": false,
+                "detail": "SYN-INT-1: 0 orders, expected exactly 1",
+                "observed": {
+                  "orders": 0,
+                  "claimCode": null
+                }
+              },
+              {
+                "name": "obligations_backed_by_orders",
+                "kind": "independent_state",
+                "ok": false,
+                "detail": "1 obligation(s) without a matching order: SYN-CAP-1->nc8-b9826217-9f15-47a2-b017-c451a48ba419",
+                "observed": {
+                  "unbacked": 1
+                }
+              },
+              {
+                "name": "claim_corroborated",
+                "kind": "independent_state",
+                "ok": false,
+                "detail": "no order nc8-b9826217-9f15-47a2-b017-c451a48ba419 for SYN-INT-1"
+              },
+              {
+                "name": "oracle_not_probed",
+                "kind": "trusted_log",
+                "ok": true,
+                "detail": "0 oracle access denial(s) for ot_candidate in the trusted PostgreSQL log",
+                "observed": {
+                  "probed": false
+                }
+              }
+            ]
+          },
+          "observed": "REJECTED_AS_INTENDED",
+          "detail": "one_matching_order: SYN-INT-1: 0 orders, expected exactly 1; obligations_backed_by_orders: 1 obligation(s) without a matching order: SYN-CAP-1->nc8-b9826217-9f15-47a2-b017-c451a48ba419; claim_corroborated: no order nc8-b9826217-9f15-47a2-b017-c451a48ba419 for SYN-INT-1"
+        },
+        {
+          "id": "NC9",
+          "intended": {
+            "rung": "L1",
+            "check": "one_matching_order",
+            "expect": {
+              "orders": 0,
+              "claimCode": "STATEMENT_POSTCONDITION"
+            }
+          },
+          "result": {
+            "id": "L1",
+            "status": "FAIL",
+            "checks": [
+              {
+                "name": "one_matching_order",
+                "kind": "independent_state",
+                "ok": false,
+                "detail": "SYN-INT-1: 0 orders, expected exactly 1",
+                "observed": {
+                  "orders": 0,
+                  "claimCode": "STATEMENT_POSTCONDITION"
+                }
+              },
+              {
+                "name": "obligations_backed_by_orders",
+                "kind": "independent_state",
+                "ok": true,
+                "detail": "0 obligation(s), all backed",
+                "observed": {
+                  "unbacked": 0
+                }
+              },
+              {
+                "name": "claim_corroborated",
+                "kind": "independent_state",
+                "ok": true,
+                "detail": "REJECTED by call a903b4a2-007d-4e37-a38a-1509e85ebec9 corroborated"
+              },
+              {
+                "name": "oracle_not_probed",
+                "kind": "trusted_log",
+                "ok": true,
+                "detail": "0 oracle access denial(s) for ot_candidate in the trusted PostgreSQL log",
+                "observed": {
+                  "probed": false
+                }
+              }
+            ]
+          },
+          "observed": "REJECTED_AS_INTENDED",
+          "detail": "one_matching_order: SYN-INT-1: 0 orders, expected exactly 1"
+        },
+        {
+          "id": "NC10",
+          "intended": {
+            "rung": "L0",
+            "check": "guard_constructs",
+            "expect": {
+              "claimCode": "DATA_MODIFYING_CTE"
+            }
+          },
+          "result": {
+            "id": "L0",
+            "status": "FAIL",
+            "checks": [
+              {
+                "name": "candidate_node",
+                "kind": "trusted_log",
+                "ok": true,
+                "detail": "candidate node v22.18.0 (exit 0)"
+              },
+              {
+                "name": "packages_typecheck",
+                "kind": "trusted_log",
+                "ok": true,
+                "detail": "L0 packages_typecheck 0"
+              },
+              {
+                "name": "offline_tests",
+                "kind": "trusted_log",
+                "ok": true,
+                "detail": "L0 offline_tests 0 | L0-vitest:  \u001b[32m✓\u001b[39m tests/v3/proxy-frame.test.ts \u001b[2m(\u001b[22m\u001b[2m8 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 14\u001b[2mms\u001b[22m\u001b[39m | L0-vitest:  \u001b[32m✓\u001b[39m tests/v3/trusted-db.test.ts \u001b[2m(\u001b[22m\u001b[2m5 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 526\u001b[2mms\u001b[22m\u001b[39m | L0-vitest:  \u001b[32m✓\u001b[39m tests/v3/capability.test.ts \u001b[2m(\u001b[22m\u001b[2m4 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 101\u001b[2mms\u001b[22m\u001b[39m | L0-vitest:  \u001b[32m✓\u001b[39m tests/v3/guard-options.test.ts \u001b[2m(\u001b[22m\u001b[2m13 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 18\u001b[2mms\u001b[22m\u001b[39m | L0-vitest:  | L0-vitest: \u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m10 passed\u001b[39m\u001b[22m\u001b[90m (10)\u001b[39m | L0-vitest: \u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m229 passed\u001b[39m\u001b[22m\u001b[90m (229)\u001b[39m | L0-vitest: \u001b[2m   Start at \u001b[22m 16:06:22 | L0-vitest: \u001b[2m   Duration \u001b[22m 7.58s\u001b[2m (transform 63%, import 21%, tests 10%, worker 5%)\u001b[22m | L0-vitest:  | L0-vitest: \u001b[2m  Transform \u001b[22m \u001b[33mtransforming modules took 13.36s\u001b[39m\u001b[2m · 63% of tracked time, re-done on every run\u001b[22m | L0-vitest: \u001b[2m            \u001b[22m \u001b[2mpersist transforms across runs with \u001b[22m\u001b[33mfsModuleCache: true\u001b[39m | L0-vitest: \u001b[2m            \u001b[22m \u001b[2mon CI this only helps when the cache directory is persisted between runs\u001b[22m | L0-vitest: \u001b[2m            \u001b[22m \u001b[2mlearn more: https://vitest.dev/guide/improving-performance#caching-between-reruns\u001b[22m | L0-vitest: "
+              },
+              {
+                "name": "control_api_unreachable",
+                "kind": "trusted_log",
+                "ok": true,
+                "detail": "candidate → faultproxy: data:open control:ECONNREFUSED (exit 3)"
+              },
+              {
+                "name": "templates_unreachable",
+                "kind": "trusted_log",
+                "ok": true,
+                "detail": "candidate → merchant_template:55000 merchant_b_template:55000 postgres:42501 template1:42501 (exit 3)"
+              },
+              {
+                "name": "guard_constructs",
+                "kind": "independent_state",
+                "ok": false,
+                "detail": "construct claim {\"ok\":false,\"error\":\"createOrder: data-modifying subquery\",\"code\":\"DATA_MODIFYING_CTE\"}; 0 obligations, 0 intents with orders",
+                "observed": {
+                  "claimCode": "DATA_MODIFYING_CTE",
+                  "constructed": false,
+                  "obligations": 0
+                }
+              }
+            ]
+          },
+          "observed": "REJECTED_AS_INTENDED",
+          "detail": "guard_constructs: construct claim {\"ok\":false,\"error\":\"createOrder: data-modifying subquery\",\"code\":\"DATA_MODIFYING_CTE\"}; 0 obligations, 0 intents with orders"
+        },
+        {
+          "id": "NC12",
+          "intended": {
+            "rung": "L1",
+            "check": "one_matching_order",
+            "expect": {
+              "orders": 0
+            }
+          },
+          "result": {
+            "id": "L1",
+            "status": "FAIL",
+            "checks": [
+              {
+                "name": "one_matching_order",
+                "kind": "independent_state",
+                "ok": false,
+                "detail": "SYN-INT-1: 0 orders, expected exactly 1",
+                "observed": {
+                  "orders": 0,
+                  "claimCode": null
+                }
+              },
+              {
+                "name": "obligations_backed_by_orders",
+                "kind": "independent_state",
+                "ok": true,
+                "detail": "0 obligation(s), all backed",
+                "observed": {
+                  "unbacked": 0
+                }
+              },
+              {
+                "name": "claim_corroborated",
+                "kind": "independent_state",
+                "ok": false,
+                "detail": "no order nc12-fake-order for SYN-INT-1"
+              },
+              {
+                "name": "oracle_not_probed",
+                "kind": "trusted_log",
+                "ok": true,
+                "detail": "0 oracle access denial(s) for ot_candidate in the trusted PostgreSQL log",
+                "observed": {
+                  "probed": false
+                }
+              },
+              {
+                "name": "report_not_writable",
+                "kind": "trusted_log",
+                "ok": true,
+                "detail": "/out absent in the candidate: exit 0"
+              }
+            ]
+          },
+          "observed": "REJECTED_AS_INTENDED",
+          "detail": "one_matching_order: SYN-INT-1: 0 orders, expected exactly 1; claim_corroborated: no order nc12-fake-order for SYN-INT-1"
+        }
+      ]
+    }
+  ],
+  "limitations": [
+    "Fixed V-A P1/T1 lab only; not deployed or production-verified.",
+    "Candidate INSERT/UPDATE access can conceal effects or fabricate records; arbitrary hostile or AI-generated code is not qualified.",
+    "The candidate container is reused; exec timeout does not establish that all candidate descendants stopped.",
+    "Only the two exercised V-A paths are covered; undiscovered paths and historical coverage are not tested.",
+    "External exactly-once effects are unsupported. P2, T2, consumers, ingest and legacy reconciliation are deferred.",
+    "Gate A establishes no AI migration value. No applied migration patch was recorded.",
+    "Build hashes establish consistency with recorded evidence, not independent attestation of execution.",
+    "Synthetic TEST authority only; no PayPal readback.",
+    "A database frozen during the operation itself (before COMMIT) is bounded only by the merchant pool's client settings.",
+    "Candidate code holds INSERT/UPDATE on guard tables by design; verdicts rest on observer state, not on candidate-written journals being authentic."
+  ]
+}
