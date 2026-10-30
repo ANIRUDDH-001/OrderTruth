@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { accept, compareForced, deriveNcObservation, evaluate, GATE_A_APPLICABLE, NC_INTENDED, REQUIRED_CHECKS, type NcId, type NcResult,
+import { accept, compareForced, deriveNcObservation, evaluate, qualification, GATE_A_APPLICABLE, NC_INTENDED, REQUIRED_CHECKS, type NcId, type NcResult,
   type RungId, type RungResult, type RunReport, type RungStatus } from "../../packages/verifier/src/report.ts";
 
 const M = { expectedManifestSha256: "m" };
@@ -100,6 +100,16 @@ describe("Gate A report acceptance (plan Task 7)", () => {
     expect(evaluate(wrongRung).invalidReasons.join("\n")).toMatch(/NC2/);
   });
 
+  for (const id of NCS)
+    for (const status of ["PASS", "FLAKY", "NOT_RUN", "NOT_APPLICABLE", "LIMITATION", "INFRA_ERROR"] as const)
+      it(`refuses ${id} = ${status} even with the intended failure facts`, () => {
+        const r = goodReport();
+        const bad = { ...r, negativeControls: r.negativeControls.map(n => n.id === id ? { ...n, result: { ...n.result, status } } : n) };
+        expect(deriveNcObservation(bad.negativeControls.find(n => n.id === id)!)).not.toBe("REJECTED_AS_INTENDED");
+        expect(evaluate(bad).validity).toBe("INVALID");
+        expect(accept(bad, M).accepted).toBe(false);
+      });
+
   // Review CP3 B2: failing the intended check for another reason (e.g. NC10 construction failing other than DATA_MODIFYING_CTE) doesn't count.
   it("an NC whose intended check failed for an unexpected reason is REJECTED_OTHERWISE", () => {
     for (const id of NCS) {
@@ -162,5 +172,32 @@ describe("Gate A report acceptance (plan Task 7)", () => {
 
   it("names every NC's intended check among its rung's required checks", () => {
     for (const id of NCS) expect(Object.keys(REQUIRED_CHECKS[NC_INTENDED[id].rung])).toContain(NC_INTENDED[id].check);
+  });
+
+  it("a single complete report is partial and cannot establish repetition or qualification", () => {
+    const out = qualification([goodReport()], { ...M, requestedRuns: 1, filtered: false });
+    expect(out.acceptance[0]!.accepted).toBe(true);
+    expect(out.partial).toBe(true);
+    expect(out.qualifying).toBe(false);
+    expect(out.comparison.same).toBe(false);
+  });
+
+  it("qualifies two full consistent runs, but refuses filtered or missing runs", () => {
+    const reports = [goodReport(), goodReport()];
+    expect(qualification(reports, { ...M, requestedRuns: 2, filtered: false }).qualifying).toBe(true);
+    expect(qualification(reports, { ...M, requestedRuns: 2, filtered: true }).qualifying).toBe(false);
+    expect(qualification(reports, { ...M, requestedRuns: 3, filtered: false }).qualifying).toBe(false);
+    expect(qualification([], { ...M, requestedRuns: 2, filtered: false }).qualifying).toBe(false);
+  });
+
+  it("compares the third and later repetitions, including an otherwise acceptable changed ORIGINAL verdict", () => {
+    const a = goodReport(), b = goodReport(), c = goodReport();
+    a.candidates.ORIGINAL.push(rung("L1")); b.candidates.ORIGINAL.push(rung("L1"));
+    c.candidates.ORIGINAL.push(rung("L1", ["one_matching_order"]));
+    expect(accept(c, M).accepted).toBe(true);
+    const out = qualification([a, b, c], { ...M, requestedRuns: 3, filtered: false });
+    expect(out.comparison.same).toBe(false);
+    expect(out.comparison.differences.join("\n")).toMatch(/run 3 vs run 1.*ORIGINAL L1/);
+    expect(out.qualifying).toBe(false);
   });
 });

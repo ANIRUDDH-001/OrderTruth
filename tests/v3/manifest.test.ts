@@ -14,6 +14,7 @@ describe("verifier manifest (plan Task 10 step 1)", () => {
     expect(new Set(TRUSTED_FILES).size).toBe(TRUSTED_FILES.length);
     for (const required of ["packages/verifier/src/controller-main.ts", "packages/verifier/src/rungs.ts", "packages/verifier/src/observer.ts",
       "packages/verifier/src/barrier.ts", "packages/verifier/src/proxy.ts", "packages/verifier/src/report.ts", "packages/verifier/src/manifest.ts",
+      "packages/verifier/src/trusted-db.ts", "packages/verifier/src/cleanup.ts", "tests/v3/trusted-db.test.ts", "tests/v3/cleanup.test.ts",
       "packages/verifier/sql/roles.sql", "packages/guard/fixtures/synthetic-fixture.json", "packages/lab-merchant/src/v-a/ordertruth.config.ts",
       "packages/lab-merchant/src/v-a/original.ts", "packages/lab-merchant/src/v-a/reference-fix.ts", "packages/guard/sql/guard-v1.sql",
       "packages/lab-merchant/src/schema.ts", "packages/verifier/docker/base.Dockerfile", "packages/verifier/docker/proxy.Dockerfile",

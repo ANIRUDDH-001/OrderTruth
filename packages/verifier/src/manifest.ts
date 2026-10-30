@@ -16,6 +16,7 @@ const RECORDED = new URL("../verifier-manifest.json", import.meta.url);
 export const TRUSTED_FILES: readonly string[] = [
   "packages/verifier/src/controller-main.ts", "packages/verifier/src/rungs.ts", "packages/verifier/src/observer.ts", "packages/verifier/src/barrier.ts",
   "packages/verifier/src/proxy.ts", "packages/verifier/src/proxy-main.ts", "packages/verifier/src/report.ts", "packages/verifier/src/manifest.ts",
+  "packages/verifier/src/trusted-db.ts", "packages/verifier/src/cleanup.ts",
   "packages/verifier/sql/roles.sql",
   "packages/guard/fixtures/synthetic-fixture.json", "packages/guard/sql/guard-v1.sql",
   "packages/lab-merchant/src/schema.ts", "packages/lab-merchant/src/types.ts", "packages/lab-merchant/src/candidate-main.ts",
@@ -31,6 +32,7 @@ export const TRUSTED_FILES: readonly string[] = [
   // What decides L0: the offline suite, its shared setup and the compiler/test/workspace configuration.
   "tests/v3/capability.test.ts", "tests/v3/config.test.ts", "tests/v3/entrypoint.test.ts", "tests/v3/guard-options.test.ts", "tests/v3/identity.test.ts",
   "tests/v3/manifest.test.ts", "tests/v3/proxy-frame.test.ts", "tests/v3/report.test.ts", "tests/v3-postgres/setup.ts", "tests/v3-postgres/harness.ts",
+  "tests/v3/trusted-db.test.ts", "tests/v3/cleanup.test.ts", "tests/v3-postgres/trusted-db.integration.ts",
   "packages/tsconfig.json", "tsconfig.json", "vitest.config.ts", "pnpm-workspace.yaml",
 ];
 

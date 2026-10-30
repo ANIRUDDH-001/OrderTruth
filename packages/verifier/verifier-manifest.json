@@ -4,7 +4,7 @@
   "files": [
     {
       "path": "packages/verifier/src/controller-main.ts",
-      "sha256": "f79c67419720d7175dd2bbe2295b8f175fe5a873ce744bb25407358c2d507819"
+      "sha256": "2f1236a3825a691a7a50e8e5ecfc3819d10628be82a57a33c1f5c7d791a8dcbe"
     },
     {
       "path": "packages/verifier/src/rungs.ts",
@@ -28,11 +28,19 @@
     },
     {
       "path": "packages/verifier/src/report.ts",
-      "sha256": "db479dc2d3173deba231132ac2fd3677b8a38ca9a41055a8a8558db2cef31c99"
+      "sha256": "b939ae3c1609d455741d1858f6e4f4d1b2c8a6b2ec51be4318c2d463d776e956"
     },
     {
       "path": "packages/verifier/src/manifest.ts",
-      "sha256": "c6d8bd6ef91c84543b996a5f42559db4b4d7b31c996c0a9ee6adbf87a836fd7c"
+      "sha256": "c2f0c625f912da98892b8ff43ec49bda56277a10dd7de55b2d8319e87db3d27b"
+    },
+    {
+      "path": "packages/verifier/src/trusted-db.ts",
+      "sha256": "53a6b000de99b2c171e10fb1b60879cd2adaaffa3196e2ab15693b7e2f3a9e5c"
+    },
+    {
+      "path": "packages/verifier/src/cleanup.ts",
+      "sha256": "77d7b58494f4d70111e7a34875359b44a67942fc584a5d463afb96596297acde"
     },
     {
       "path": "packages/verifier/sql/roles.sql",
@@ -172,7 +180,7 @@
     },
     {
       "path": "tests/v3/manifest.test.ts",
-      "sha256": "accbe4f9f59ebd1cafec5e922ac5dc72584de17f8c023e6fea441928901faa93"
+      "sha256": "08eab551e386945028c13984d968496b9d5b7920f185c80d48c06da10e74abba"
     },
     {
       "path": "tests/v3/proxy-frame.test.ts",
@@ -180,7 +188,7 @@
     },
     {
       "path": "tests/v3/report.test.ts",
-      "sha256": "393afa4b0879abb3d5728b72743c043a04e4655c992e8a93c55446f52edff783"
+      "sha256": "33ce65add9548c9054cb9a958013964c1247cb407aec959c7538b94b5d42c38d"
     },
     {
       "path": "tests/v3-postgres/setup.ts",
@@ -189,6 +197,18 @@
     {
       "path": "tests/v3-postgres/harness.ts",
       "sha256": "225d3db17e454e469f1ea0b2e57ee29fff3e1a7eedf9a79c5a651d701c50a086"
+    },
+    {
+      "path": "tests/v3/trusted-db.test.ts",
+      "sha256": "ea17dbaf118ac5f2cdef304c0e5dbe65c1307e3775a7e0d7319f8b7aa87b0679"
+    },
+    {
+      "path": "tests/v3/cleanup.test.ts",
+      "sha256": "388cfe803027500b81ceaba30e7bda04d367d3063dee6b13afb18bf593d03cdd"
+    },
+    {
+      "path": "tests/v3-postgres/trusted-db.integration.ts",
+      "sha256": "c328464115cf37ddb5b5c4611c18fe3ff031b6ff3354d964e8aece0358f1ec8d"
     },
     {
       "path": "packages/tsconfig.json",

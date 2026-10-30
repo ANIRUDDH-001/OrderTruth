@@ -83,10 +83,11 @@ export function deriveNcObservation(n: NcResult): NcObservation {
   const want = NC_INTENDED[n.id], r = n.result;
   if (!r || r.id !== want.rung) return "REJECTED_OTHERWISE";
   if (r.status === "INFRA_ERROR") return "INFRA_ERROR";
+  if (r.status !== "FAIL" && r.status !== "PASS") return "REJECTED_OTHERWISE";
   if (r.checks.length === 0) return "REJECTED_OTHERWISE";
   const intended = r.checks.filter(c => c.name === want.check);
   const c = intended[0];
-  if (intended.length === 1 && c && !c.ok && c.kind === REQUIRED_CHECKS[want.rung][want.check]
+  if (r.status === "FAIL" && intended.length === 1 && c && !c.ok && c.kind === REQUIRED_CHECKS[want.rung][want.check]
     && Object.entries(want.expect).every(([k, v]) => c.observed?.[k] === v)) return "REJECTED_AS_INTENDED";
   if (r.status !== "PASS" || r.checks.some(c => !c.ok)) return "REJECTED_OTHERWISE";
   return "PASSED";
@@ -177,4 +178,21 @@ export function compareForced(a: RunReport, b: RunReport): { same: boolean; diff
     if (ox !== oy) differences.push(`${id}: ${ox} vs ${oy}`);
   }
   return { same: differences.length === 0, differences };
+}
+
+/** Single-run/filtered development checks cannot qualify Gate A. Every requested repeat must agree with the first. */
+export function qualification(reports: RunReport[], o: { expectedManifestSha256: string; requestedRuns: number; filtered: boolean }) {
+  const partial = o.filtered || o.requestedRuns < 2;
+  const differences: string[] = [];
+  const reasons: string[] = [];
+  if (!Number.isInteger(o.requestedRuns) || o.requestedRuns < 2) reasons.push("Gate A requires at least two fresh runs");
+  if (reports.length !== o.requestedRuns) reasons.push(`expected ${o.requestedRuns} reports, received ${reports.length}`);
+  if (reports.length < 2) differences.push("fewer than two reports; repetition was not established");
+  for (let i = 1; i < reports.length; i++)
+    differences.push(...compareForced(reports[0]!, reports[i]!).differences.map(d => `run ${i + 1} vs run 1: ${d}`));
+  if (o.filtered) reasons.push("filtered run is development evidence only");
+  const acceptance = reports.map(r => accept(r, { expectedManifestSha256: o.expectedManifestSha256 }));
+  const comparison = { same: differences.length === 0, differences };
+  return { partial, qualifying: !partial && reasons.length === 0 && comparison.same && acceptance.every(a => a.accepted),
+    comparison, acceptance, reasons };
 }

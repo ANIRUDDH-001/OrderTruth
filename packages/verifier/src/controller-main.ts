@@ -14,13 +14,15 @@ import { spawn } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import pg from "pg";
+import type pg from "pg";
 import { migrateGuard } from "../../guard/src/schema.ts";
 import { SHOP_INTENTS_SQL, SHOP_SCHEMA_SQL } from "../../lab-merchant/src/schema.ts";
 import { drift, manifestSha256, recordedManifest, subjectTreeSha, type Manifest } from "./manifest.ts";
 import { rolesSql } from "./observer.ts";
-import { accept, compareForced, deriveNcObservation, evaluate, GATE_A_APPLICABLE, NC_INTENDED, type NcId, type NcResult, type RungId, type RungResult, type RunReport } from "./report.ts";
+import { accept, deriveNcObservation, evaluate, qualification, GATE_A_APPLICABLE, NC_INTENDED, type NcId, type NcResult, type RungId, type RungResult, type RunReport } from "./report.ts";
 import { ORIGINAL_RUNGS, runRung, type CandidateId, type CandidateInput, type Db, type ExecResult, type HandlerClaim, type L0Shared, type ProxyRule, type RungContext } from "./rungs.ts";
+import { closeClient, closePool, trustedClient, trustedPool } from "./trusted-db.ts";
+import { cleanup, type Resources } from "./cleanup.ts";
 
 const ROOT = fileURLToPath(new URL("../../../", import.meta.url));
 const COMPOSE = ["compose", "-f", "packages/verifier/docker/gate-a.compose.yml", "--profile", "l0"];
@@ -62,9 +64,8 @@ const base = () => ({ host: "127.0.0.1", port: pgPort, connectionTimeoutMillis: 
 const superuser = (database: string) => ({ ...base(), user: "postgres", password: secrets.OT_PG_SUPERUSER_PASSWORD, database });
 const observers = new Map<Db, pg.Pool>();
 async function withClient<T>(database: string, f: (c: pg.Client) => Promise<T>): Promise<T> {
-  const c = new pg.Client(superuser(database)); c.on("error", () => {});
-  await c.connect();
-  try { return await f(c); } finally { await c.end().catch(() => {}); }
+  const c = trustedClient(superuser(database));
+  try { await c.connect(); return await f(c); } finally { await closeClient(c); }
 }
 const roles = (database: string) => rolesSql({ candidate_password: secrets.OT_CANDIDATE_PASSWORD, observer_password: secrets.OT_OBSERVER_PASSWORD, database });
 async function waitForPostgres() {
@@ -93,7 +94,8 @@ async function bootstrap() {
 }
 async function fresh(dbs: Db[] = ["merchant_a"]) {
   for (const db of dbs) {
-    await observers.get(db)?.end().catch(() => {}); observers.delete(db);
+    const old = observers.get(db); observers.delete(db);
+    if (old) await closePool(old);
     const template = db === "merchant_a" ? "merchant_template" : "merchant_b_template";
     await withClient("postgres", async c => {
       await c.query(`DROP DATABASE IF EXISTS ${db} WITH (FORCE)`);
@@ -105,13 +107,32 @@ async function fresh(dbs: Db[] = ["merchant_a"]) {
 function observer(db: Db = "merchant_a"): pg.Pool {
   let p = observers.get(db);
   if (!p) {
-    p = new pg.Pool({ ...base(), user: "ot_observer", password: secrets.OT_OBSERVER_PASSWORD, database: db, max: 6, application_name: "ot-observer" });
-    p.on("error", () => {});
+    p = trustedPool({ ...base(), user: "ot_observer", password: secrets.OT_OBSERVER_PASSWORD, database: db, max: 6, application_name: "ot-observer" });
     observers.set(db, p);
   }
   return p;
 }
-async function reconnect() { await waitForPostgres(); for (const [db, p] of observers) { await p.end().catch(() => {}); observers.delete(db); } }
+async function closeObservers() {
+  const pools = [...observers.values()]; observers.clear();
+  const results = await Promise.allSettled(pools.map(p => closePool(p)));
+  const errors = results.filter(r => r.status === "rejected");
+  if (errors.length) throw new AggregateError(errors.map(r => r.reason), "observer shutdown failed");
+}
+async function reconnect() { await waitForPostgres(); await closeObservers(); }
+
+/** Query Docker directly after teardown; a failed readback never counts as an empty inventory. */
+async function inventory(): Promise<Resources> {
+  const filter = ["--filter", "label=com.docker.compose.project=ot-v3-gate-a"];
+  const list = async (args: string[]) => {
+    const r = await run("docker", args, { timeoutMs: 30_000 });
+    if (r.exit !== 0) throw new Error(`resource inventory failed (${String(r.exit)}): ${redact(r.stderr).slice(-500)}`);
+    return r.stdout.trim().split(/\r?\n/).filter(Boolean);
+  };
+  const [containers, volumes, networks] = await Promise.all([
+    list(["ps", "-aq", ...filter]), list(["volume", "ls", "-q", ...filter]), list(["network", "ls", "-q", ...filter]),
+  ]);
+  return { containers, volumes, networks };
+}
 
 // ---- the candidate and the proxy, only through `docker compose exec` ----
 const claims: unknown[] = [];
@@ -259,6 +280,10 @@ async function main() {
   const outDir = `${ROOT}.work/v3/gate-a/${runId}`;
   mkdirSync(outDir, { recursive: true });
   log(`controller: run ${runId}, manifest ${manifestSha}`);
+  let verificationExit = 1;
+  let summary: Record<string, unknown> | undefined;
+  let verificationQualified = false;
+  process.exitCode = 1; // qualification is provisional until finalization succeeds
   try {
     await compose(["build"], 1_800_000);
     await compose(["up", "-d", "--wait", "postgres", "faultproxy", "candidate"], 600_000);
@@ -274,24 +299,42 @@ async function main() {
       subjectSha256: subjectTreeSha(), manifestAnchor };
     const reports: RunReport[] = [];
     for (let n = 1; n <= runs; n++) reports.push(await runOnce(n, runId, manifestSha, environment));
-    const comparison = reports.length > 1 ? compareForced(reports[0]!, reports[1]!) : { same: true, differences: [] };
-    const acceptance = reports.map(r => accept(r, { expectedManifestSha256: manifestSha }));
-    const summary = { runId, partial: !!only || !!onlyCandidate, manifestSha256: manifestSha, environment, comparison, acceptance: acceptance.map(a => ({ accepted: a.accepted, reasons: a.reasons })),
+    const q = qualification(reports, { expectedManifestSha256: manifestSha, requestedRuns: runs, filtered: !!only || !!onlyCandidate });
+    const { comparison, acceptance } = q;
+    verificationQualified = q.qualifying;
+    summary = { runId, partial: q.partial, qualifying: false, verificationQualified, qualificationReasons: q.reasons,
+      cleanup: { status: "PENDING" }, manifestSha256: manifestSha, environment, comparison, acceptance: acceptance.map(a => ({ accepted: a.accepted, reasons: a.reasons })),
       validity: reports.map(r => r.validity), statuses: reports.map(r => Object.fromEntries(Object.entries(r.candidates).map(([k, rs]) => [k, Object.fromEntries(rs.map(x => [x.id, x.status]))]))),
       negativeControls: reports.map(r => Object.fromEntries(r.negativeControls.map(nc => [nc.id, nc.observed]))) };
     writeFileSync(`${outDir}/summary.json`, redact(JSON.stringify(summary, null, 2)));
-    log(`controller: validity ${summary.validity.join(",")}; accepted ${acceptance.map(a => a.accepted).join(",")}; compareForced same=${comparison.same}`);
+    log(`controller: validity ${reports.map(r => r.validity).join(",")}; accepted ${acceptance.map(a => a.accepted).join(",")}; compareForced same=${comparison.same}`);
     for (const d of comparison.differences) log(`  differs: ${d}`);
     const smokeOk = reports.every(r => Object.values(r.candidates).every(rs => rs.every(x => x.status === "PASS" || x.status === "NOT_APPLICABLE")));
-    process.exitCode = summary.partial ? (smokeOk ? 0 : 1) : (acceptance.every(a => a.accepted) && comparison.same ? 0 : 1);
+    verificationExit = only || onlyCandidate ? (smokeOk ? 0 : 1) : (q.qualifying ? 0 : 1);
   } finally {
-    try { writeFileSync(`${outDir}/postgres.log`, redact((await compose(["logs", "--no-color", "postgres"])).stdout)); } catch { /* the stack may not have started */ }
-    writeFileSync(`${outDir}/claims.jsonl`, claims.map(c => redact(JSON.stringify(c))).join("\n"));
-    try { proxyEvents.push(...((await control("GET", "/events")) as unknown[])); } catch { /* the proxy may be down */ }
-    writeFileSync(`${outDir}/proxy-events.json`, redact(JSON.stringify(proxyEvents, null, 2)));
-    for (const p of observers.values()) await p.end().catch(() => {});
-    const down = await run("docker", [...COMPOSE, "down", "-v", "--remove-orphans"], { timeoutMs: 300_000 }).catch(e => ({ exit: -1, stdout: "", stderr: String(e) }));
-    log(`controller: compose down -v exit ${String(down.exit)}; evidence in .work/v3/gate-a/${runId}/`);
+    const finalized = await cleanup({
+      evidence: async () => {
+        // Attempt every evidence source even if one command or write fails.
+        const results = await Promise.allSettled([
+          compose(["logs", "--no-color", "postgres"], 30_000).then(r => { writeFileSync(`${outDir}/postgres.log`, redact(r.stdout)); }),
+          Promise.resolve().then(() => { writeFileSync(`${outDir}/claims.jsonl`, claims.map(c => redact(JSON.stringify(c))).join("\n")); }),
+          control("GET", "/events").then(events => { proxyEvents.push(...events as unknown[]); })
+            .finally(() => { writeFileSync(`${outDir}/proxy-events.json`, redact(JSON.stringify(proxyEvents, null, 2))); }),
+        ]);
+        const failed = results.filter(r => r.status === "rejected");
+        if (failed.length) throw new AggregateError(failed.map(r => r.reason), "evidence collection failed");
+      },
+      observers: closeObservers,
+      down: () => run("docker", [...COMPOSE, "down", "-v", "--remove-orphans"], { timeoutMs: 300_000 }),
+      inventory,
+      record: result => {
+        writeFileSync(`${outDir}/cleanup.json`, redact(JSON.stringify(result, null, 2)));
+        if (summary) writeFileSync(`${outDir}/summary.json`, redact(JSON.stringify({ ...summary,
+          qualifying: verificationQualified && result.ok, cleanup: result }, null, 2)));
+      },
+    });
+    process.exitCode = finalized.ok ? verificationExit : 1;
+    log(`controller: cleanup ${finalized.ok ? "PASS" : "FAIL"}; ${finalized.errors.join("; ")}; evidence in .work/v3/gate-a/${runId}/`);
   }
 }
 
