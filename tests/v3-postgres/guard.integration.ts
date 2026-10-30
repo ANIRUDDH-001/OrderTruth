@@ -36,6 +36,12 @@ const n = async (sql: string, params: unknown[] = []) => Number((await env.db.cl
 const orders = (captureId?: string) => captureId
   ? n("SELECT count(*) AS n FROM shop.orders WHERE capture_id = $1", [captureId]) : n("SELECT count(*) AS n FROM shop.orders");
 const obligations = (captureId: string) => n("SELECT count(*) AS n FROM ordertruth_guard.obligations WHERE capture_id = $1", [captureId]);
+const REFUSING_LOCATOR_SQL = "SELECT id, intent_id, paypal_order_id, capture_id, amount_minor::text AS amount_minor, currency FROM shop.orders "
+  + "WHERE id = $1 AND public.lab_locator_refuses(id)";
+/** A merchant-side check evaluated only on a matching row: it refuses with SQLSTATE 23514 (check_violation). */
+const REFUSING_FUNCTION = `CREATE FUNCTION public.lab_locator_refuses(id text) RETURNS boolean LANGUAGE plpgsql AS $$
+  BEGIN RAISE EXCEPTION 'locator refused %', id USING ERRCODE = 'check_violation'; END $$`;
+const refusingConfig = { ...V_A_CONFIG, orderLocator: { ...V_A_CONFIG.orderLocator, sql: REFUSING_LOCATOR_SQL } };
 const evidence = async (callId: string, kind: string) => (await env.db.client.query<{ payload: Record<string, unknown> }>(
   "SELECT payload FROM ordertruth_guard.outbox WHERE call_id = $1 AND kind = $2", [callId, kind])).rows;
 
@@ -182,6 +188,76 @@ describe("createOrderOnce, profile P1 / tier T1 (spec §5.3a, §5.3c, §5.3d; pl
     expect([r.outcome, r.reason]).toEqual(["REJECTED", "NO_CAPTURE_EVIDENCE"]);
   });
 
+  describe("registered-statement errors, classified by SQLSTATE (deviation 10 policy)", () => {
+    const AMOUNT_CAP = "ALTER TABLE shop.orders ADD CONSTRAINT lab_amount_cap CHECK (amount_minor < 2000)";
+
+    it("an allowlisted constraint violation is REJECTED with durable evidence holding only safe codes", async () => {
+      await env.db.client.query(AMOUNT_CAP);
+      const guard = await guardWith();
+      const r = await guard.createOrderOnce({ capture: await issue("SYN-OBS-2"), intentId: "SYN-INT-2", ...CHECKOUT });
+      expect([r.outcome, r.reason]).toEqual(["REJECTED", "REGISTERED_STATEMENT_ERROR"]);
+      expect(await obligations("SYN-CAP-2")).toBe(0);
+      expect(await orders()).toBe(0);
+      const [rejected] = await evidence(r.callId, "rejected");
+      const payload = rejected!.payload;
+      expect(payload).toMatchObject({ outcome: "REJECTED", reason: "REGISTERED_STATEMENT_ERROR", statement: "createOrder", sqlstate: "23514" });
+      const text = JSON.stringify(payload);
+      for (const leak of ["lab_amount_cap", "violates", "INSERT", "shop.orders", "2500"]) expect(text).not.toContain(leak);
+      expect((await guard.resolve(r.callId)).state).toBe("COMMITTED");
+    });
+
+    it("an allowlisted error from the orderLocator re-read is REJECTED, rolls back the attempted order, and recovers", async () => {
+      await env.db.client.query(REFUSING_FUNCTION);
+      const guard = await guardWith({ config: refusingConfig });
+      const r = await guard.createOrderOnce({ capture: await issue("SYN-OBS-2"), intentId: "SYN-INT-2", ...CHECKOUT });
+      expect([r.outcome, r.reason]).toEqual(["REJECTED", "REGISTERED_STATEMENT_ERROR"]);
+      expect(await orders()).toBe(0);
+      expect(await obligations("SYN-CAP-2")).toBe(0);
+      const [rejected] = await evidence(r.callId, "rejected");
+      expect(rejected!.payload).toMatchObject({ statement: "orderLocator", sqlstate: "23514" });
+      expect((rejected!.payload.attemptedResultIds as string[])).toHaveLength(1);
+      expect(JSON.stringify(rejected!.payload)).not.toContain("locator refused");
+      expect((await guard.resolve(r.callId)).state).toBe("COMMITTED");     // confirmation runs the same locator on the rolled-back ID
+    });
+
+    it("rejection evidence that can't be persisted never returns REJECTED", async () => {
+      await env.db.client.query(AMOUNT_CAP);
+      await env.db.client.query(`CREATE FUNCTION public.ot_refuse() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN
+          IF NEW.payload->>'reason' = 'REGISTERED_STATEMENT_ERROR' THEN RAISE EXCEPTION 'evidence store unavailable'; END IF; RETURN NEW; END $$;
+        CREATE TRIGGER ot_refuse BEFORE INSERT ON ordertruth_guard.outbox FOR EACH ROW EXECUTE FUNCTION public.ot_refuse()`);
+      const guard = await guardWith();
+      await expect(guard.createOrderOnce({ capture: await issue("SYN-OBS-2"), intentId: "SYN-INT-2", ...CHECKOUT })).rejects.toThrow(/evidence store unavailable/);
+      expect(await obligations("SYN-CAP-2")).toBe(0);
+      expect(await orders()).toBe(0);
+      expect(await n("SELECT count(*) AS n FROM ordertruth_guard.commit_markers WHERE boundary = 'OPERATION'")).toBe(0);
+    });
+
+    it("a lock timeout in the registered statement is retryable, with no decision or effect", async () => {
+      const guard = await guardWith({ timeouts: { lockMs: 300, statementMs: 5000, connectionMs: 5000 } });
+      const cap = await issue("SYN-OBS-2");
+      const locker = new pg.Client(env.db.config); await locker.connect();
+      try {
+        await locker.query("BEGIN"); await locker.query("LOCK TABLE shop.orders IN ACCESS EXCLUSIVE MODE");
+        const error = await guard.createOrderOnce({ capture: cap, intentId: "SYN-INT-2", ...CHECKOUT }).then(() => null, e => e);
+        expect(error).toBeInstanceOf(GuardRetryableError);
+        expect(String((error as Error).message)).toMatch(/55P03/);
+      } finally { await locker.query("ROLLBACK").catch(() => {}); await locker.end(); }
+      expect(await obligations("SYN-CAP-2")).toBe(0);
+      expect(await n("SELECT count(*) AS n FROM ordertruth_guard.outbox WHERE kind = 'rejected'")).toBe(0);
+    });
+
+    it("an unexpected statement error throws and is never disguised as a rejection", async () => {
+      const broken = { ...V_A_CONFIG, createOrder: { ...V_A_CONFIG.createOrder, sql: V_A_CONFIG.createOrder.sql.replace("created_by_path", "no_such_column") } };
+      const guard = await guardWith({ config: broken });
+      const error = await guard.createOrderOnce({ capture: await issue("SYN-OBS-2"), intentId: "SYN-INT-2", ...CHECKOUT }).then(() => null, e => e);
+      expect(error).toBeInstanceOf(Error);
+      expect(error).not.toBeInstanceOf(GuardRetryableError);
+      expect((error as { code?: string }).code).toBe("42703");
+      expect(await obligations("SYN-CAP-2")).toBe(0);
+      expect(await n("SELECT count(*) AS n FROM ordertruth_guard.outbox WHERE kind = 'rejected'")).toBe(0);
+    });
+  });
+
   it("lying RETURNING is caught by persisted re-read", async () => {
     const lying = { ...V_A_CONFIG, createOrder: { ...V_A_CONFIG.createOrder,
       sql: "INSERT INTO shop.orders (intent_id, paypal_order_id, capture_id, amount_minor, currency, created_by_path) VALUES ($1, $2, $3, 0, $5, $6) "
@@ -293,6 +369,26 @@ describe("resolution after a complete restart (spec §5.3e items 5–6; plan Tas
     expect(await orders()).toBe(1);
     expect(await obligations("SYN-CAP-1")).toBe(1);
     expect(await evidence(callId, "conflict")).toHaveLength(1);
+  });
+
+  it("a REGISTERED_STATEMENT_ERROR rejection with a lost acknowledgement is recovered in a new process", async () => {
+    await env.db.client.query("ALTER TABLE shop.orders ADD CONSTRAINT lab_amount_cap CHECK (amount_minor < 2000)");
+    const callId = await crashAfterCommit("OPERATION", order(await issue("SYN-OBS-2"), "SYN-INT-2"));
+    const r = await recover(callId);
+    expect([r?.state, r?.result?.outcome, r?.result?.reason]).toEqual(["COMMITTED", "REJECTED", "REGISTERED_STATEMENT_ERROR"]);
+    expect(await obligations("SYN-CAP-2")).toBe(0);
+    expect(await orders()).toBe(0);
+    expect(await evidence(callId, "rejected")).toHaveLength(1);
+  });
+
+  it("an orderLocator REGISTERED_STATEMENT_ERROR with a lost acknowledgement is recovered in a new process", async () => {
+    await env.db.client.query(REFUSING_FUNCTION);
+    const callId = await crashAfterCommit("OPERATION", order(await issue("SYN-OBS-2"), "SYN-INT-2", { orderLocatorSql: REFUSING_LOCATOR_SQL }));
+    const guard = await guardWith({ config: refusingConfig });          // a new process's guard, with the same trusted configuration
+    const r = (await guard.recoverPending({ olderThanMs: 0 })).find(x => x.callId === callId);
+    expect([r?.state, r?.result?.outcome, r?.result?.reason]).toEqual(["COMMITTED", "REJECTED", "REGISTERED_STATEMENT_ERROR"]);
+    expect(await orders()).toBe(0);
+    expect(await obligations("SYN-CAP-2")).toBe(0);
   });
 
   it("OPERATION/REJECTED after restart keeps no claim or effect", async () => {

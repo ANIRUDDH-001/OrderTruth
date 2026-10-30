@@ -79,8 +79,9 @@ export async function runGuardTx<T>(pools: GuardPools, boundary: Boundary, ident
     released = true; client.off("error", onError); client.release(destroy ? true : undefined);
   };
   // Best-effort bookkeeping, bounded so an unresponsive database can't hold a decided call (an unrecorded intent is re-resolved later).
-  const recordResolved = (state: Exclude<EventualState, "STILL_UNKNOWN">) => within(pools.aux.query(
-    "UPDATE ordertruth_guard.commit_intents SET resolved_state = $2, resolved_at = now() WHERE call_id = $1 AND resolved_state IS NULL", [callId, state]), statementMs);
+  const recordResolved = (state: Exclude<EventualState, "STILL_UNKNOWN">) => boundedQuery(pools.aux,
+    "UPDATE ordertruth_guard.commit_intents SET resolved_state = $2, resolved_at = now() WHERE call_id = $1 AND resolved_state IS NULL", [callId, state], statementMs)
+    .then(() => {}, () => {});
   try {
     // Simple-protocol statements (no parameters): BEGIN, the boundary tag the verifier's proxy keys on, and COMMIT.
     await client.query("BEGIN");
@@ -154,11 +155,31 @@ export async function visibilityProof(pools: GuardPools): Promise<{ ok: boolean;
 type Lease = { client: pg.PoolClient; release(destroy?: boolean): void };
 type Resolution = { state: EventualState; outcomeRecord?: OutcomeRecord; reason?: string };
 
-/** Resolves after `p` settles or after `ms`, whichever comes first; never rejects. For best-effort bookkeeping only. */
-async function within(p: Promise<unknown>, ms: number): Promise<void> {
+/**
+ * One query on its own leased connection, bounded by `ms` (review CP3 R3). At the deadline the connection is destroyed, which
+ * also aborts a query a frozen server never answers, and a connection that only arrives after the deadline is destroyed on
+ * arrival. Bounding the caller alone would leave the frozen query holding a pool slot.
+ */
+async function boundedQuery<R extends pg.QueryResultRow>(pool: pg.Pool, text: string, values: unknown[], ms: number): Promise<pg.QueryResult<R>> {
+  let expired = false, finished = false, client: pg.PoolClient | undefined;
+  const ignore = () => {};
+  const finish = (destroy: boolean) => {
+    if (finished || !client) return;
+    finished = true; client.off("error", ignore); client.release(destroy ? true : undefined);
+  };
+  const run = (async () => {
+    const c = await pool.connect();
+    c.on("error", ignore);
+    client = c;
+    if (expired) { finish(true); throw new Error("the query deadline passed before a connection was available"); }
+    try { return await c.query<R>(text, values); } finally { finish(expired); }
+  })();
+  run.catch(() => {});                              // settles after the deadline in the frozen case; already reported
   let timer: ReturnType<typeof setTimeout> | undefined;
-  await Promise.race([p.catch(() => {}), new Promise<void>(r => { timer = setTimeout(r, ms); })]);
-  clearTimeout(timer);
+  const timedOut = new Promise<never>((_resolve, reject) => {
+    timer = setTimeout(() => { expired = true; finish(true); reject(new Error(`no answer within ${ms} ms`)); }, ms);
+  });
+  try { return await Promise.race([run, timedOut]); } finally { clearTimeout(timer); }
 }
 
 /**
@@ -265,13 +286,10 @@ export async function resolveCall(pools: GuardPools, callId: string,
 export async function recoverPending(pools: GuardPools, o: { olderThanMs: number; deadlineMs: number; attemptMs?: number; confirm?: Confirm }):
   Promise<Array<{ callId: string; boundary: Boundary; state: EventualState; outcomeRecord?: OutcomeRecord }>> {
   const attemptMs = o.attemptMs ?? o.deadlineMs + 10_000;
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  const listing = pools.aux.query<{ call_id: string; boundary: Boundary }>(
+  const pending = (await boundedQuery<{ call_id: string; boundary: Boundary }>(pools.aux,
     `SELECT call_id, boundary FROM ordertruth_guard.commit_intents
-     WHERE resolved_state IS NULL AND created_at <= now() - ($1::int * interval '1 millisecond') ORDER BY created_at`, [o.olderThanMs]);
-  const pending = (await Promise.race([listing, new Promise<never>((_r, reject) => {
-    timer = setTimeout(() => reject(new Error(`recoverPending: the database did not list pending intents within ${attemptMs} ms`)), attemptMs);
-  })]).finally(() => clearTimeout(timer))).rows;
+     WHERE resolved_state IS NULL AND created_at <= now() - ($1::int * interval '1 millisecond') ORDER BY created_at`, [o.olderThanMs], attemptMs)
+    .catch(error => { throw new Error(`recoverPending: the database did not list pending intents: ${error instanceof Error ? error.message : String(error)}`); })).rows;
   const out: Array<{ callId: string; boundary: Boundary; state: EventualState; outcomeRecord?: OutcomeRecord }> = [];
   for (const p of pending) {
     const r = await resolveCall(pools, p.call_id, { deadlineMs: o.deadlineMs, attemptMs, ...(o.confirm ? { confirm: o.confirm } : {}) });

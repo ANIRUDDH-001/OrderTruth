@@ -177,6 +177,38 @@ describe("commit journal and resolution (spec §5.3e)", () => {
     } finally { relay.resume(); await relay.close(); await frozen.end().catch(() => {}); }
   });
 
+  // Review CP3 R3: a bounded caller is not enough; the timed-out query's connection must not stay checked out.
+  it("timed-out pending listings destroy their connections and leave the pool usable", async () => {
+    const relay = await startPausableRelay({ host: String(db.config.host), port: Number(db.config.port) });
+    const frozen = new pg.Pool({ ...auxConfig(), host: "127.0.0.1", port: relay.port, max: 2, connectionTimeoutMillis: 1000 }); frozen.on("error", () => {});
+    try {
+      await frozen.query("SELECT 1");
+      relay.pause();
+      for (let k = 0; k < 4; k++) {                       // more sweeps than the pool has connections
+        const started = Date.now();
+        await expect(recoverPending({ op: pools.op, aux: frozen }, { olderThanMs: 0, deadlineMs: 300, attemptMs: 500, confirm })).rejects.toThrow(/recoverPending/);
+        expect(Date.now() - started).toBeLessThan(1500);
+      }
+      await until(() => frozen.totalCount === 0, 4000);   // destroyed or timed out, never held while the server is frozen
+      relay.resume();
+      expect(Array.isArray(await recoverPending({ op: pools.op, aux: frozen }, { olderThanMs: 0, deadlineMs: 300, attemptMs: 2000, confirm }))).toBe(true);
+    } finally { relay.resume(); await relay.close(); await frozen.end().catch(() => {}); }
+  });
+
+  it("a timed-out bookkeeping write after COMMIT destroys its connection", async () => {
+    const relay = await startPausableRelay({ host: String(db.config.host), port: Number(db.config.port) });
+    const frozen = new pg.Pool({ ...auxConfig(), host: "127.0.0.1", port: relay.port, max: 2, connectionTimeoutMillis: 1000 }); frozen.on("error", () => {});
+    try {
+      const started = Date.now();
+      const r = await runGuardTx({ op: pools.op, aux: frozen }, "OPERATION", identity, effect,
+        { confirm, statementMs: 1000, hooks: { beforeCommit: async () => { relay.pause(); } } });
+      expect(r.resolved).toBeUndefined();                 // the COMMIT itself was acknowledged
+      expect(Date.now() - started).toBeLessThan(3000);
+      await until(() => frozen.totalCount === 0, 3000);
+      expect(await effectExists(r.callId)).toBe(true);
+    } finally { relay.resume(); await relay.close(); await frozen.end().catch(() => {}); }
+  });
+
   it("a client-side COMMIT timeout is decided from durable evidence", async () => {
     const timed = new pg.Pool({ ...opConfig(), query_timeout: 300 }); timed.on("error", () => {});
     try {

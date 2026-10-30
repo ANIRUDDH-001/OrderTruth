@@ -19,7 +19,8 @@ export type GuardOptions = { pool: pg.Pool; auxConnectionString: string; auxMax:
   acceptTestAuthority?: boolean; testAuthorityKey?: Buffer;
   /** Honoured only when ORDERTRUTH_GUARD_MODE === "verifier". */
   testHooks?: { afterClaim?: () => Promise<void>; beforeCommit?: () => Promise<void>; afterCommitFailure?: (ctx: { callId: string }) => void } };
-export type RejectReason = "BAD_MAC" | "TEST_AUTHORITY" | "LIVE_ENVIRONMENT" | "BINDING_MISMATCH" | "STALE" | "NO_CAPTURE_EVIDENCE" | "EVIDENCE_MISMATCH" | "STATEMENT_POSTCONDITION";
+export type RejectReason = "BAD_MAC" | "TEST_AUTHORITY" | "LIVE_ENVIRONMENT" | "BINDING_MISMATCH" | "STALE" | "NO_CAPTURE_EVIDENCE" | "EVIDENCE_MISMATCH" | "STATEMENT_POSTCONDITION"
+  | "REGISTERED_STATEMENT_ERROR";
 export type CreateOrderOutcome = "CREATED" | "REUSED" | "IDENTITY_CONFLICT" | "REJECTED";
 export type CreateOrderResult = { outcome: CreateOrderOutcome; tier: "T1"; callId: string; result?: { table: "orders"; id: string }; reason?: RejectReason;
   flags: Array<"LEGACY_CHECK_ABSENT">; resolved?: true; originalClaimCallId?: string };
@@ -36,6 +37,16 @@ type OrderIdentity = { intent_id: string; paypal_order_id: string; capture_id: s
 const FLAGS: Array<"LEGACY_CHECK_ABSENT"> = ["LEGACY_CHECK_ABSENT"];
 const EVIDENCE_KIND: Record<CreateOrderOutcome, string> = { CREATED: "claimed", REUSED: "reused", IDENTITY_CONFLICT: "conflict", REJECTED: "rejected" };
 const verifierMode = () => process.env.ORDERTRUTH_GUARD_MODE === "verifier";
+/**
+ * SQLSTATEs from a registered statement that are the merchant schema refusing the effect (integrity constraint violations).
+ * Only these become REJECTED: REGISTERED_STATEMENT_ERROR. Transient codes stay retryable (runGuardTx) and anything else is
+ * an unexpected programming or configuration error that is rethrown, never disguised as a business rejection.
+ */
+const RECOGNIZED_STATEMENT_REJECTIONS = new Set(["23502", "23503", "23505", "23514", "23P01"]);
+const recognizedRejection = (error: unknown): string | null => {
+  const code = (error as { code?: unknown } | null)?.code;
+  return typeof code === "string" && RECOGNIZED_STATEMENT_REJECTIONS.has(code) ? code : null;
+};
 const production = () => process.env.NODE_ENV === "production";
 const finitePositive = (v: unknown) => typeof v === "number" && Number.isInteger(v) && v > 0;
 
@@ -245,11 +256,24 @@ export async function createGuard(o: GuardOptions): Promise<Guard> {
         return reject("BINDING_MISMATCH", { detail: "capture amount or currency differs from the merchant intent" });
 
       // §5.3c step 7 (T1): the registered statement, exactly one row with the full identity, then a persisted re-read in tx.
-      const created = (await runStatement(tx, o.config.createOrder, bindings)).rows;
+      // Only the registered statements are caught, and only recognized SQLSTATEs become a decision. The evidence keeps the
+      // statement name and SQLSTATE, never SQL text, parameters or the server's message.
+      let created: Row[];
+      try { created = (await runStatement(tx, o.config.createOrder, bindings)).rows; } catch (error) {
+        const sqlstate = recognizedRejection(error);
+        if (!sqlstate) throw error;
+        return reject("REGISTERED_STATEMENT_ERROR", { statement: "createOrder", sqlstate });
+      }
       const returnedIds = created.map(row => String(row.id));
       if (created.length !== 1 || !sameOrder(created[0], want)) return reject("STATEMENT_POSTCONDITION", { detail: "createOrder RETURNING" }, returnedIds);
       const orderId = String(created[0]!.id);
-      const reread = (await runStatement(tx, o.config.orderLocator, { ...bindings, "order.id": orderId })).rows, persisted = reread[0];
+      let reread: Row[];
+      try { reread = (await runStatement(tx, o.config.orderLocator, { ...bindings, "order.id": orderId })).rows; } catch (error) {
+        const sqlstate = recognizedRejection(error);
+        if (!sqlstate) throw error;
+        return reject("REGISTERED_STATEMENT_ERROR", { statement: "orderLocator", sqlstate }, [orderId]);
+      }
+      const persisted = reread[0];
       if (reread.length !== 1 || !sameOrder(persisted, want) || persisted.id !== orderId)
         return reject("STATEMENT_POSTCONDITION", { detail: "persisted re-read through orderLocator" }, [orderId]);
 
