@@ -1,0 +1,7 @@
+# Allowlist: everything is excluded unless re-included below.
+*
+!package.json
+!pnpm-lock.yaml
+!pnpm-workspace.yaml
+!packages/guard/sql/guard-v1.sql
+!packages/verifier/smoke/smoke.mjs

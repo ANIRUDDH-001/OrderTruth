@@ -1,0 +1,38 @@
+# Gate A Checkpoint 0 disposable smoke run. Nothing is published to the host; data lives in tmpfs.
+# The database password is a fixed throwaway: the database is reachable only on the internal network
+# and is destroyed with the containers.
+name: ot-v3-smoke
+
+services:
+  postgres:
+    image: postgres:18
+    environment:
+      POSTGRES_PASSWORD: ot-smoke-disposable
+    tmpfs:
+      - /var/lib/postgresql
+    networks: [internal]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  smoke:
+    build:
+      context: ../../..
+      dockerfile: packages/verifier/docker/base.Dockerfile
+      target: smoke
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PGHOST: postgres
+      PGUSER: postgres
+      PGPASSWORD: ot-smoke-disposable
+    volumes:
+      - ../../../.work/v3/gate-a/checkpoint-0:/out
+    networks: [internal]
+
+networks:
+  internal:
+    internal: true

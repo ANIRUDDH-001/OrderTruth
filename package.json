@@ -17,6 +17,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "db:local": "tsx scripts/local-postgres.ts",
     "test:postgres": "vitest run --config vitest.postgres.config.ts",
+    "v3:smoke": "docker compose -f packages/verifier/smoke/smoke.compose.yml up --build --abort-on-container-exit --exit-code-from smoke",
     "test": "vitest run",
     "build:web": "vite build",
     "build": "pnpm build:web && pnpm build:console && pnpm build:hosted",
