@@ -1,9 +1,14 @@
 /**
  * Gate A fault proxy (plan Task 5; spec §5.3e test, rung L21). A byte-level PostgreSQL v3 forwarder that can lose a
  * COMMIT acknowledgement, drop a COMMIT before the server sees it, or hold a COMMIT — once, on the next COMMIT of a
- * connection whose latest simple query set `application_name = 'ot:<BOUNDARY>'`. Trusted verifier code; never shipped
- * in the guard. Control API: POST /arm {boundary, mode}, POST /release, GET /events, POST /reset.
+ * transaction whose simple query set `application_name = 'ot:<BOUNDARY>'`. Trusted verifier code; never shipped in the guard.
+ * Control API: POST /arm {boundary, mode}, POST /release, GET /events, POST /reset. It listens on its own `controlHost` (in the
+ * verifier, an address the candidate's network can't route to) and, with `controlToken`, requires `Authorization: Bearer <token>`.
+ *
+ * Transaction-scoped state ends with its transaction: when the server reports the connection idle (ReadyForQuery 'I'), the
+ * boundary tag is cleared, and a drop-commit-ack rule whose COMMIT was answered with ROLLBACK is spent without dropping anything.
  */
+import { timingSafeEqual } from "node:crypto";
 import { createServer as createHttpServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { connect, createServer, type AddressInfo, type Socket } from "node:net";
 
@@ -64,9 +69,20 @@ export type ProxyRule = { boundary: Boundary; mode: ProxyMode };
 export type ProxyEvent = { at: string; connection: number; boundary: Boundary | null; action: string };
 export type FaultProxy = { port: number; controlPort: number; arm(rule: ProxyRule): void; release(): void; events(): ProxyEvent[]; reset(): void; close(): Promise<void> };
 
-/** Starts the proxy. Port 0 picks a free port; `host` defaults to 127.0.0.1 (use 0.0.0.0 only on an internal network). */
-export async function startFaultProxy(o: { listenPort: number; target: { host: string; port: number }; controlPort: number; host?: string }): Promise<FaultProxy> {
-  const host = o.host ?? "127.0.0.1";
+/**
+ * Starts the proxy. Port 0 picks a free port. `host` (data) defaults to 127.0.0.1 (use 0.0.0.0 only on an internal network);
+ * `controlHost` defaults to `host`.
+ */
+export async function startFaultProxy(o: { listenPort: number; target: { host: string; port: number }; controlPort: number; host?: string;
+  controlHost?: string; controlToken?: string }): Promise<FaultProxy> {
+  const host = o.host ?? "127.0.0.1", controlHost = o.controlHost ?? host;
+  if (o.controlToken !== undefined && o.controlToken.length < 16) throw new Error("startFaultProxy: controlToken must be at least 16 characters");
+  const expectedAuth = o.controlToken === undefined ? null : Buffer.from(`Bearer ${o.controlToken}`);
+  const authorized = (req: IncomingMessage) => {
+    if (!expectedAuth) return true;
+    const given = Buffer.from(String(req.headers.authorization ?? ""));
+    return given.length === expectedAuth.length && timingSafeEqual(given, expectedAuth);
+  };
   let armed: ProxyRule | null = null, nextId = 0;
   const events: ProxyEvent[] = [], held: Array<() => void> = [], sockets = new Set<Socket>();
   const log = (connection: number, boundary: Boundary | null, action: string) => events.push({ at: new Date().toISOString(), connection, boundary, action });
@@ -117,6 +133,10 @@ export async function startFaultProxy(o: { listenPort: number; target: { host: s
           log(id, boundary, "commit-complete");
           if (dropAck) { log(id, boundary, "commit-ack-dropped"); kill(); return; }
         }
+        if (f.kind === "typed" && f.type === "Z" && f.payload[0] === 0x49) {      // ReadyForQuery 'I': no transaction is open
+          if (dropAck) { log(id, boundary, "armed-commit-rolled-back"); dropAck = false; }
+          boundary = null;
+        }
         client.write(f.raw);
       }
     });
@@ -132,12 +152,14 @@ export async function startFaultProxy(o: { listenPort: number; target: { host: s
     },
     release() { for (const r of held.splice(0)) r(); },
     events: () => events.map(e => ({ ...e })),
-    reset() { armed = null; events.length = 0; },
+    // A reset also drops any held COMMIT, so a later release can never forward one from an earlier step (review CP3 NB2).
+    reset() { armed = null; events.length = 0; const dropped = held.splice(0).length; if (dropped) log(0, null, `held-commits-dropped-on-reset:${dropped}`); },
   };
   const control = createHttpServer((req: IncomingMessage, res: ServerResponse) => {
     const reply = (status: number, body: unknown) => { res.writeHead(status, { "content-type": "application/json" }); res.end(JSON.stringify(body)); };
     void (async () => {
       try {
+        if (!authorized(req)) return reply(401, { error: "unauthorized" });
         if (req.method === "POST" && req.url === "/arm") { api.arm(JSON.parse(await readBody(req)) as ProxyRule); return reply(200, { ok: true }); }
         if (req.method === "POST" && req.url === "/release") { api.release(); return reply(200, { ok: true }); }
         if (req.method === "POST" && req.url === "/reset") { api.reset(); return reply(200, { ok: true }); }
@@ -148,11 +170,13 @@ export async function startFaultProxy(o: { listenPort: number; target: { host: s
   });
 
   await new Promise<void>((resolve, reject) => { server.once("error", reject); server.listen(o.listenPort, host, resolve); });
-  await new Promise<void>((resolve, reject) => { control.once("error", reject); control.listen(o.controlPort, host, resolve); });
+  await new Promise<void>((resolve, reject) => { control.once("error", reject); control.listen(o.controlPort, controlHost, resolve); });
   return {
     port: (server.address() as AddressInfo).port, controlPort: (control.address() as AddressInfo).port, ...api,
+    // Closing is a network failure, not a release: a held COMMIT is dropped, never forwarded to the server.
     async close() {
-      api.release();
+      const dropped = held.splice(0).length;
+      if (dropped) log(0, null, `held-commits-dropped-on-close:${dropped}`);
       for (const s of sockets) s.destroy();
       await Promise.all([new Promise<void>(r => server.close(() => r())), new Promise<void>(r => control.close(() => r()))]);
     },

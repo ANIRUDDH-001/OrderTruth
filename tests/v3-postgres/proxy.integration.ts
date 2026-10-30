@@ -81,6 +81,30 @@ describe("fault proxy (socket level, fake server)", () => {
     expect(proxy.events().map(e => e.action)).toEqual(expect.arrayContaining(["commit-held", "commit-released", "commit-complete"]));
     c.end();
   });
+  it("closing the proxy drops a held COMMIT instead of forwarding it (a network failure, not a release)", async () => {
+    const { fake, proxy: p } = await setup();
+    p.arm({ boundary: "OPERATION", mode: "hold-commit" });
+    const c = rawClient(p.port);
+    for (const q of tx("OPERATION")) c.send(q);
+    await until(() => p.events().some(e => e.action === "commit-held"));
+    await p.close(); proxy = undefined;
+    await until(() => c.isClosed());
+    await new Promise(r => setTimeout(r, 150));
+    expect(fake.received).not.toContain("COMMIT");
+    expect(c.tags).not.toContain("COMMIT");
+  });
+  it("reset drops a held COMMIT, so a later release can't forward it (review CP3 NB2)", async () => {
+    const { fake, proxy: p } = await setup();
+    p.arm({ boundary: "OPERATION", mode: "hold-commit" });
+    const c = rawClient(p.port);
+    for (const q of tx("OPERATION")) c.send(q);
+    await until(() => p.events().some(e => e.action === "commit-held"));
+    p.reset();
+    p.release();
+    await new Promise(r => setTimeout(r, 150));
+    expect(fake.received).not.toContain("COMMIT");
+    c.end();
+  });
   it("serves the control API over HTTP", async () => {
     const { proxy } = await setup();
     const base = `http://127.0.0.1:${proxy.controlPort}`;

@@ -21,6 +21,7 @@
     "test:v3-postgres": "vitest run --config vitest.v3-postgres.config.ts",
     "v3:smoke": "docker compose -f packages/verifier/smoke/smoke.compose.yml up --build --abort-on-container-exit --exit-code-from smoke",
     "v3:qualify": "node packages/verifier/smoke/qualify.mjs",
+    "v3:verify:gate-a": "tsx packages/verifier/src/controller-main.ts --gate A --runs 2",
     "test": "vitest run",
     "build:web": "vite build",
     "build": "pnpm build:web && pnpm build:console && pnpm build:hosted",

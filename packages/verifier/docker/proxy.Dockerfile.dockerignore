@@ -1,0 +1,4 @@
+# Allowlist: only the proxy sources reach the proxy image.
+*
+!packages/verifier/src/proxy.ts
+!packages/verifier/src/proxy-main.ts

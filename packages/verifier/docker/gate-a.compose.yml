@@ -1,0 +1,101 @@
+# OrderTruth v3 Gate A verifier (plan Task 10). Started only by packages/verifier/src/controller-main.ts, which supplies the
+# per-run secrets through its own process environment (never a command line) and always runs `down -v` afterwards.
+#
+# Networks: `internal` (no external routing) carries the candidate's traffic to the fault proxy and PostgreSQL; `oracle` lets
+# the trusted controller reach PostgreSQL, published on 127.0.0.1 only. The proxy's control API listens on the proxy
+# container's own loopback, with no published port, and needs a bearer token held only in that container's environment; the
+# controller reaches it with `docker compose exec faultproxy`. The candidate can't reach another container's loopback; L0 proves it.
+name: ot-v3-gate-a
+
+services:
+  postgres:
+    image: postgres:18
+    environment:
+      POSTGRES_PASSWORD: ${OT_PG_SUPERUSER_PASSWORD:?set by the controller}
+    command: ["postgres", "-c", "log_min_error_statement=error", "-c", "log_connections=on",
+      "-c", "log_line_prefix=%m [%p] user=%u db=%d app=%a "]
+    volumes:
+      - pgdata:/var/lib/postgresql
+    networks:
+      internal: {}
+      oracle: {}
+    ports:
+      - "127.0.0.1::5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  faultproxy:
+    build:
+      context: ../../..
+      dockerfile: packages/verifier/docker/proxy.Dockerfile
+    environment:
+      PROXY_TARGET_HOST: postgres
+      PROXY_CONTROL_HOST: 127.0.0.1
+      PROXY_CONTROL_TOKEN: ${OT_PROXY_CONTROL_TOKEN:?set by the controller}
+    networks: [internal]
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  candidate:
+    build:
+      context: ../../..
+      dockerfile: packages/verifier/docker/base.Dockerfile
+      target: candidate
+    environment:
+      ORDERTRUTH_GUARD_MODE: verifier
+      PGHOST_OP: faultproxy
+      PGPORT_OP: "6432"
+      PGHOST_AUX: postgres
+      PGPORT_AUX: "5432"
+      PGUSER: ot_candidate
+      PGPASSWORD: ${OT_CANDIDATE_PASSWORD:?set by the controller}
+      OT_TEST_AUTHORITY_KEY: ${OT_TEST_AUTHORITY_KEY:?set by the controller}
+      OT_CAPABILITY_KEY: ${OT_CAPABILITY_KEY:?set by the controller}
+    networks: [internal]
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    pids_limit: 128
+    mem_limit: 512m
+    cpus: 1
+    command: ["sleep", "infinity"]
+    depends_on:
+      faultproxy:
+        condition: service_started
+
+  # Rung L0: the qualification tools in the same isolation, writable only at /tmp and the vitest cache. Runs once and exits.
+  l0:
+    profiles: [l0]
+    build:
+      context: ../../..
+      dockerfile: packages/verifier/docker/base.Dockerfile
+      target: candidate
+    networks: [internal]
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /app/node_modules/.vite:uid=1000,gid=1000
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    pids_limit: 128
+    mem_limit: 1g
+    cpus: 1
+    environment:
+      XDG_DATA_HOME: /tmp/xdg-data        # vitest writes its API token under the XDG data home
+    command: ["bash", "packages/verifier/docker/l0-in-container.sh"]
+
+networks:
+  internal:
+    internal: true
+  oracle: {}
+
+volumes:
+  pgdata: {}

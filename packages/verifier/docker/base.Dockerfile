@@ -33,3 +33,11 @@ RUN sed -i 's/\r$//' /usr/local/bin/qualify-in-container \
  && chown node:node /app && mkdir -p node_modules/.vite && chown -R node:node node_modules/.vite
 USER node
 CMD ["bash", "/usr/local/bin/qualify-in-container"]
+
+# --- candidate: the untrusted lab merchant (plan Task 10). The same frozen-lockfile install as qualify, nothing added. Compose runs it
+# read-only, without capabilities or new privileges, on the internal network only, with no volumes and no Docker socket.
+FROM qualify AS candidate
+USER root
+RUN sed -i 's/\r$//' packages/verifier/docker/l0-in-container.sh
+USER 1000:1000
+CMD ["sleep", "infinity"]
