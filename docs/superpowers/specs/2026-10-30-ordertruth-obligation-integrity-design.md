@@ -136,6 +136,12 @@ New package `packages/guard`, published from this repo's pnpm workspace. It depe
 
 All tables live in a dedicated schema, `ordertruth_guard`. The SDK never alters merchant tables.
 
+**One merchant tenant per merchant database (v3 rule).**
+- A singleton row, `ordertruth_guard.installation`, records the `merchant_id`.
+- `createGuard` refuses a different `merchantId`.
+- Every SDK table still carries `merchant_id` in its key: obligations, events, deliveries, inbox, paths, enforcement and capture evidence. This is defence in depth, and identities stay valid when evidence reaches the multi-tenant cloud.
+- Every registered statement and locator receives `merchant.id` as a parameter, and must use it whenever the merchant's own tables are multi-tenant. The guard checks at registration that each statement references the `merchant.id` parameter, or that the configuration declares the merchant schema single-tenant.
+
 The name `ordertruth` is taken: the existing cloud migrator (`src/db/postgres-migrate.ts`) owns it and refuses unmanaged schemas. In the lab and in tests, the **merchant database is a separate PostgreSQL database from the cloud's**, never the same one.
 
 | Table | Purpose | Key constraints |
@@ -146,6 +152,8 @@ The name `ordertruth` is taken: the existing cloud migrator (`src/db/postgres-mi
 | `ordertruth_guard.outbox_deliveries` | One delivery row per event **per destination** | PK `(event_id, destination)`. Each row keeps its own state, attempts, lease, next attempt, ack time and last error. |
 | `ordertruth_guard.inbox` | Consumer claims for `handleOnce` | PK `(consumer, event_id)`. Stores the payload fingerprint, the bound obligation key, the outcome and the result reference. |
 | `ordertruth_guard.enforcement` | When enforcement started, per path and effect (§8) | PK `(path_id, effect)`. |
+| `ordertruth_guard.commit_intents` | The attempt journal, autocommitted on an auxiliary connection before the effect (§5.3e) | PK `call_id`. Stores the boundary, identity, backend PID, `backend_start`, postmaster start, resolved state and resolved time. |
+| `ordertruth_guard.commit_markers` | Durable evidence that an SDK transaction committed, with its outcome record (§5.3e) | PK `call_id`. Stores the boundary and `outcome_record`. Not pruned in v3. |
 | `ordertruth_guard.paths` | The declared path registry (§7.1) | PK `path_id`. |
 
 Every row stores the `contract_version`, the `sdk_version`, the `path_id` and the `build_id` (merchant-supplied deployment identifier).
@@ -179,8 +187,11 @@ CREATE TABLE ordertruth_guard.obligations (
   key_version        smallint NOT NULL DEFAULT 1,
   obligation_key     text GENERATED ALWAYS AS (
     CASE operation_kind
-      WHEN 'CREATE_ORDER' THEN 'v' || key_version || '|P1|' || paypal_env || '|' || payee_merchant_id || '|' || capture_id || '|' || unit
-      WHEN 'MARK_PAID'    THEN 'v' || key_version || '|P2|' || merchant_order_id
+      -- each part length-prefixed: length(x) || ':' || x   (immutable built-ins only)
+      WHEN 'CREATE_ORDER' THEN 'v' || key_version::text || '|P1|' || length(paypal_env) || ':' || paypal_env || '|'
+                               || length(payee_merchant_id) || ':' || payee_merchant_id || '|' || length(capture_id) || ':' || capture_id
+                               || '|' || length(unit) || ':' || unit
+      WHEN 'MARK_PAID'    THEN 'v' || key_version::text || '|P2|' || length(merchant_order_id) || ':' || merchant_order_id
     END) STORED,
   -- origin, fingerprint, fingerprint_kind (FULL | PARTIAL), result_reference, authority, provenance,
   -- contract_version, sdk_version, path_id, build_id, created_at …
@@ -198,7 +209,11 @@ CREATE UNIQUE INDEX obligations_p2_capture ON ordertruth_guard.obligations (merc
 
 - **If the target PostgreSQL version rejects a generated column in the primary key,** the builder may compute `obligation_key` in the SDK instead. A `CHECK` must then require it to equal the same expression. Either way the encoding is tested.
 - **The key is computed by the database.** A stored generated column computes `obligation_key` from the typed columns, so the SDK can't build a mis-encoded key, and the `CHECK`s guarantee every identity part is present.
-- **Changing the encoding.** The `|` separator is safe because PayPal and merchant identifiers are validated not to contain it. Any change to the encoding bumps `key_version`, which requires a migration with its own tests.
+- **Framing, not separators.** Each part is length-prefixed: `length(part) || ':' || part`, joined by `|`. A value containing `|` or `:` therefore can't collide with another split.
+  - The expression uses only immutable built-ins (`length`, `||` and integer-to-text casts), as PostgreSQL requires for generated columns.
+  - The exact expression is **tested against PostgreSQL 18** before anything else is built (Gate A step 0).
+- **One encoding, two implementations, tested equal.** The TypeScript `obligationKey()` must produce exactly the generated column's value. A property test over random identities, including empty strings, separators, Unicode and maximum lengths, compares the two.
+- **Changing the encoding** bumps `key_version`, which requires a migration with its own tests.
 - **The claim's conflict target** is exactly `ON CONFLICT (merchant_id, operation_kind, obligation_key)`. Violations of the partial unique indexes are not covered by it, so they raise SQLSTATE 23505, which becomes `IDENTITY_CONFLICT` (§5.3c step 3).
 - **The partial indexes enforce the secondary rules only among SDK obligations.** Legacy merchant rows that never went through the SDK are checked by the cardinality rules in §8.
 
@@ -245,6 +260,17 @@ const r = await guard.createOrderOnce({ capture, intentId, pathId });
 // r: { outcome: "CREATED" | "REUSED" | "REUSED_LEGACY" | "IDENTITY_CONFLICT" | "REJECTED", result?, conflict?, reason?, tier: "T1" }
 ```
 
+- **Trusted configuration.** Registered statements, locators and their `returns` declarations live in one module, `ordertruth.config.ts`. That module is **trusted integration configuration**:
+  - The Migration Agent's policy gate forbids changing it.
+  - A migration that needs a new statement emits it as a separate **configuration proposal**, which a human must review.
+  - The verifier tests it with its own observer queries and the lying-`RETURNING` controls (NC9, NC10).
+- **Statement restrictions,** checked when a statement is registered:
+  - one statement only;
+  - no transaction-control commands;
+  - no data-modifying `WITH`, meaning no `INSERT`, `UPDATE` or `DELETE` inside a CTE. A conservative check rejects anything it can't classify.
+- **Triggers on effect tables** are a documented assumption. The verifier's observer lists them, and any it finds are reported as a `LIMITATION` that needs review.
+- **Persisted-state re-read.** After a T1 statement, the SDK reads the persisted row again, by its returned ID, through the registered locator in `tx`, and compares the full identity. This catches accidental mismatches; it is not a defence against malicious configuration.
+- **What T1 formally claims:** atomic execution of **trusted** registered statements, with the obligation claim and the outbox in one transaction. Business postconditions are independently verified by the verifier's observer (§10), not by the statements' own `RETURNING`.
 - **Registration checks:** each statement declares the identity columns it returns (`returns`).
   - The guard refuses to start if a required identity column is missing from the declaration.
   - It also checks every returned row for those keys at runtime.
@@ -295,7 +321,10 @@ Each operation runs in one PostgreSQL transaction (READ COMMITTED) on a client f
    - **Row returned (claimed):** continue.
    - **From here on, a decision that must not keep the claim** does `ROLLBACK TO S1`, writes its evidence in the same transaction, and commits. This works even after an SQL error, because rolling back to a savepoint clears an aborted transaction.
 4. **Freshness (the claim path only).** If the capability is stale: `ROLLBACK TO S1`, write evidence, `COMMIT`, and return `REJECTED: STALE`.
-5. **Link the obligation to its `capture_evidence` row.** That row was committed when the capability was issued (§6). If it's missing: roll back to S1 and return `REJECTED: NO_CAPTURE_EVIDENCE`.
+5. **Link the obligation to its `capture_evidence` row,** and **compare the row with the capability, field by field.** That row was committed when the capability was issued (§6).
+   - Compared fields: authority, provenance, merchant, PayPal environment, payee, capture ID, PayPal order ID, intent or order binding, amount, currency, response hash and evidence hash.
+   - If the row is missing: roll back to S1, return `REJECTED: NO_CAPTURE_EVIDENCE`.
+   - If any field differs: roll back to S1, return `REJECTED: EVIDENCE_MISMATCH`. This catches an evidence ID swapped for another merchant's or another capture's.
 6. **Pre-effect checks** (§8):
    - **P1:** run `legacyOrdersForObligation`, which returns every candidate row (§8).
    - **P2:** run `SELECT … FOR UPDATE` on the order through the registered order locator, run `legacyPaidForCapture` (all orders bound to this capture), and classify the order's state.
@@ -309,6 +338,76 @@ Each operation runs in one PostgreSQL transaction (READ COMMITTED) on a client f
    - insert the effect outbox events and their per-destination delivery rows (§5.5);
    - insert the `claimed` evidence event.
 9. `COMMIT`.
+
+### 5.3e Unknown commit outcome (all three boundaries)
+
+A connection can fail **after** PostgreSQL has committed but before the client receives the acknowledgement. The outcome is then **unknown**, not rolled back. v2 already treats it this way (`src/db/postgres.ts`: "commit outcome unknown; read the durable operation before retrying"), and v3 keeps that rule at every boundary where it commits:
+- capability issuance (§6);
+- the operation itself (§5.3c);
+- the consumer's acknowledgement (§5.5).
+
+It also applies to the audit transaction for pre-transaction rejections.
+
+**Protocol.** Durable evidence decides the outcome. `pg_xact_status` is diagnostic only. Every unknown commit ends in exactly one of three eventual states: **`COMMITTED`**, **`NOT_COMMITTED_ESTABLISHED`** or **`STILL_UNKNOWN`**.
+
+1. **Before `BEGIN`:** every SDK transaction gets a `call_id` (a UUID).
+2. **Just after `BEGIN`, journal the attempt outside the transaction.**
+   - The SDK reads the backend identity: `pg_backend_pid()`, that backend's `backend_start`, `pg_postmaster_start_time()`, and `pg_is_in_recovery()`, which must be `false`.
+   - On an **auxiliary** connection it then inserts and autocommits a **commit intent** `(call_id, boundary, identity, backend_pid, backend_start, postmaster_start)` into `ordertruth_guard.commit_intents`.
+   - So the data needed for resolution survives if the process dies.
+   - If the intent can't be written, the operation is abandoned before any effect: `ROLLBACK`, then a retryable error.
+3. **As its last statements before `COMMIT`:** it inserts the **commit marker** `(call_id, boundary, outcome_record)` into `ordertruth_guard.commit_markers`.
+   - `outcome_record` is the **final outcome and its durable references**, for example `{ outcome, result: { table, id }, obligation_key, evidence_event_id, reason }`, or the `evidence_id` for issuance.
+   - The marker commits **if and only if** the transaction commits.
+   - The transaction also reads `pg_current_xact_id()`, for diagnosis only.
+   - `BEGIN`, `SET LOCAL application_name = 'ot:<boundary>'` and `COMMIT` are sent as simple-protocol queries. The verifier's fault proxy targets a boundary by that tag.
+4. **If `COMMIT` errors, or the connection drops after `COMMIT` was sent:** discard the client (`release(true)`) and don't retry. The outcome is `COMMIT_OUTCOME_UNKNOWN` until resolution decides it.
+5. **Resolution** (`resolveCall`), always against the **authoritative primary**. The order of the steps matters.
+   1. **Is the resolver on the right server?** It requires `pg_is_in_recovery() = false`, and `pg_postmaster_start_time()` equal to the journaled value.
+      - A different value (a restart or a failover) gives **`STILL_UNKNOWN`**. A promoted asynchronous replica might be missing a committed marker, and a restart and a failover can't be told apart here.
+      - A standby is never used.
+   2. **Read the marker.** If present, go directly to the boundary/outcome-specific durable confirmation in step 6, then the diagnostic and resolution recording. A matching committed marker and confirmed outcome return `COMMITTED` without requiring the original pooled backend to close. Steps 3–5 apply only when the marker is absent.
+   3. **Prove that the resolver can see backends right now.**
+      - It opens a short-lived probe connection on the **operation** pool, under the operation role.
+      - It reads that probe's `pid` and `backend_start` through the **resolver's** connection.
+      - If the probe isn't visible with its exact `backend_start`, the result is **`STILL_UNKNOWN`**. Seeing its own connection doesn't count as proof.
+      - The guard requires, at startup, that the resolver role is the operation role or has `pg_read_all_stats`, and it runs this same probe at startup too.
+   4. **Establish that the original backend has ended:** no `pg_stat_activity` row with the journaled `pid` **and** `backend_start`.
+      - While it is still present, poll within a bounded deadline, then return `STILL_UNKNOWN`.
+   5. **Only after step iv, read the marker again with a fresh statement.**
+      - Under READ COMMITTED, each statement takes a new snapshot. A marker read taken *before* the backend ended can't prove the marker stays absent, because the transaction could commit and exit between the two reads.
+      - **Marker present:** confirm the recorded outcome in step 6 before returning `COMMITTED`.
+      - **Marker absent:** `NOT_COMMITTED_ESTABLISHED`.
+   6. **`COMMITTED` requires boundary/outcome-specific durable confirmation.** Every marker binds the call, boundary, merchant, identity, final outcome and evidence/result references:
+      - `CREATED`: this call's obligation (`claimed_by_call_id`), matching persisted merchant row through the trusted locator, and `claimed` evidence.
+      - `REUSED`: this call's committed reuse outcome/evidence references an earlier valid obligation and matching result. The earlier claim belongs to its original call, not this reuse call; no new effect is attributed to the reuse.
+      - `IDENTITY_CONFLICT`: committed conflict decision and evidence preserving both observations, with no new claim or merchant effect from this call.
+      - `REJECTED`: committed rejection decision/evidence and no retained attempted claim or merchant effect. A rejection audit checks its own marker/evidence; neither outcome requires a new obligation.
+      - `ISSUANCE`: matching capture evidence, observation event and delivery reference; reconstruction uses durable data and the separately held capability key.
+      - Consumer acknowledgement remains deferred in Gate A and will require its own inbox/delivery confirmation when authorized.
+      A pre-operation commit intent is not proof of the operation's outcome. Missing, unsupported or inconsistent confirmation raises `COMMIT_EVIDENCE_INCONSISTENT` and gives `STILL_UNKNOWN`. Recovery in a new process uses the same checks, never the failed process's memory.
+   7. **The diagnostic:** `pg_xact_status(xid)` is recorded alongside the result. If it contradicts the decided state, the result is `COMMIT_EVIDENCE_INCONSISTENT` and `STILL_UNKNOWN`.
+   8. **An unreachable database, at any step:** **`STILL_UNKNOWN`**.
+   9. **Recording the resolution:** it is written onto the commit intent (`resolved_state`, `resolved_at`), so it is resolved only once.
+6. **Recovery after a process restart.** The process that failed may be gone, so resolution never relies on its memory.
+   - `guard.resolve(callId)` rebuilds the outcome from the commit intent and the marker's `outcome_record`.
+   - `guard.recoverPending({ olderThanMs })` sweeps unresolved commit intents and resolves each one. This covers callers who never received a `callId` because their process died.
+   - Each boundary is resolved independently:
+     - **ISSUANCE** returns the `evidence_id`, and a holder of the key can re-sign the capability from the stored `capture_evidence` row.
+     - **OPERATION** returns the outcome and the result reference.
+     - **REJECTION_AUDIT** returns the recorded rejection.
+     - **Consumer acknowledgement** (deferred with consumers) returns the inbox outcome.
+7. **What `NOT_COMMITTED_ESTABLISHED` does and doesn't authorize:**
+   - It permits invoking the **SDK operation** again. That is safe because the operation is an idempotent claim: if it had committed after all, the new call returns `REUSED`.
+   - It never authorizes repeating merchant side effects outside the SDK.
+8. **Retention:** markers and intents are never pruned while their intent is unresolved, and in v3 they aren't pruned at all. If a marker might have been pruned, resolution returns `STILL_UNKNOWN`.
+9. **Issuance retries are idempotent.**
+   - `evidence_id` is deterministic: `sha256(canonical({ authority, merchantId, captureId, observation hash }))`.
+   - The `capture_evidence` insert is `ON CONFLICT (evidence_id) DO NOTHING`.
+   - So a retried verification after an unknown issuance outcome can't create two evidence records.
+10. **The original capability is reused only after resolution.** Retrying with it is safe only once an authoritative lookup has resolved the earlier claim.
+
+**Test:** rung **L21** uses a harness TCP proxy between the candidate and PostgreSQL. The proxy forwards `COMMIT`, then drops the server's `CommandComplete` reply and resets the client connection. This is a genuine lost acknowledgement, not an SDK-side simulation, and it is applied to issuance, the operation and the consumer acknowledgement.
 
 ### 5.3d Outcome table
 
@@ -326,7 +425,8 @@ Each operation runs in one PostgreSQL transaction (READ COMMITTED) on a client f
 | `REJECTED` decided before the transaction (HMAC, authority, binding) | none | — | — | none | `rejected`, in its own audit transaction. If the audit fails, the SDK throws instead. | audit transaction |
 | `REJECTED` (stale, no capture evidence, postcondition, participation, callback threw, legacy unverifiable, order state) | rolled back to S1 | — | — | rolled back | `rejected` | in the transaction |
 | The transaction is unusable (connection lost, a server-side abort that a savepoint can't clear) | rolled back by PostgreSQL | — | — | rolled back | — | best effort after the rollback (§5.4a) |
-| The process is killed | rolled back by PostgreSQL | — | — | rolled back | — | none. A retry decides afresh. |
+| The process is killed **before** `COMMIT` was sent | rolled back by PostgreSQL | — | — | rolled back | — | none. A retry decides afresh. |
+| `COMMIT` sent, acknowledgement lost | **unknown until resolved** (§5.3e) | — | — | unknown until resolved | — | resolved read-first, or `COMMIT_OUTCOME_UNKNOWN` |
 
 A rolled-back claim never occupies a primary or secondary slot. That is why a mismatched replay can't block the legitimate capture that comes later.
 
@@ -336,6 +436,7 @@ A rolled-back claim never occupies a primary or secondary slot. That is why a mi
 |---|---|
 | Crash or kill before `COMMIT` | Nothing from this operation persists. The `capture_evidence` row and `capture.observed` event committed when the capability was issued (§6) remain. A retry claims afresh. |
 | Crash after `COMMIT`, before the caller receives the reply | A retry returns `REUSED` with the same result, even if the capability has since gone stale. Neither the statement nor the callback runs again. |
+| Connection lost **during** `COMMIT` (the acknowledgement may be lost) | Resolution per §5.3e. Never treated as a rollback. |
 | Callback throws | Roll back to S1. `rejected` evidence commits. The error is rethrown. The obligation is unclaimed. |
 | Database unavailable | The operation fails. The SDK **never** bypasses enforcement (`REJECTED` or a throw). Retrying is the merchant's controlled decision. |
 | Lock or pool timeout | The operation fails with a retryable error, and nothing from this operation persists. |
@@ -387,9 +488,15 @@ Where a pattern can't be detected, the documentation says so and the ladder reco
 
 ### 5.5 Outbox, delivery and `handleOnce`
 
-- **Outbox event IDs:**
-  - **Effect events** (`fulfilment.dispatch`, `order.created`): `sha256(obligation_key ‖ event_kind ‖ contract_version)`, so re-emission is deduplicated downstream.
-  - **Evidence events** (`claimed`, `reused`, `reused_legacy`, `legacy_already_paid`, `conflict`, `bypass`, `rejected`): `sha256(obligation_key ‖ event_kind ‖ call_id)`. A conflict event also carries both fingerprints.
+- **Outbox event IDs** are tenant-scoped canonical hashes, computed with `src/domain/canonical.ts` and a domain-separation tag. They are never built by concatenating unframed strings.
+  - **Effect events** (`fulfilment.dispatch`, `order.created`):
+    ```ts
+    eventId = sha256(canonical({ domain: "ordertruth.effect-event.v3", merchantId, authority, paypalEnv, payeeMerchantId,
+                                 operationKind, obligationKey, eventKind, contractVersion }))
+    ```
+    Re-emission for the same obligation gives the same ID, so it is deduplicated downstream.
+  - **Evidence events** (`claimed`, `reused`, `reused_legacy`, `legacy_already_paid`, `conflict`, `bypass`, `rejected`, `duplicate.detected`): the same structure with domain `"ordertruth.evidence-event.v3"`, plus `callId`. A conflict event also carries both fingerprints.
+  - **The same identity is used everywhere:** in the outbox primary key, in `outbox_deliveries`, in consumer binding (§5.5) and at cloud ingest (§7.2). Two merchants with the same local order ID always get different event IDs. **L22** tests this end to end.
   - **`REUSED` emits an evidence event.** The path that loses the race, usually the webhook, still proves it is enforced, which coverage needs.
 - **Destinations:**
   - Each event kind maps to a fixed set of destinations: `cloud_evidence` for every event, and `consumer:<name>` for effect events with a registered consumer.
@@ -405,7 +512,21 @@ Where a pattern can't be detected, the documentation says so and the ladder reco
 | `POISONED` | a consumer delivery that failed the configured maximum number of attempts; evidence is recorded and a human must review it | yes |
 | `CONFLICT` | a consumer delivery rejected with `EVENT_CONFLICT`; dead-lettered with evidence, and never retried automatically | yes |
 
-`cloud_evidence` deliveries never poison. They retry indefinitely with backoff, and the heartbeat reports how old the backlog is. An expired lease returns to `PENDING`, which is the recovery path after a crash.
+`cloud_evidence` deliveries never poison. They retry with backoff, and the heartbeat reports how old the backlog is. An expired lease returns to `PENDING`, which is the recovery path after a crash.
+
+**Capacity: the cloud is off the checkout path, but the merchant's storage is not infinite.** The design promises no *synchronous* cloud dependency; it does not promise immunity to an indefinite outage.
+- **Bounded events:** event payloads have a fixed maximum size, and an oversized event is a registration-time error.
+- **Soft cap:** above a configured backlog or age for `cloud_evidence`, repeated `reused` evidence for the **same** obligation is **coalesced** into one counter row (first and last call ID, count, time range). This reduces volume without losing information.
+- **Effect events are never coalesced or dropped.** Consumer backlogs are alerted separately.
+- **Hard cap:** the heartbeat and an SDK health check raise `EVIDENCE_BACKLOG_CRITICAL`. Enforcement continues, because it is local. The SDK **never** silently drops evidence or bypasses enforcement.
+- **If merchant storage is exhausted,** PostgreSQL rejects writes, so the operation fails rather than bypassing enforcement.
+- **Retention:**
+  - delivered `cloud_evidence` rows are pruned only after the cloud acknowledges them, and after a retention period;
+  - proofs reference the cloud copy;
+  - undelivered rows are never pruned.
+- **Recovery after an outage** drains at a configured rate that has been measured, so the backlog can't starve live operations.
+- **Bounded waits:** auxiliary-pool statements have finite `statement_timeout` and `lock_timeout`. Two pools alone don't rule out lock waits caused by merchant SQL.
+- **Tests:** a prolonged outage, the soft and hard caps, and storage exhaustion in the container. These are part of L12.
 
 - **Shipper (destination `cloud_evidence`):** `startOutboxShipper()` leases due rows with `FOR UPDATE SKIP LOCKED`, posts them to the cloud ingest (§7.2), and marks **only** the `cloud_evidence` row delivered after the cloud acknowledges.
   - It never touches consumer delivery rows.
@@ -492,6 +613,8 @@ The HMAC protects against developer mistakes and in-process forgery, **not** aga
    - `ORDERTRUTH_GUARD_MODE=verifier` is set;
    - `NODE_ENV` is not `production`;
    - the configured PayPal environment is not live.
+
+   **Independently of the flag**, every guard mode in v3 refuses a live (production) PayPal environment and production PayPal hosts. The whole project is Sandbox-only (§3).
 2. **A guard without that flag rejects** any capability whose authority isn't `PAYPAL`, with `REJECTED: TEST_AUTHORITY`, before `BEGIN`.
 3. **Every row records its authority:** each obligation, evidence and outbox row stores `authority` and `provenance`.
    - A guard running in production mode refuses to start if its database contains any `TEST`-authority obligations.
@@ -546,7 +669,11 @@ guard.declarePaths([
 ### 7.2 Cloud ingest
 
 - New authenticated endpoint: a per-merchant key, an HMAC over the body and timestamp, and a timestamp skew window.
-- Replay protection: `event_id` uniqueness on the server side, so ingest is idempotent.
+- **Replay protection, scoped to the tenant:**
+  - The cloud enforces uniqueness on `(authenticated_merchant_id, event_id)`, never on `event_id` alone.
+  - An event whose `merchantId` differs from the authenticated merchant is refused, so a valid event signed by merchant A can't enter merchant B's scope.
+  - Ingest is idempotent within a merchant.
+  - Two separate protections: the event IDs prevent accidental collisions, and the composite constraint catches mistakes in event generation and in ingest identity handling.
 - Ingest **never** answers in the checkout path. When the cloud is unavailable, the outbox simply retries.
 - In v3 the ingest is exercised in the lab and in tests only. The hosted judge flow does not receive merchant SDK traffic.
 
@@ -558,8 +685,37 @@ guard.declarePaths([
   - the backlog reported in the latest heartbeat was empty of events older than the capture's grace deadline.
 - Otherwise the classification is `TELEMETRY_GAP`.
 - **One reconciler for both:** the classification logic is a single v3 **reconciler** module. The cloud and the verifier both call it, so L8 tests the real code, not a harness copy.
+  - **Limitation:** this makes them share logic, so they can share bugs.
+  - **What the verifier adds:** small, separately implemented invariant assertions in trusted SQL. They count effects, claims and events, and compare payloads and identities.
+  - **A mutation test:** the reconciler and coverage function are deliberately broken, and the verifier must catch a wrong "healthy" result.
+  - **Labelling:** reports label each check as either *independent state assertion* or *shared-logic classification*, and never present agreement between the two as fully independent verification.
 
-### 7.3 Coverage states (per declared path, and per path found)
+### 7.3 Coverage (per write site, rolled up to paths)
+
+**The coverage unit is a write site, not a route.**
+- A **write site** is a code location that performs the business effect: a file, a function and the ordinal of the effect write.
+- Each declared site has a stable `site_id` in `ordertruth.config.ts`.
+- Every SDK call passes its `siteId`.
+- A **path** (route, webhook, worker) can contain several sites, including alternative branches.
+
+For each site, the coverage function records **separate evidence fields**, never one merged flag:
+
+| Field | Established by |
+|---|---|
+| `declared` | It is in the configuration registry. |
+| `discovered` | Static analysis (the B1 scan) or the agent found it. |
+| `wrapped` | Static analysis shows the write goes through `*Once`. |
+| `exercised` | Runtime evidence carrying that `siteId` has arrived. |
+| `replay_tested` | A verifier rung drove that site's branch. |
+| `deployed_observed` | Evidence carrying a matching `build_id` has arrived from it. |
+
+**Roll-up rules:**
+- **A path's state is the weakest of its sites' states.**
+- **Any discovered direct write** (a site found but not `wrapped`) makes its path `UNPROTECTED`, whatever claims arrive from the path's other branches.
+- **Results are phrased as tested observations**, for example "site S exercised and replay-tested on build B". Undiscovered branches remain a stated limitation.
+- **Negative control NC11:** a path emits valid SDK claims on one branch and writes the order directly on another. It must be reported `UNPROTECTED`, and the ladder must drive both branches.
+
+The states below apply per site; a path takes the weakest state among its sites.
 
 | State | Established by |
 |---|---|
@@ -571,7 +727,7 @@ guard.declarePaths([
 | `DEPLOYED_OBSERVED` | Evidence carrying a `build_id` matching the verified revision has been received from that path. |
 
 Rules:
-- **One function computes coverage:** a single v3 module that the cloud, the CLI and the verifier all call, from the registry, evidence and static findings.
+- **One function computes coverage:** a single v3 module that the cloud, the CLI and the verifier all call, from the registry, evidence and static findings. The verifier **also** runs its own independent state assertions (§10), because shared logic can share bugs.
 - **Precedence:** `UNPROTECTED` overrides every other state. A known bypass on a path makes it `UNPROTECTED`, even if claims also arrive.
   - Apart from that, a path's state is the highest rung its evidence supports.
 - **States can regress:** a new `build_id` without fresh evidence drops `DEPLOYED_OBSERVED`, and a newly found bypass drops the path to `UNPROTECTED`.
@@ -593,7 +749,13 @@ For a verified capture past its grace period (reusing v2's `DEFAULT_MISSING_ORDE
 | No event, but SDK telemetry healthy for its paths | `SUSPECTED_MISSING`, or `TELEMETRY_GAP` if the shipper backlog is unknown |
 | An authoritative merchant **reconciliation snapshot** shows zero matching orders | `MISSING_ESTABLISHED` for that snapshot time |
 
-The **reconciliation snapshot** is a merchant-run SDK job, `guard.reportSnapshot(window)`. It runs the merchant's registered locator query for captures in a time window and ships counts as evidence.
+The **reconciliation snapshot** is a merchant-run SDK job, `guard.reportSnapshot(window)`.
+- It runs inside **one `REPEATABLE READ READ ONLY` transaction**, so every count and identity it reports comes from a single consistent database snapshot.
+- It records:
+  - the snapshot time;
+  - the transaction's snapshot (`pg_current_snapshot()`);
+  - the **covered capture set**: the window bounds and the capture IDs included.
+- Evidence gathered across several snapshots is labelled as separate observations, never merged into one.
 
 ---
 
@@ -612,10 +774,17 @@ For each business effect, a merchant moves through `OBSERVE → BACKFILL → REA
    - Existing duplicates or conflicts are listed in a backfill report and are **not** resolved automatically. Resolution goes through the existing human-approved recovery workflow, separately authorized.
 3. **READY**, a gate computed by the SDK CLI. Every condition must hold:
    - the backfill is complete for the window;
-   - every conflict is resolved or explicitly accepted;
+   - every conflict is resolved, or **accepted**. An accepted conflict is one the merchant acknowledges as known history. It is listed in every proof but doesn't block `READY`. An unresolved `LEGACY_AMBIGUOUS` identity always blocks `READY`, and can't be accepted without a human-approved recovery;
    - every known path for the effect is migrated (the code calls `*Once`);
    - the backfill found no unresolved ambiguous (multiple-match) identities.
-4. **ENFORCE:** turned on per path.
+4. **ENFORCE:** turned on per path, by one of two cutover modes. The chosen mode is recorded in evidence and shown in every proof.
+   - **Locked cutover:**
+     1. the merchant pauses legacy writers for the effect;
+     2. a final backfill snapshot is taken;
+     3. enforcement turns on;
+     4. legacy writers stay off.
+   - **Explicit partial rollout:** mixed mode, with its stated limitation (below).
+   - Backfill is evidence about the window it observed. It is **not** proof that old writers have stopped.
    - Until all paths are enforced, coverage reports **partial**.
    - Proofs must not claim integration-wide protection.
 
@@ -671,7 +840,10 @@ The `markPaid` statement's `WHERE status='pending'` stays as a second safeguard.
 - `BYPASS_DETECTED` catches such writes **after the fact**.
 - **Defence in depth (optional):** a merchant-authorized unique index on the merchant's own `orders(intent_id)` (P1). The backfill CLI can propose it after checking for existing duplicates. It is **never** applied automatically, because the SDK doesn't alter merchant tables.
 
-**No legacy statement registered:** every proof and coverage report states "historical coverage limited to the backfill window [from, to]". `READY` additionally requires the merchant to acknowledge that limited coverage.
+**Limited mode (no legacy statement registered):**
+- Step 6's legacy reconciliation is **explicitly skipped**.
+- The outcome carries the flag `LEGACY_CHECK_ABSENT`.
+- Every proof and coverage report states "historical coverage limited to the backfill window [from, to]". `READY` additionally requires the merchant to acknowledge that limited coverage.
 
 An empty obligations table on a merchant with history is exactly the failure this lifecycle prevents. `ENFORCE` is refused while `READY` is false, unless the merchant explicitly acknowledges a forced override, which is recorded in evidence and shown in every proof.
 
@@ -714,13 +886,37 @@ The source is redacted with `src/redact.ts` rules plus secret-pattern scanning. 
 - **B2, deterministic codemod:** wraps the call sites B1 found in `*Once`, using a fixed mapping rule for identity fields.
 - **A, the agent.**
 
-**Metrics**, objective, measured by the verifier:
-- verified migrated paths;
-- required paths left untouched;
-- wrong identity mappings, where the ladder catches a conflict or reuse error;
+**Two separate comparisons**, never one combined score:
+- **Primary, migration:** **A versus B2.** Is the end-to-end migration *accepted by the verifier* (§10 acceptance algorithm) on previously unseen variants, with no regressions? This is the only basis for a claim about AI value in v3.
+- **Secondary, discovery:** **A versus B1.** The recall and precision of finding write sites, against the corpus's known sites. Better discovery on its own does **not** establish that a migration is correct.
+
+**Metrics,** objective, measured by the verifier:
+- variants accepted;
+- required write sites left unmigrated;
+- wrong identity mappings, caught by the ladder;
 - regressions, meaning existing merchant tests that fail;
-- the human correction effort: lines edited before verification passes;
-- uncertain-path recall against the corpus's known paths.
+- policy-gate rejections;
+- refusals and failures to produce a diff, **counted as failures**.
+
+Human correction effort is **excluded** from the automated primary evidence, unless independent people actually perform and time the corrections.
+
+**Before any live model call, a preregistration must fix all of the following** (it is a separate document, frozen by hash):
+- the corpus size and composition;
+- the primary outcome and the required improvement of A over B2;
+- how invalid variants and infrastructure errors are treated;
+- the number of repetitions and the rule for disagreement between runs;
+- the model-call and token budget, the stop conditions and the safety gates.
+
+No threshold may change after results have been seen.
+
+**Ordering:**
+1. Gate A passes (§19).
+2. B2 exists and is strong, and gets the same documentation and context as A.
+3. The held-out variants are written by someone other than the agent's implementer, and **frozen and hashed before any agent prompt development**. The agent is developed only on the development variants.
+4. The preregistration is frozen.
+5. Live evaluation runs, under its own separate authorization.
+
+Ask-evaluation cases are never reused as fresh material.
 
 **Corpus:**
 - integration variants built from one reference merchant domain: **V-A** route-level writes, **V-B** a service layer, **V-C** a queue worker, plus P2 pending-first variants;
@@ -737,10 +933,36 @@ The evaluation follows the existing preregistration discipline.
 `ordertruth verify --candidate <diff> --variant <id>` produces a verification report and a Proof of Protection.
 
 **Isolation (hard requirement):**
-- runs in a Linux container with **no network**, the source mounted read-only, and the candidate applied to a scratch copy;
-- uses a fresh disposable PostgreSQL container and fixed CPU, memory and time limits;
-- has no credentials of any kind;
-- the same image runs locally (Docker) and in CI.
+- **The candidate container:**
+  - runs as a non-root user, with no Linux capabilities, a read-only root filesystem except `/tmp`, and process, CPU, memory and time limits;
+  - has **no Docker socket**, no host mounts except a read-only copy of the candidate source, and no privileged mode;
+  - has network access only to the run's own PostgreSQL, on an internal-only network;
+  - holds **no real or service credentials**, only disposable credentials for that run's database.
+- **Fresh resources each run:** a disposable PostgreSQL per run.
+- **Same image locally and in CI:** the same image runs in both.
+
+**Trust boundary between the candidate and the oracle.** Container and network isolation are necessary, but they don't make the oracle trustworthy on their own.
+
+| Component | Trusted? | Holds | Can't do |
+|---|---|---|---|
+| **Controller** (its own image) | yes | the fixtures, expected outcomes, ladder specs, negative controls and the report writer; the database superuser for setup | — |
+| **Candidate process** | **no** | the role `ot_candidate`: `SELECT`/`INSERT`/`UPDATE` on the variant's shop tables and on the `ordertruth_guard` tables the SDK uses | DDL, creating triggers, `USAGE` on `verifier_oracle`, reading expected outcomes, writing reports |
+| **Observer** (part of the controller) | yes | the role `ot_observer`: read-only on the shop and guard tables, and owner of the `verifier_oracle` schema | being driven by candidate output |
+
+- **The controller drives the candidate** through a fixed command channel.
+- **Candidate output is untrusted.** Its stdout and return values are logged as claims, but **verdicts come only from the observer's own trusted queries.** The observer checks persisted effect rows, guard rows, events and identities against the frozen expectations.
+- **The final report** is written only by the controller, into an output directory the candidate can't reach.
+- **The variant's schema,** including any triggers it has, is a trusted fixture that the controller applies. The candidate can't change it.
+
+**Tamper negative controls,** all of which must be rejected or must fail:
+
+| Control | The candidate tries to |
+|---|---|
+| NC7 | read or write `verifier_oracle`, or the expected outcomes |
+| NC8 | fabricate guard evidence (`claimed` events) without the real effect, or delete guard rows after making the effect |
+| NC9 | use a registered statement whose `RETURNING` echoes the expected literals while writing different values |
+| NC10 | add a data-modifying CTE that makes an extra write |
+| NC12 | write a fake report |
 
 Model-written code never runs outside this container, and never on Render or Vercel. Without a container runtime, `verify` refuses to start.
 
@@ -758,6 +980,8 @@ Model-written code never runs outside this container, and never on Render or Ver
 | NC4 | a T2 P1 callback inserting the order row on another connection (must be `REJECTED: TX_PARTICIPATION`) |
 | NC5 | leaving the worker path unmigrated |
 | NC6 | a hardcoded capture ID |
+| NC7–NC10, NC12 | the tamper controls above |
+| NC11 | an alternative-branch bypass (§7.3) |
 
 If any control passes, the **verifier itself fails** and nothing is judged.
 
@@ -772,20 +996,22 @@ If any control passes, the **verifier itself fails** and nothing is judged.
 | L4 | Concurrent invocation from both paths, all enforced. Forced interleaving via barriers, plus a seeded stress run of N attempts | One effect. The losing call returns `REUSED`; a lock timeout is a **FAIL**. Seed recorded. |
 | L5 | Process killed before `COMMIT` (child process, kill at an injected point) | Nothing from the operation persists: no obligation, effect, effect event or `claimed` evidence. The `capture_evidence` row and `capture.observed` event from issuance remain. A retry produces one effect. |
 | L6 | Killed after `COMMIT`, before the reply or outbox shipping. The retry runs after the capability's freshness window has passed. | The effect is durable, and the retry gives `REUSED` (not `STALE`). **P2:** exactly one `fulfilment.dispatch` event ID exists, though it may be delivered more than once. **P1:** exactly one order row and exactly one `claimed` event; `reused` events carry distinct call IDs; if `order.created` is enabled, exactly one such event ID. |
-| L7 | Two different legitimate captures | Two distinct effects, so legitimate fulfilment is preserved |
+| L7 | Two different legitimate intents, each with its own capture (P1), or two different orders, each with its own capture (P2) | Two distinct effects, so legitimate fulfilment is preserved |
 | L8 | Capture past grace with no effect | `SUSPECTED_MISSING` or `TELEMETRY_GAP` reported, never "healthy" |
 | L9 | Identity mismatch (amount or currency, or a second capture on the same intent or order) | `IDENTITY_CONFLICT` or `REJECTED`. Both observations preserved. No reuse of an unrelated order. |
 | L10 | A known path left unmigrated | Coverage shows `UNPROTECTED`. An integration-wide claim is refused. |
 | L11 | Duplicate external effect from a consumer | **Recorded as a limitation** (§5.6), never a pass |
 | L12 | OrderTruth cloud ingest unreachable throughout | All of L1–L7 hold. The `cloud_evidence` backlog grows and then drains once ingest returns. Fulfilment deliveries are unaffected. |
 | L13 | A T2 callback makes an **extra** write on another connection | **Recorded as a T2 limitation**: not detected, and the proof says so. The *result-row* misuse (NC4) is rejected. |
-| L14 | Same `event_id` delivered to `handleOnce` with a **changed** payload, and an `event_id` that doesn't match its payload's binding | `EVENT_CONFLICT`. `fn` not run. Both fingerprints preserved. An unchanged duplicate gets `REUSED`. |
+| L14 | Same `event_id` delivered to `handleOnce` with a **changed** payload, and an `event_id` that doesn't match its payload's binding | `EVENT_CONFLICT`. `fn` not run. Both fingerprints preserved. An **unchanged** duplicate (a second delivery row for the same event, injected so it reaches the inbox claim) gets `REUSED` from the **inbox** check, not merely from the delivery state. |
 | L15 | The `capture.observed` commit fails during issuance, through the shared issuance code (§6.1) | No capability issued, no effect, and a retry after recovery succeeds |
 | L16 | Replays older than the backfill window. Each case has one required outcome. | **P1:** exactly one matching order from before enforcement → `REUSED_LEGACY` (`ESTABLISHED`); the same but undated and not in a pre-enforcement snapshot → `LEGACY_UNDATED` with coverage claims blocked; a non-matching order → `IDENTITY_CONFLICT`; a matching order created after `enforced_since` → `BYPASS_DETECTED`; two candidate orders → `LEGACY_AMBIGUOUS`, nothing adopted. **P2:** paid before enforcement → `LEGACY_ALREADY_PAID` with no dispatch; undated → `LEGACY_UNDATED` with claims blocked; paid after → `BYPASS_DETECTED`; no bound capture → `LEGACY_UNVERIFIABLE`; the capture bound to another order → `IDENTITY_CONFLICT`. Never a new order or a second dispatch. |
 | L17 | Concurrency above the operation-pool and auxiliary-pool sizes | No deadlock. Operations that can't get a connection fail with a retryable error within the pool timeout, with nothing persisted. Survivors satisfy L4. |
 | L18 | A partly enforced effect: one path enforced, one not | Duplicates from the unenforced path are **not** claimed as prevented. Coverage is partial, `BYPASS_DETECTED` is raised for a post-enforcement legacy write, and no claim covers the whole effect. |
 | L19 | A T1 statement returns a row with one wrong identity field (for example a different `paid_capture_id` or `intent_id`), and a statement whose `returns` declaration omits one | `REJECTED: STATEMENT_POSTCONDITION`, with the claim rolled back. The guard refuses to start for the missing declaration. |
 | L20 | A pre-transaction rejection (a bad HMAC) while the audit write fails | A retryable error is thrown and `REJECTED` is **not** returned. With the audit working: `REJECTED`, with durable evidence. |
+| L21 | The `COMMIT` acknowledgement is lost, at issuance, at the operation and at the consumer acknowledgement, by dropping `CommandComplete` through the harness proxy. Repeated with the server-side commit both succeeding and aborted. | Never treated as a rollback. **Committed** resolves only by the marker. **Not committed** resolves only from a **fresh** marker read taken *after* the original backend is proved ended, with visibility proved by a probe. A forced interleaving (marker absent, then the transaction commits and exits, then the backend is gone) must resolve **COMMITTED**. Resolution also works from a separate, restarted process through the commit intent (`recoverPending`). A change in postmaster start or a standby gives `STILL_UNKNOWN`. With the database unreachable, `COMMIT_OUTCOME_UNKNOWN`. `pg_xact_status` is recorded but never decides, and a deliberately contradictory diagnostic raises `COMMIT_EVIDENCE_INCONSISTENT`. No duplicate effect after `guard.resolve` and a controlled retry. |
+| L22 | Two merchants with the same local order ID and intent IDs, through emission, cloud ingest and consumption | All event IDs differ. Ingest keeps them in separate tenant scopes. An event from merchant A presented under merchant B's credentials is refused. |
 
 **The tier is reported per path.** A T2 path can at best reach `REPLAY_VERIFIED (T2)`, and its proof always carries the L13 limitation.
 
@@ -794,11 +1020,34 @@ If any control passes, the **verifier itself fails** and nothing is judged.
 - **SDK-side hook points** exist only when the SDK runs in verifier mode inside the container, and do nothing elsewhere.
 - **A transaction blocked inside the claim `INSERT`** can't reach a barrier. The harness instead detects that it is waiting on a lock, through `pg_stat_activity.wait_event_type = 'Lock'`, and then releases the first transaction.
 
+**Result schema and acceptance (one algorithm):**
+- **Run status:** `VALID` or `INVALID`. A run is invalid if the original variant didn't reproduce its defect, if any negative control passed, or if there was manifest drift.
+- **Rung status:**
+
+| Status | Meaning |
+|---|---|
+| `PASS` | the rung's oracle held |
+| `FAIL` | an invariant was violated, with a `reproduced` flag |
+| `FLAKY` | the outcome varied, with no violation |
+| `LIMITATION` | allowed only for the declared limitation rungs, L11 and L13 |
+| `NOT_APPLICABLE` | per the applicability matrix |
+| `NOT_RUN` | the rung didn't run |
+| `INFRA_ERROR` | the infrastructure failed |
+
+- **Applicability matrix:** each rung is marked applicable or not per profile (P1 or P2) and per tier (T1 or T2). For example, L13 applies only to T2, and L16's P2 cases only to P2.
+- **A candidate is accepted only if all of these hold:**
+  - the run is `VALID`;
+  - every applicable rung is `PASS`, or `LIMITATION` where that is allowed;
+  - no applicable rung is `FAIL`, `FLAKY`, `NOT_RUN` or `INFRA_ERROR`.
+
+  Anything else is not accepted, and the proof says which rule failed.
+
 **Determinism:**
 - Every run records the container image digest, the seed, the variant hash, the candidate diff hash, the harness hash and the timings.
 - Rungs forced by barriers must give the same outcome on a rerun.
 - Stress runs can't replay a PostgreSQL schedule exactly, so a stress run need only repeat its verdict.
-- **A FAIL verdict is reported only if a barrier-forced interleaving reproduces it.** A stress-only failure is reported as `FLAKY` and blocks acceptance.
+- **Any observed invariant violation is a `FAIL`,** even if its schedule can't yet be forced. Reproduction is recorded separately, as `reproduced: forced | stress_only`. Every counterexample is kept as failure evidence.
+- **`FLAKY`** means a rung's outcome varied between repetitions **without** an invariant violation, for example an occasional lock timeout. It blocks acceptance.
 
 **Network:** "no network" means no route outside the run. The candidate container and its PostgreSQL container share an **internal-only** Docker network with no external gateway. That is allowed.
 
@@ -827,7 +1076,8 @@ Both records are canonical JSON, hashed with SHA-256 using `src/domain/canonical
 - candidate diff hash, and its origin (`AI_AGENT`, `CODEMOD_B2`, `HUMAN`, `REFERENCE_FIX`);
 - the policy-gate result, the verifier manifest hash and the container image digest;
 - the validity checks, with original-fails and negative-control results;
-- per-rung results (`PASS`/`FAIL`/`NOT_RUN`/`LIMITATION`) with seeds;
+- the run status, and per-rung results (`PASS`/`FAIL`/`FLAKY`/`LIMITATION`/`NOT_APPLICABLE`/`NOT_RUN`/`INFRA_ERROR`), with seeds and the `reproduced` flag;
+- for each check, whether it is an *independent state assertion* or a *shared-logic classification*;
 - the coverage map, with each path's **tier** (T1 or T2), and the historical-coverage statement (§8);
 - the capture provenance (the lab's fixture label, §18);
 - the human review decision;
@@ -891,7 +1141,10 @@ Each variant's negative controls are chosen to fail on that variant's own defect
 
 | Claim | Status in v3 |
 |---|---|
-| One verified capture → one local order (P1), for **T1** registered-statement paths | **Supported**, once verified on the variant |
+| One verified capture → one local order (P1), for **T1** registered-statement paths | **Supported**, once verified on the variant, with the statements as **trusted configuration** (§5.3a). The postconditions are checked by the verifier's observer, not by `RETURNING`. |
+| A lost `COMMIT` acknowledgement is never treated as a rollback | **Supported** (§5.3e, L21). Unresolvable cases surface `COMMIT_OUTCOME_UNKNOWN`. |
+| Identities can't collide across merchants | **Supported** (tenant-scoped event IDs, composite ingest uniqueness, L22) |
+| Verifier verdicts can't be manufactured by candidate code | **Supported** within the stated boundary: separate roles, observer-only verdicts, tamper controls NC7–NC12 (§10). A compromised controller or host is out of scope. |
 | The same, for **T2** callback paths | **Conditional:** only if every callback write uses the supplied transaction. The SDK detects a result row committed elsewhere (NC4), but **not** extra side-writes (L13). |
 | One pending order → one paid transition and one dispatch event (P2) | **Supported** (T1 always), once verified. Extra writes in the `after` hook are T2. |
 | A changed event payload is never treated as a duplicate (`handleOnce`) | **Supported** (L14) |
@@ -903,6 +1156,7 @@ Each variant's negative controls are chosen to fail on that variant's own defect
 | A conflicting payment identity is surfaced, not merged | **Supported** (L9) |
 | Missing orders detected | **Partial:** suspected after grace; established only with a reconciliation snapshot |
 | Duplicates caused by a not-yet-enforced path, while enforcement is partial | **Not prevented.** Detected after the fact as `BYPASS_DETECTED` where legacy statements exist; coverage stays partial (L18). |
+| A path is protected because claims arrive from it | **Not claimed.** Coverage is per write site, and any unwrapped discovered site makes its path `UNPROTECTED` (§7.3, NC11). |
 | Every merchant path protected | **Not claimable.** The strongest claim is complete *known-path* coverage (§7.3); undiscovered paths remain a stated limitation. |
 | Published lab proofs are the recorded results | **Supported** for consistency with the build manifest of a stated source commit and CI run, published in a stated build commit (§13). Not an independent attestation of execution. |
 | Adopted legacy rows are genuinely pre-enforcement | **Only where established** (a timestamp before `enforced_since`, or a pre-enforcement backfill snapshot). Otherwise `LEGACY_UNDATED`, which blocks protection claims (§8). |
@@ -918,6 +1172,11 @@ Each variant's negative controls are chosen to fail on that variant's own defect
 
 ## 15. Test-first build order (for the builder's plan)
 
+**Gate A (§19) comes first and is the only part authorized for planning now.**
+- Steps 1–9 below are the full sequence for v3.
+- They are **held** until Gate A passes, and then each needs its own authorization.
+- Deferred until after Gate A: P2, T2 callbacks, generic consumers, cloud ingest and the heartbeat, the broad legacy lifecycle, and the hosted lab view.
+
 Each step lands with its tests first, and the next step starts only once the previous one is green.
 
 1. The contract file (P1 and P2) and the identity and fingerprint functions, with unit tests.
@@ -925,10 +1184,10 @@ Each step lands with its tests first, and the next step starts only once the pre
 3. `markPaidOnce` (T1 only), with the P2 order-state table (§8). Then the outcome table (§5.3d), tested row by row, with evidence asserted in the transaction. Then the two pools and the L17 behaviour. Then `consume` and `handleOnce`, with the delivery states, binding, reuse, `EVENT_CONFLICT` and poisoning (L14). Then the `cloud_evidence` shipper, with ingest stubbed, an outage simulated and leases expired.
 4. `CaptureVerifier`: the HMAC capability, freshness and binding. Then the separate `TestCaptureAuthority` and the committed `SYNTHETIC_FIXTURE`, with tests that test capabilities are rejected by a production guard and that the production entry point never loads the testing module.
 5. The lab merchant variants and their reference fixes.
-6. The verifier container: the manifest, the validity checks and the ladder L0–L20. All negative controls are rejected and all reference fixes pass.
+6. The verifier container: the manifest, the validity checks and the ladder L0–L22. All negative controls are rejected and all reference fixes pass.
 7. The assurance record builders, the CI job and its build manifest, and the Integration Lab read-only view with build-embedded hashes.
-8. Baselines B1 and B2, then the Migration Agent and its policy gate, all offline with mocked model output.
-9. The corpus freeze, then the preregistered evaluation, which needs its own authorization for any live model calls.
+8. The held-out variant corpus, written independently and **frozen by hash before any agent prompt work**. Then baselines B1 and B2.
+9. The Migration Agent and its policy gate, developed only on development variants, offline with mocked model output. Then the preregistration (§9). Then the evaluation, which needs its own authorization for any live model calls.
 
 **Rollback:** every step is additive (new packages, the new `ordertruth_guard` schema in **merchant** databases only, a new view). Removing v3 means removing those packages and the view. No existing table, route or test changes.
 
@@ -998,6 +1257,7 @@ These were not discussed explicitly; I chose them.
     - a pre-transaction rejection audit that throws if it fails;
     - source commit separated from publication commit;
     - new rungs L19 and L20.
+14. **Deep-review fixes, F1–F12** (§18): tenant-scoped canonical event IDs and composite ingest uniqueness; one tenant per merchant database; length-prefixed key framing, property-tested between SQL and TypeScript; unknown-`COMMIT` resolution with `pg_xact_status` at all three boundaries; a verifier trust boundary with separate roles and observer-only verdicts; registered statements as trusted configuration, with statement restrictions and a persisted-state re-read; coverage per write site; separate migration and discovery comparisons, with the holdout frozen before prompt work; shared-logic checks labelled and mutation-tested; consistent snapshots, cutover modes and accepted-versus-unresolved conflicts; capacity limits that never silently drop evidence; one result schema and acceptance algorithm; and Gate A as the only scope proposed for authorization (§19).
 
 ## 18. Builder review (2026-10-30) and decisions
 
@@ -1054,3 +1314,69 @@ A focused builder review of §5 (transaction protocol, inbox, outbox) follows th
    - Pre-transaction rejections are recorded in an audit transaction, and if it fails the SDK throws rather than returning `REJECTED` (§5.3c, §5.4a, L20).
    - The stale §17 schema entry now reads `ordertruth_guard`.
    - The lab manifest records the source commit verified, separately from the later publication commit (§13).
+
+**Deep review of the committed design `82d851c` (2026-10-30): conditional GO for a bounded feasibility slice only; full build on HOLD.** Twelve findings (F1–F12), all addressed in this revision:
+- **F1 tenant-scoped event identity:** §5.5, §7.2 and L22.
+- **F2 unknown commit outcome:** §5.3e and L21.
+- **F3 verifier trust boundary:** §10, NC7–NC12.
+- **F4 the T1 trust boundary:** §5.3a, NC9 and NC10.
+- **F5 tenant and authority binding:** §5.1, §5.3c step 5 and §6.1.
+- **F6 write-site coverage:** §7.3 and NC11.
+- **F7 the AI evaluation decision rule and ordering:** §9 and §15.
+- **F8 shared-logic limitation:** §7.2a and §10.
+- **F9 snapshot consistency, cutover and accepted conflicts:** §7.4 and §8.
+- **F10 capacity:** §5.5.
+- **F11 result schema and acceptance algorithm:** §10 and §11.
+- **F12 runtime feasibility first:** §19, step 0.
+
+## 19. Implementation gates
+
+### Gate A: the P1/T1 feasibility slice (the only scope proposed for authorization)
+
+**Scope:**
+- one synthetic merchant, in one tenant database;
+- profile P1 only, tier T1 only;
+- one buggy variant: V-A, the route-plus-webhook concurrency race (REF-BUG-1);
+- one human-written reference migration;
+- the atomic claim, the merchant effect and durable evidence, using the synthetic test authority only;
+- the unknown-commit protocol;
+- the isolated verifier, with its trust boundary and independent SQL assertions.
+
+No PayPal calls, no model calls, and no change to v2.
+
+**Step 0, prerequisites,** proved before any framework work:
+- a supported Node 22 runtime (the repository declares `>=22.13 <23`; this machine currently has 24.11.0);
+- a running Docker Linux engine;
+- a PostgreSQL 18 image;
+- the exact §5.2a migration applied in a disposable container, including the generated-key expression;
+- one concurrent claim, and teardown;
+- the image availability and resource needs recorded.
+
+If any of these can't be met, Gate A stops at step 0.
+
+**Exit criteria.** All must pass, in the verifier, with independent state assertions:
+1. The original V-A **reliably duplicates** under a forced concurrent interleaving (L4).
+2. The reference fix yields **exactly one matching order** under forced concurrency through both paths (L3, L4).
+3. Two legitimate distinct intents **both** produce their order (L7).
+4. An identity conflict is rejected and evidenced (L9).
+5. A crash before `COMMIT` rolls back completely (L5).
+6. A lost `COMMIT` acknowledgement resolves safely, with no duplicate and no false rollback (L21).
+7. Tenant and event identities can't collide across merchants (L22).
+8. The test authority is unusable in a normal guard, and live PayPal configuration is refused (§6.1).
+9. The tamper controls NC7–NC10 and NC12 are rejected.
+10. A second, fresh run reproduces the forced-interleaving verdicts.
+11. The exact migration and container path is reproducible from a clean checkout.
+
+**If Gate A fails:** v3 is held, and effort returns to v2 release qualification.
+
+### Gate B: AI migration value (after Gate A, separately authorized)
+
+- **What it requires:**
+  - a strong B2 codemod;
+  - the independently written held-out variants, frozen first;
+  - a frozen preregistration (§9).
+- **What it tests:** one bounded AI migration experiment, in which an AI-generated migration must be **accepted by the frozen verifier** on an unfamiliar variant, measured against B2.
+- **What a pass authorizes:** only *considering* integrating the AI workflow into the product.
+- **If it fails or ties:** the honest product claim is the SDK plus the verifier, and AI is not credited.
+
+A Gate A pass doesn't establish AI value. It establishes the foundation that any AI claim depends on.
