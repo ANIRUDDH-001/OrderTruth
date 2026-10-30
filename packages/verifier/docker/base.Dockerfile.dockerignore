@@ -3,5 +3,22 @@
 !package.json
 !pnpm-lock.yaml
 !pnpm-workspace.yaml
-!packages/guard/sql/guard-v1.sql
-!packages/verifier/smoke/smoke.mjs
+!tsconfig.json
+!vite.config.ts
+!vite.console.config.ts
+!vite.judge.config.ts
+!vite.owner.config.ts
+!vitest.config.ts
+!vitest.postgres.config.ts
+!vitest.v3-postgres.config.ts
+!src/
+!web/
+!scripts/
+!packages/
+!tests/
+# Never send secrets, local state or host dependencies, even inside allowlisted folders.
+**/.env
+**/.env.*
+**/node_modules
+**/.work
+**/dist

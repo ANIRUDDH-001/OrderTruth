@@ -15,9 +15,12 @@
   "packageManager": "pnpm@11.4.0",
   "scripts": {
     "typecheck": "tsc --noEmit -p tsconfig.json",
+    "typecheck:packages": "tsc --noEmit -p packages/tsconfig.json",
     "db:local": "tsx scripts/local-postgres.ts",
     "test:postgres": "vitest run --config vitest.postgres.config.ts",
+    "test:v3-postgres": "vitest run --config vitest.v3-postgres.config.ts",
     "v3:smoke": "docker compose -f packages/verifier/smoke/smoke.compose.yml up --build --abort-on-container-exit --exit-code-from smoke",
+    "v3:qualify": "node packages/verifier/smoke/qualify.mjs",
     "test": "vitest run",
     "build:web": "vite build",
     "build": "pnpm build:web && pnpm build:console && pnpm build:hosted",

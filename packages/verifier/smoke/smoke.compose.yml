@@ -33,6 +33,22 @@ services:
       - ../../../.work/v3/gate-a/checkpoint-0:/out
     networks: [internal]
 
+  # Checkpoint 1+ qualification (Node 22.18.0): `pnpm v3:qualify [checkpoint-N]`, which always tears down afterwards.
+  qualify:
+    profiles: [qualify]
+    build:
+      context: ../../..
+      dockerfile: packages/verifier/docker/base.Dockerfile
+      target: qualify
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      V3_PG_URL: postgres://postgres:ot-smoke-disposable@postgres:5432/postgres
+    volumes:
+      - ../../../.work/v3/gate-a/${OT_CHECKPOINT:-checkpoint-1}:/out
+    networks: [internal]
+
 networks:
   internal:
     internal: true
