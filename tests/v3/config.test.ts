@@ -31,6 +31,8 @@ describe("registered-statement validation (spec §5.3a)", () => {
     ["a data-modifying CTE", withCreate({ sql: `WITH gone AS (DELETE FROM shop.orders RETURNING id) ${V_A.createOrder.sql}` }), "DATA_MODIFYING_CTE"],
     ["returns missing capture_id", withCreate({ returns: IDENTITY.filter(c => c !== "capture_id") }), "RETURNS_MISSING_IDENTITY"],
     ["an order locator missing an identity column", { ...V_A, orderLocator: { ...V_A.orderLocator, returns: ["id"] } }, "RETURNS_MISSING_IDENTITY"],
+    ["an order locator that doesn't bind order.id",
+      { ...V_A, orderLocator: { ...V_A.orderLocator, sql: V_A.orderLocator.sql.replace("WHERE id = $1", "WHERE intent_id = $1"), params: ["intent.id"] } }, "LOCATOR_KEY_MISSING"],
     ["a multi-tenant schema without merchant.id", { ...V_A, singleTenantMerchantSchema: false }, "MERCHANT_PARAM_MISSING"],
     ["dollar quoting", withCreate({ sql: `${V_A.createOrder.sql} $$x$$` }), "UNCLASSIFIABLE"],
     ["a line comment", withCreate({ sql: `${V_A.createOrder.sql} -- note` }), "UNCLASSIFIABLE"],

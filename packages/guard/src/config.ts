@@ -7,7 +7,8 @@ export type RegisteredStatement = { sql: string; params: string[]; returns: stri
 export type GuardConfig = { createOrder: RegisteredStatement; orderLocator: RegisteredStatement; intentLocator: RegisteredStatement;
   singleTenantMerchantSchema: boolean; sites: Array<{ siteId: string; pathId: string }> };
 export const REQUIRED_CREATE_ORDER_RETURNS = ["id", "intent_id", "paypal_order_id", "capture_id", "amount_minor", "currency"] as const;
-export type ConfigErrorCode = "MULTIPLE_STATEMENTS" | "TRANSACTION_CONTROL" | "DATA_MODIFYING_CTE" | "RETURNS_MISSING_IDENTITY" | "MERCHANT_PARAM_MISSING" | "UNCLASSIFIABLE";
+export type ConfigErrorCode = "MULTIPLE_STATEMENTS" | "TRANSACTION_CONTROL" | "DATA_MODIFYING_CTE" | "RETURNS_MISSING_IDENTITY" | "MERCHANT_PARAM_MISSING"
+  | "LOCATOR_KEY_MISSING" | "UNCLASSIFIABLE";
 export class ConfigError extends Error {
   readonly code: ConfigErrorCode;
   constructor(code: ConfigErrorCode, message: string) { super(message); this.code = code; this.name = "ConfigError"; }
@@ -83,6 +84,8 @@ export function validateConfig(c: GuardConfig): void {
     const missing = REQUIRED_CREATE_ORDER_RETURNS.filter(col => !s.returns.includes(col));
     if (missing.length) throw new ConfigError("RETURNS_MISSING_IDENTITY", `${name}: returns lacks ${missing.join(", ")}`);
   }
+  // The persisted re-read and resolution locate the order by the ID the statement returned.
+  if (!c.orderLocator.params.includes("order.id")) throw new ConfigError("LOCATOR_KEY_MISSING", "orderLocator: must bind order.id");
   if (!c.singleTenantMerchantSchema)
     for (const [name, s] of [["createOrder", c.createOrder], ["orderLocator", c.orderLocator], ["intentLocator", c.intentLocator]] as const)
       if (!s.params.includes("merchant.id")) throw new ConfigError("MERCHANT_PARAM_MISSING", `${name}: multi-tenant schema requires merchant.id`);

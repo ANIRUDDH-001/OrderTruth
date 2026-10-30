@@ -1,0 +1,27 @@
+{
+  "provenance": "SYNTHETIC_FIXTURE",
+  "note": "Invented PayPal-shaped data for the public Gate A lab. No value here came from PayPal (spec §6.2).",
+  "merchants": ["SYN-M-A", "SYN-M-B"],
+  "observations": [
+    { "observationId": "SYN-OBS-1", "authority": "TEST", "provenance": "SYNTHETIC_FIXTURE", "merchantId": "SYN-M-A", "paypalEnv": "sandbox",
+      "payeeMerchantId": "SYN-PAYEE-1", "paypalOrderId": "SYN-ORD-1", "captureId": "SYN-CAP-1", "status": "COMPLETED", "currency": "USD",
+      "amountMinor": "1000", "intentId": "SYN-INT-1", "verificationMethod": "FIXTURE", "observedAt": "2026-10-30T00:00:00.000Z",
+      "responseHash": "SYN-RESP-1", "observationHash": "SYN-OBSHASH-1" },
+    { "observationId": "SYN-OBS-1B", "authority": "TEST", "provenance": "SYNTHETIC_FIXTURE", "merchantId": "SYN-M-A", "paypalEnv": "sandbox",
+      "payeeMerchantId": "SYN-PAYEE-1", "paypalOrderId": "SYN-ORD-1", "captureId": "SYN-CAP-1", "status": "COMPLETED", "currency": "USD",
+      "amountMinor": "1500", "intentId": "SYN-INT-1", "verificationMethod": "FIXTURE", "observedAt": "2026-10-30T00:00:00.000Z",
+      "responseHash": "SYN-RESP-1B", "observationHash": "SYN-OBSHASH-1B" },
+    { "observationId": "SYN-OBS-2", "authority": "TEST", "provenance": "SYNTHETIC_FIXTURE", "merchantId": "SYN-M-A", "paypalEnv": "sandbox",
+      "payeeMerchantId": "SYN-PAYEE-1", "paypalOrderId": "SYN-ORD-2", "captureId": "SYN-CAP-2", "status": "COMPLETED", "currency": "USD",
+      "amountMinor": "2500", "intentId": "SYN-INT-2", "verificationMethod": "FIXTURE", "observedAt": "2026-10-30T00:00:00.000Z",
+      "responseHash": "SYN-RESP-2", "observationHash": "SYN-OBSHASH-2" },
+    { "observationId": "SYN-OBS-3", "authority": "TEST", "provenance": "SYNTHETIC_FIXTURE", "merchantId": "SYN-M-A", "paypalEnv": "sandbox",
+      "payeeMerchantId": "SYN-PAYEE-1", "paypalOrderId": "SYN-ORD-3", "captureId": "SYN-CAP-3", "status": "COMPLETED", "currency": "EUR",
+      "amountMinor": "990", "intentId": "SYN-INT-3", "verificationMethod": "FIXTURE", "observedAt": "2026-10-30T00:00:00.000Z",
+      "responseHash": "SYN-RESP-3", "observationHash": "SYN-OBSHASH-3" },
+    { "observationId": "SYN-OBS-4", "authority": "TEST", "provenance": "SYNTHETIC_FIXTURE", "merchantId": "SYN-M-A", "paypalEnv": "sandbox",
+      "payeeMerchantId": "SYN-PAYEE-1", "paypalOrderId": "SYN-ORD-4", "captureId": "SYN-CAP-4", "status": "COMPLETED", "currency": "USD",
+      "amountMinor": "1000", "intentId": "SYN-INT-1", "verificationMethod": "FIXTURE", "observedAt": "2026-10-30T00:00:00.000Z",
+      "responseHash": "SYN-RESP-4", "observationHash": "SYN-OBSHASH-4" }
+  ]
+}
