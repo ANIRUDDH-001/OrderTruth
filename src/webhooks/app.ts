@@ -9,7 +9,7 @@ export const WEBHOOK_PATH = "/webhooks/paypal";
 const NOISE_LOG_WINDOW_MS = 10_000;
 const NOISE_LOG_BURST = 20;
 
-export type WebhookAppDeps = { intake: WebhookIntake; maxBodyBytes: number; log: Logger; rateLimit: RateLimitOptions };
+export type WebhookAppDeps = { intake: Pick<WebhookIntake, "receive">; maxBodyBytes: number; log: Logger; rateLimit: RateLimitOptions };
 
 /**
  * The webhook ingress listener. It is a separate Fastify instance (separate process and port from
