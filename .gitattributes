@@ -2,3 +2,10 @@
 docs/evidence/investigator-eval-stage2/*.csv -text
 docs/evidence/investigator-eval-stage2/*.json -text
 docs/evidence/investigator-eval-stage2/pre-unblinding-snapshot/** -text
+
+# G3 v4-r2 frozen dependencies: preserve exact Git blob bytes on Windows.
+# Do not normalize/renormalize or regenerate pilot-freeze-v4-r2.json.
+src/ai/code-investigation/*.ts -text
+src/ai/code-investigation/*.mjs -text
+tests/code-investigation*.test.ts -text
+docs/CODE_INVESTIGATION_PROTOCOL.md -text
