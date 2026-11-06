@@ -1,12 +1,32 @@
 # OrderTruth
 
-OrderTruth checks one rule for a merchant that takes PayPal payments: **one completed capture must produce exactly one live store order.** When the rule breaks, it opens an incident with linked evidence (a duplicate order, or a missing order after a grace period). For duplicates, it offers a narrow repair that needs an explicit approval and only changes the store's own records, never PayPal.
+OrderTruth checks a reference merchant's explicit lifecycle rule: **one completed capture must produce exactly one live store order.** This is a scoped contract, not a rule for every PayPal integration. When it breaks, OrderTruth opens an incident with linked evidence. For duplicates, it offers a narrow repair that needs explicit approval and changes only the controlled merchant records, never PayPal.
 
 The interactive prototype combines isolated merchant scenarios, evidence-grounded AI investigation, exact browser approval and independently checked recovery receipts. Payment observations and controlled merchant faults are labelled separately. Merchant recovery never changes PayPal financial records.
 
+## Two paths, different evidence
+
+| Path | What it shows | Current boundary |
+|---|---|---|
+| **V2 judge experience** | A stored genuine PayPal Sandbox observation, controlled merchant fault, AI hypotheses/read-only diagnostic, exact approval and merchant-only recovery receipt | Not a fresh provider readback. AI can be cached/unavailable; prior evaluations did not demonstrate incremental AI value. Final hosted journey is NOT_TESTED in this documentation checkpoint. |
+| **V3 Integration Lab** at `/lab/` in the packaged build | Recorded synthetic concurrency defect, human-written reference fix, two matching accepted repetitions and nine intended-defect controls | Locally reproduced fixed P1/T1 lab. No applied AI migration patch, genuine PayPal transaction or arbitrary hostile-candidate qualification. Deployment of `/lab/` is NOT_TESTED here. |
+
+The Lab did not protect or repair the judge case's payment. Its hashes establish consistency with recorded files, not independent execution authenticity. Gate A's historical **candidate ran Node 22.18.0; the host controller ran Node 24.11.0**. W1 separately recorded supported-runtime validation on Node 22.
+
+For the static Lab, from a local checkout containing W1, use pinned pnpm 11.4.0 and Node 22.18.0:
+
+```powershell
+pnpm install --frozen-lockfile
+pnpm build:frontend
+```
+
+Serve `dist/judge` with a static server supporting directory indexes and open `/lab/`. It needs no credentials, backend or private evidence. Judge and owner functionality in the same package still needs the separate interactive backend. Public availability of exact Gate A source `fc85ac3` is **NOT_VERIFIED**; use a checkout already containing it for historical reproduction. A clean publication build and source S differ from a dirty local preview and publishing commit P.
+
+Read [claims and limitations](docs/V3_CLAIMS.md), [publication versus experiment reproduction](docs/V3_REPRODUCTION.md), the [V2-first demo draft](docs/V3_DEMO_SCRIPT.md), [submission draft](docs/V3_SUBMISSION_DRAFT.md) and [release gates](docs/V3_RELEASE_GATES.md). W2 hardening and W3 AI migration value remain unfinished/unqualified; they are not features proved by this static publication.
+
 ## Hosted application
 
-**https://order-truth.vercel.app** — open it and choose *Start judge experience*. No account is needed.
+Recorded entry point: **https://order-truth.vercel.app** — *Start judge experience* uses an anonymous maintained session. Current hosted availability, the final end-to-end journey and deployment of the Lab have not been checked in W4 CP1. The configuration and measurements below are historical, not a fresh uptime or inference claim.
 
 | Layer | Host | Notes |
 |---|---|---|
@@ -154,7 +174,7 @@ The console shows **stored** checks. It never runs the checker, never re-reads P
 
 ```bash
 pnpm typecheck
-pnpm test             # vitest; offline; latest local check: 36 files / 761 tests
+pnpm test             # vitest; offline; public evidence: docs/V3_CLAIMS.md
 pnpm check            # both
 ```
 
@@ -172,7 +192,7 @@ The tests cover:
 
 - A full judge rehearsal on the final deployed version, on desktop and mobile: **NOT_TESTED**. Startup, session and authorization checks on the live HTTPS deployment were recorded privately; the full browser journey has not been re-run on the final version.
 - Hosted webhook delivery (genuine signed event, duplicate retry, interruption): **NOT_TESTED**.
-- AI value: **not demonstrated.** The older Gate 2C advisory evaluation tied the stronger no-model control at 10/10; see `docs/GATE2C_AI_RESULTS.md`. The separate 16-case investigator analysis is now complete: both AI reviewers' comparisons against both deterministic controls return **REGRESSION** under the frozen rules. Those are AI-reviewed, post-hoc exploratory results, with substantial reviewer disagreement, missing historical rubric definitions and disclosed blinding/checkpoint limitations—not confirmatory evidence of general model inferiority. See [investigator results](docs/INVESTIGATOR_EVAL_RESULTS.md). Human merchant usefulness remains **NOT_TESTED**.
+- AI value: **not demonstrated.** The older Gate 2C advisory evaluation tied on classification and beat the control on no preregistered metric, with fewer citations and diagnostics; see `docs/GATE2C_AI_RESULTS.md`. It did not evaluate the distinct hosted investigator prompt. The separate 16-case investigator analysis is now complete: both AI reviewers' comparisons against both deterministic controls return **REGRESSION** under the frozen rules. Those are AI-reviewed, post-hoc exploratory results, with substantial reviewer disagreement, missing historical rubric definitions and disclosed blinding/checkpoint limitations—not confirmatory evidence of general model inferiority. See [investigator results](docs/INVESTIGATOR_EVAL_RESULTS.md). Human merchant usefulness remains **NOT_TESTED**.
 - Free-tier availability through the judging period (Render sleep and suspension, Neon and Gemini allowances): **not guaranteed**. Availability is checked manually; no keep-alive traffic is used.
 - Role-based access beyond owner/judge, and multi-tenant isolation beyond per-session run ownership: **not built**.
 - Screen-reader use, a full WCAG 2.2 audit, performance under load, and real users: **NOT_TESTED**.

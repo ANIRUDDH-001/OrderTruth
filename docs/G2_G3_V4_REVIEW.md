@@ -1,0 +1,61 @@
+# G2/G3 v4 corrective review — November 5, 2026 IST
+
+Status: **G2 focused pre-approval-payee correction ready for independent acceptance; G3 v4 remains frozen**. Claude marked the prior G2 candidate NO-GO solely for URL exposure before provider payee readback; the other G2 checklist items passed independent review. This correction is not self-assigned acceptance. These are not genuine Sandbox, AI usefulness or hosted-release PASS claims. External provider/model calls0; spend₹0. Accepted G0/G1 evidence was preserved, not rerun. No commits/push/merge/deploy/registration changes or UX/G4/G5/video/submission implementation.
+
+## Previous finding → implemented correction
+
+| Finding | Smallest correction | Focused evidence |
+|---|---|---|
+| H1: injected mocked providers could receive PAYPAL authority | Sandbox mode now accepts only an exact WeakSet-branded client made by the credential-only native factory; injected transport/API base/test authority, clones/proxies and offline factory objects are refused. Offline mode remains TEST/SYNTHETIC_FIXTURE only. Redirects and unknown operations fail closed. | client26tests; PG negative Sandbox injection case; zero issued evidence/order on refusal |
+| Non-executable composition | Added scripts/lab-reference-sandbox.ts and isolated owner bootstrap: strict source/time/action-bound approval + --execute, two fresh loopback PG stores + separate SQLite proof, local stdin session, original authenticated single-route ingress. Return/replay labelled LOCAL_BOOTSTRAP_INVOCATION; no browser return route claim. | bootstrap14unit; actual disposable-PG init/no-overwrite1case; zero provider-client construction in init |
+| Documentation-only request caps | Durable fsynced per-operation+total reservations BEFORE requests; target prechecks before OAuth; errors consume quota, restart retains it; reusable-registration mode23total and zero registration mutations. Private underlying client is budgeted too. | all8 operation ceilings, total25 temporary policy, reuse policy, failed/restarted/concurrent/redirect/corrupt/stale-lock controls in26tests |
+| Six signature postbacks for terminal/repeated events | Exact-body hash of previously verified persisted event may acknowledge existing proof without verifying another transmission. Terminal foreign/disagreed/ignored/failed events stop; processed events reuse journal; transient processing retries locally without another postback. Changed bytes must verify. | terminal6unit; PG HTTP six-delivery one-postback case and normal-backoff/controlled-clock transient retry case |
+| Crash test did not assert death signal/retain stderr | Child close handler captures code+signal; asserts SIGKILL and nullcode. Stores sanitized stderr plus committed order/started attempt/zero journal receipts before restart and REUSED one-order/one-receipt state after restart. | Node22 PG process test + final-process-evidence/process-death*.json and child-stderr.txt (0bytes in successful run) |
+| Payee discovery could consume purchase | Hash-bound offline recorded/mock merchant_id preflight before any purchase; absent/email-only/ambiguous/wrong owner rejected. Actual pre-capture order GET additionally checks payee, within existing12GET cap. | payee3unit + bootstrap preflight tests; actual account shape remains NOT_TESTED |
+| Approval expiry / diagnostic persistence | Ingress rechecks owner expiry before any intake/provider work. Sanitized debug/status/outcome evidence append+fsync sidecar; persistence error retains quota and latches that client closed. Approved G2 SHA also covers DB modules and dependency locks. | bootstrap expiry unit and source/init rerun; client sidecar persistence/redaction/failclosed test |
+
+## G3 v4 corrections
+
+Common prompt now supplies only outcome objective/evidence limits, not defect mechanisms, specific idempotency answers, helper atomicity or a prescribed patch. sharedIdentity is free text requiring independent review. The detector/comparator uses bounded lexical/dataflow heuristics, not exact fixture lookup; unsupported syntax is explicitly UNSCORABLE or PARSER_FAILURE, not silently wrong. Multiple defensible labels, clean/near-miss/abstain handling, equivalent-format matching and retained invalid/missing/unexpected-output rows are explicit. Repair text stays inert until separately reviewed.
+
+The exposed8cases are DEVELOPMENT SMOKE, not held-out evaluation or evidence of generalization. Initial smoke returned8retained rows,3abstentions,5repairproposals,0clean false positives; acceptance of abstentions is not defect detection success or an AI win. No private Claude replacement source/label was searched/read. The scorer/evaluator/comparator/prompt and implementation identities are frozen BEFORE any owner-relayed private data. Four private cases remain pending. One pre-holdout schema correction makes ground-truth ABSTAIN directly admissible; the first v4 scaffold/artifact is preserved and the final revision is separately versioned, rather than silently overwritten.
+
+Execution evidence is separated:64finite-interpreter behavioral checks versus28assertions on4distinct pinned JavaScript programs in restricted children. Actual test execution uses shipped reviewed SHA whitelists in both parent/child, fixed executable/script, stripped environment, permissions, limits and deadlines; arbitrary/model source cannot admit itself by providing its own matching hash. VM alone is not a security boundary. These actual tests use an in-memory adapter and do NOT establish PostgreSQL semantics or production application patch qualification. Model tests/minimality/explanation/identity correctness require independent assessment. No unchecked model final grader exists.
+
+## Node22 execution receipts
+
+All new authoritative qualification used Node22.18.0 in the existing cached Linux validation image. No dependency additions or external registry install was needed. Test containers had no external network; PG was a disposable local container. Source input manifests and exact shell commands are retained under `.work/runs/g2-g3-v4-20261105/`.
+
+- final-typecheck-node22.log / exit0; final-unit-node22.log:69/69 across7files; final-pg-node22.log:13/13 across2files.
+- After the last client sidecar and ingress-expiry corrections: closeout-typecheck-node22.log / exit0; closeout-unit-node22.log:40/40 affected cases; closeout-bootstrap-pg-node22.log:1/1.
+- Expanded approval-source coverage: definitive-typecheck-node22.log / exit0; definitive-bootstrap-unit-node22.log:14/14; definitive-bootstrap-pg-node22.log:1/1; g2-approved-source-identity-node22.json contains exact source SHA.
+- Final pre-holdout ABSTAIN-schema revision has its own G3-only Node22 receipts; see artifact manifest. It does not rerun accepted G1 or unrelated G2 checks.
+
+Do not add repeated checks as independent passing cases. Later scoped runs qualify their exact deltas; source manifests bind each run. The first transient test failed because a zero-backoff fixture exhausted retries to terminal failure in one drain. It was corrected to normal backoff plus an injected clock; production retry policy/assertions were not weakened. Initial TypeScript compiler-API attempt failed because installed TypeScript7 exposes version metadata, so the detector was replaced with an explicitly bounded lexical subset without new dependencies. Failed logs and pre-change files remain in the portable package.
+
+## Remaining untested / owner gates
+
+Genuine Sandbox capture/signature delivery, real account/payee compatibility, live native-client HTTP behavior, tunnel and reused registration availability, complete real session/lifecycle, owner credentials/config and genuine causal duplicate/fix demonstration remain NOT_TESTED. The runner requires existing registration; temporary registration mutations are NOT a supported runner action even though their lower-level caps have offline tests. Native identity branding constrains supported caller injection, not a compromised server/Node environment with key/code access. Same-intent different captures remain unsupported identity conflicts in the explicit primary-order reference contract; frozen guard legacy gap remains a separate documented boundary. No bridge to V2 merchant_orders/repair was introduced.
+
+G3 private replacement cases, model provider/free quota approval, model calls, useful AI increment/tie/negative outcomes, semantic minimality and actual arbitrary real-application patches remain NOT_TESTED. Proposed future maximum8calls total including retries/repairs,one/case,no automatic retries,₹0. Provider unspecified. Freeze changes require a new explicit identity before private/model outputs. An AI tie is not a win.
+
+Baseline dependency advisories remain an out-of-scope teammate risk; no production security/a11y/release certification is asserted. See the updated authorization packet and comprehensive handoff for owner actions, safe transfer and continuation. Old immutable review artifacts were not overwritten or rechecked as a substitute for implementation.
+
+## Final frozen identities
+
+G2 source `c9006cc6d6390801f5049cd69b21e5efcae9623e02ff16814e84797135e1214c`. G3 final v4 scaffoldRevision2 evaluator `8ed5d0994cfe78e354e78bebee697561b929f38a7a525c0cf3bbe6dead1f89bc`, freeze `58fdca5857bd1b97d71fe318002358e962195d839a389e98f7869437f19ab04c`. Revision2 admits expected ABSTAIN and passed23/23 Node22 tests/typecheck0. The first v4 freeze remains preserved. Private holdouts incorporated0; no model call.
+
+## Focused final blocker: payee readback before buyer approval
+
+The create-order session path checks remaining GET/total capacity, creates the single order, then calls the trusted configured client's bounded counted getOrder BEFORE returning any approveUrl. It verifies exact returned order ID and expected payee.merchant_id using preflightPayee. After registering both intents, it flushes a source/run/order/intent/payee-bound success receipt before URL release. Missing/mismatched/unavailable identity or failed/budget-refused GET exposes no URL and leaves no success receipt. Capture requires the matching receipt before the existing fresh pre-capture GET and POST. The owner-written OFFLINE_RECORDED_MOCK file is schema-only and cannot replace this provider request.
+
+Before: create POST -> register intents -> approval URL -> buyer approval -> first genuine-path payee GET -> capture flow.
+After: budget guard -> create POST -> counted pre-approval GET + order/payee check -> register intents -> flush verified receipt -> approval URL -> buyer approval -> receipt gate -> existing pre-capture GET/payee check -> capture flow.
+
+Existing checkout/order/capture claims and durable request journals remain in place. Failed/uncertain creation or failed preflight does not permit a second create on retry/restart. Missing/mismatched receipt blocks capture even if a buyer independently approved the order. No automatic recovery or quota reset was added.
+
+New tests exercise actual openApprovedBootstrap session commands, CheckoutService, SQLite and constrained budgets; native transport factory, unused Lab runtime and sockets are mocked only under Vitest. They are not genuine PayPal evidence. Cases: delayed correct readback before URL exposure; wrong/missing payee, GET error and returned-ID mismatch with capture blocked before/after restart; exhausted GET quota before transport; uncertain-create no duplicate; successful receipt restart with one capture. First host failures were fixture cleanup double-closing pools; cleanup ownership was corrected without weakening assertions. Previous passing tests remain unchanged.
+
+Limits stay OAuth3/create1/capture1/orderGET12/verification5/registrationGET1/TOTAL23. Added GET consumes existing allowance; the previously reported whole clean flow is expected9to10GETs if otherwise unchanged. That is a forecast, not a new live measurement.
+
+Actual pre-approval Sandbox payee.merchant_id availability is NOT independently confirmed. If absent/email-only/conflicting/unverifiable, URL is withheld and capture refused: the live experiment may not proceed. No inferred identity, extra order or real provider request was used to settle this uncertainty. G3 source is untouched; recomputed digest/byte checks accompany the focused artifact.
