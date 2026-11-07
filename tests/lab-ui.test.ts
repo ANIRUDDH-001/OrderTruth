@@ -12,6 +12,18 @@ async function page() {
   return { ui, data };
 }
 describe("Integration Lab view", () => {
+  it("leads with a case study and keeps technical evidence in one optional closed disclosure", async () => {
+    const { ui, data } = await page(); renderLab(ui.doc as unknown as Document, data);
+    const technical = ui.doc.root.querySelector("#technical-verification");
+    expect(technical).not.toBeNull(); expect(technical!.getAttribute("open")).toBeNull();
+    expect(technical!.querySelector("summary")!.textContent).toBe("Technical Verification");
+    const text = ui.doc.root.textContent;
+    for (const label of ["One payment. Two orders. One preventable race.", "Before the fix", "After the reference fix", "How the reference fix works", "What this evidence establishes", "Recorded experiment", "Checked by this build", "Not tested"]) expect(text).toContain(label);
+    expect(technical!.querySelectorAll("table").length).toBeGreaterThanOrEqual(2);
+    for (const a of ui.doc.root.querySelectorAll("a").filter(a => (a as unknown as HTMLAnchorElement).href.startsWith("/lab/evidence/"))) expect(technical!.contains(a)).toBe(true);
+    expect(technical!.textContent).toContain("Forced checkout and webhook race");
+    for (const li of ui.doc.root.querySelectorAll("li")) expect(li.textContent.trim().length).toBeGreaterThan(4);
+  });
   it("labels real record provenance, expected original failure, nine controls, limits and local publication without API calls", async () => {
     const { ui, data } = await page(); const calls = ui.calls.length;
     renderLab(ui.doc as unknown as Document, data);
