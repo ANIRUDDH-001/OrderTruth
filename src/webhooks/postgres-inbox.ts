@@ -2,6 +2,7 @@ import type { Pool, PoolClient } from "pg";
 import { withTransaction } from "../db/postgres.ts";
 import type { EventSummary } from "./event.ts";
 import type { DeliveryRow, EventRow, EventState } from "./inbox.ts";
+import type { AuthenticatedDelivery } from "./intake.ts";
 
 /** Durable PostgreSQL inbox. Only the signature-verifying intake may accept a
  * delivery. External verification is completed before these transactions start. */
@@ -43,25 +44,43 @@ export class PostgresWebhookInbox {
       WHERE seq=$6 AND state='received_unverified'`, [to,reason.slice(0,200),verify?.ms ?? null,verify?.debugId ?? null,new Date().toISOString(),seq])).rowCount === 1);
   }
   async acceptVerified(seq: number, summary: EventSummary, verify: { ms: number; debugId: string | null }, correlationId: string): Promise<"accepted" | "duplicate"> {
+    return this.tx(client => this.acceptVerifiedInTransaction(client,seq,summary,verify,correlationId));
+  }
+  private async acceptVerifiedInTransaction(client: PoolClient,seq: number,summary: EventSummary,verify: { ms: number; debugId: string | null },correlationId: string): Promise<"accepted" | "duplicate"> {
+    await this.lockPayment(client,summary.resource.order_id);
+    // Serialize the event identity even when it has no row yet. Never reserve
+    // an event ID before successful signature verification.
+    await client.query("SELECT pg_advisory_xact_lock(hashtextextended($1,0))", [`${this.schema}:webhook:${summary.id}`]);
+    const existing = (await client.query("SELECT event_id FROM webhook_events WHERE event_id=$1", [summary.id])).rowCount;
+    const at = new Date().toISOString();
+    const updated = await client.query(`UPDATE webhook_deliveries SET state=$1,reason=$2,verify_ms=$3,verify_debug_id=$4,updated_at=$5
+      WHERE seq=$6 AND state='received_unverified' AND claimed_event_id=$7`, [existing ? "duplicate" : "verified",existing ? "verified duplicate of a stored event" : "paypal_postback SUCCESS",verify.ms,verify.debugId,at,seq,summary.id]);
+    if (updated.rowCount !== 1) throw new Error("Delivery is not open or event identity differs");
+    if (existing) {
+      await client.query("UPDATE webhook_events SET deliveries=deliveries+1,updated_at=$1 WHERE event_id=$2", [at,summary.id]);
+      return "duplicate";
+    }
+    await client.query(`INSERT INTO webhook_events(event_id,event_type,resource_type,event_create_time,first_delivery_seq,state,order_id,summary_json,created_at,updated_at)
+      VALUES($1,$2,$3,$4,$5,'verified_pending',$6,$7,$8,$8)`, [summary.id,summary.event_type,summary.resource_type,summary.create_time,seq,summary.resource.order_id,JSON.stringify(summary),at]);
+    await client.query(`INSERT INTO evidence(attempt_id,evidence_class,operation,http_status,paypal_debug_id,request_id,correlation_id,duration_ms,summary_json,created_at)
+      VALUES(NULL,'PAYPAL_VERIFIED_WEBHOOK','webhook_verified',NULL,$1,NULL,$2,$3,$4,$5)`, [verify.debugId,correlationId,verify.ms,JSON.stringify({ delivery_seq: seq,verification: "paypal_postback",provenance: this.provenance,event: summary }),at]);
+    return "accepted";
+  }
+  /** Called only by the signature-verifying intake after SUCCESS. No rejected
+   * input is persisted, and a verified duplicate reuses the original proof.
+   * Existing legacy rejected/duplicate records remain untouched. */
+  async persistAuthenticated(d: AuthenticatedDelivery,summary: EventSummary,verify: { ms: number; debugId: string | null }): Promise<{ result: "accepted" | "duplicate"; seq: number }> {
     return this.tx(async client => {
       await this.lockPayment(client,summary.resource.order_id);
-      // Serialize the event identity even when it has no row yet. Never reserve
-      // an event ID before successful signature verification.
       await client.query("SELECT pg_advisory_xact_lock(hashtextextended($1,0))", [`${this.schema}:webhook:${summary.id}`]);
-      const existing = (await client.query("SELECT event_id FROM webhook_events WHERE event_id=$1", [summary.id])).rowCount;
+      const existing = (await client.query("SELECT first_delivery_seq FROM webhook_events WHERE event_id=$1", [summary.id])).rows[0];
+      if (existing) return { result: "duplicate",seq: existing.first_delivery_seq as number };
+      if (d.claimedEventId !== summary.id || d.claimedEventType !== summary.event_type) throw new Error("Verified event identity differs");
       const at = new Date().toISOString();
-      const updated = await client.query(`UPDATE webhook_deliveries SET state=$1,reason=$2,verify_ms=$3,verify_debug_id=$4,updated_at=$5
-        WHERE seq=$6 AND state='received_unverified' AND claimed_event_id=$7`, [existing ? "duplicate" : "verified",existing ? "verified duplicate of a stored event" : "paypal_postback SUCCESS",verify.ms,verify.debugId,at,seq,summary.id]);
-      if (updated.rowCount !== 1) throw new Error("Delivery is not open or event identity differs");
-      if (existing) {
-        await client.query("UPDATE webhook_events SET deliveries=deliveries+1,updated_at=$1 WHERE event_id=$2", [at,summary.id]);
-        return "duplicate";
-      }
-      await client.query(`INSERT INTO webhook_events(event_id,event_type,resource_type,event_create_time,first_delivery_seq,state,order_id,summary_json,created_at,updated_at)
-        VALUES($1,$2,$3,$4,$5,'verified_pending',$6,$7,$8,$8)`, [summary.id,summary.event_type,summary.resource_type,summary.create_time,seq,summary.resource.order_id,JSON.stringify(summary),at]);
-      await client.query(`INSERT INTO evidence(attempt_id,evidence_class,operation,http_status,paypal_debug_id,request_id,correlation_id,duration_ms,summary_json,created_at)
-        VALUES(NULL,'PAYPAL_VERIFIED_WEBHOOK','webhook_verified',NULL,$1,NULL,$2,$3,$4,$5)`, [verify.debugId,correlationId,verify.ms,JSON.stringify({ delivery_seq: seq,verification: "paypal_postback",provenance: this.provenance,event: summary }),at]);
-      return "accepted";
+      const seq = (await client.query(`INSERT INTO webhook_deliveries(state,claimed_event_id,claimed_event_type,body_sha256,body_bytes,correlation_id,received_at_ms,created_at,updated_at,transmission_id,transmission_time)
+        VALUES('received_unverified',$1,$2,$3,$4,$5,$6,$7,$7,$8,$9) RETURNING seq`, [d.claimedEventId,d.claimedEventType,d.bodySha256,d.bodyBytes,d.correlationId,d.nowMs,at,d.transmissionId,d.transmissionTime])).rows[0].seq as number;
+      const result = await this.acceptVerifiedInTransaction(client,seq,summary,verify,d.correlationId);
+      return { result,seq };
     });
   }
   async claimNext(nowMs: number, leaseMs: number): Promise<EventRow | undefined> {

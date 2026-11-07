@@ -50,8 +50,15 @@ describe("essential read-only case restoration",() => {
     const f = fixture({ id: "plan_owned",has_receipt: true }); f.receipt.current.activeOrders = 2;
     await expect(readCase(f.api,"run_owned")).rejects.toThrow("invalid response");
   });
+  it("rejects verified success when the returned stored provider hashes disagree",async () => {
+    const f = fixture({ id: "plan_owned",has_receipt: true });f.receipt.receipt.provider_after_sha256 = "different";
+    await expect(readCase(f.api,"run_owned")).rejects.toThrow("invalid response");
+  });
 });
 describe("optional saved-history contract",() => {
+  it("rejects an unknown saved diagnostic kind",() => {
+    expect(() => validateHistory({ status: "CACHED",evidence: [{ id: "D_unknown",source: "MERCHANT_DIAGNOSTIC",observedAt: "2026-11-07T00:00:00Z",facts: { diagnostic: "UNKNOWN",entries: [] } }],baseline: { summary: "Stored",nextDiagnostic: "HANDLER_TIMING" } })).toThrow();
+  });
   it("accepts absence and cached history without requiring new inference",() => {
     expect(() => validateHistory(null)).not.toThrow();
     expect(() => validateHistory({ status: "CACHED",evidence: [],baseline: { summary: "Stored result",nextDiagnostic: "HANDLER_TIMING" } })).not.toThrow();
@@ -73,6 +80,10 @@ describe("creation scenario validation",() => {
   }
   it("rejects invalid run identities and non-object plans before assignment",() => {
     for (const value of [{ ...fixture(null).scenario,run: { id: "../foreign",label: "controlled" } },{ ...fixture(null).scenario,latestPlan: false }]) expect(() => parseScenario(value)).toThrow("invalid response");
+  });
+  it("rejects unrecognized payment provenance instead of relabelling it as synthetic",() => {
+    const f = fixture(null);f.scenario.paymentReference.provenance = "PAYPAL_LIVE";
+    expect(() => parseScenario(f.scenario)).toThrow("invalid response");
   });
 });
 describe("read-only session discovery",() => {

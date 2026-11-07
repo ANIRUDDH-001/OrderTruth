@@ -1,12 +1,9 @@
 import { randomBytes } from "node:crypto";
-import { readFileSync } from "node:fs";
-import { parseEnv } from "node:util";
 import { afterAll, beforeAll, expect, it } from "vitest";
 import { createPostgresPool, withTransaction } from "../../src/db/postgres.ts";
 import { migratePostgres } from "../../src/db/postgres-migrate.ts";
 
-const env = parseEnv(readFileSync(new URL("../../.work/postgres/.env", import.meta.url), "utf8"));
-if (env.PGHOST !== "127.0.0.1" || env.PGPORT !== "55432" || env.PGDATABASE !== "ordertruth") throw new Error("Managed local PostgreSQL only");
+import { env } from "./local-db.ts";
 const pool = createPostgresPool(env.DATABASE_URL!);
 const schema = `qual_${randomBytes(10).toString("hex")}`;
 beforeAll(async () => { await pool.query(`CREATE SCHEMA ${schema}`); });
@@ -52,6 +49,7 @@ it("runs migrations concurrently and replays them without re-seeding", async () 
   await Promise.all([migratePostgres(pool, schema), migratePostgres(pool, schema)]);
   expect((await pool.query(`SELECT count(*)::integer AS n FROM ${schema}.payment_attempts`)).rows[0].n).toBe(1);
   const triggers = await pool.query("SELECT count(*)::integer AS n FROM information_schema.triggers WHERE trigger_schema=$1", [schema]);
-  // Original/PG guards, scenario maps, browser approval, handler and diagnostic events.
-  expect(triggers.rows[0].n).toBe(85);
+  // V9 adds two UPDATE/DELETE immutable guards (four event rows) and one INSERT owner guard.
+  expect(triggers.rows[0].n).toBe(90);
+  expect((await pool.query(`SELECT max(version) AS v FROM ${schema}.ordertruth_postgres_migrations`)).rows[0].v).toBe(9);
 });

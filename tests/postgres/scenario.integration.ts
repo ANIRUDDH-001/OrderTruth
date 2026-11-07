@@ -1,6 +1,4 @@
 import { randomBytes } from "node:crypto";
-import { readFileSync } from "node:fs";
-import { parseEnv } from "node:util";
 import { afterAll, beforeAll, expect, it } from "vitest";
 import { createPostgresPool } from "../../src/db/postgres.ts";
 import { migratePostgres } from "../../src/db/postgres-migrate.ts";
@@ -10,8 +8,7 @@ import { PostgresRecoveryService } from "../../src/merchant/postgres-recovery.ts
 import { PostgresInvestigationStore } from "../../src/ai/postgres-investigation.ts";
 import { PostgresInvestigationService } from "../../src/ai/postgres-investigation-service.ts";
 
-const env = parseEnv(readFileSync(new URL("../../.work/postgres/.env", import.meta.url), "utf8"));
-if (env.PGHOST !== "127.0.0.1" || env.PGPORT !== "55432" || env.PGDATABASE !== "ordertruth") throw new Error("Managed local PostgreSQL only");
+import { env } from "./local-db.ts";
 const pool = createPostgresPool(env.DATABASE_URL!);
 const schema = `qual_${randomBytes(10).toString("hex")}`;
 const scenarios = new PostgresScenarioStore(pool, schema);

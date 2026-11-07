@@ -1,6 +1,4 @@
-import { randomBytes } from "node:crypto";
-import { readFileSync } from "node:fs";
-import { parseEnv } from "node:util";
+import { randomBytes, randomUUID } from "node:crypto";
 import { afterAll, beforeAll, expect, it } from "vitest";
 import Fastify from "fastify";
 import { createPostgresPool } from "../../src/db/postgres.ts";
@@ -11,23 +9,27 @@ import { registerJudgeApi } from "../../src/server/judge-api.ts";
 import { PostgresCheckoutStore } from "../../src/db/postgres-checkout.ts";
 import { PostgresScenarioStore } from "../../src/merchant/postgres-scenarios.ts";
 
-const env = parseEnv(readFileSync(new URL("../../.work/postgres/.env", import.meta.url), "utf8"));
-if (env.PGHOST !== "127.0.0.1" || env.PGPORT !== "55432" || env.PGDATABASE !== "ordertruth") throw new Error("Managed local PostgreSQL only");
+import { env } from "./local-db.ts";
 const schema = `qual_${randomBytes(10).toString("hex")}`;
 const pool = createPostgresPool(env.DATABASE_URL!);
 pool.options.options += ` -c search_path=${schema},pg_catalog`;
 const origin = "http://127.0.0.1:3333";
 const secret = randomBytes(32).toString("hex");
 let auth: ReturnType<typeof createSessionAuth>;
+let authFailure: unknown = null;
 const app = Fastify({ logger: false });
 beforeAll(async () => {
-  await migratePostgres(pool, schema); auth = createSessionAuth(pool, origin, secret); registerSessionApi(app, auth, origin);
+  await migratePostgres(pool, schema); auth = createSessionAuth(pool, origin, secret); const original = auth.handler;
+  auth.handler = async request => { try { return await original(request); } catch (error) {
+    const e = error as Error & { code?: string; cause?: { code?: string } };
+    authFailure = { name: e.name, code: e.code ?? null, causeCode: e.cause?.code ?? null, frames: e.stack?.split("\n").slice(1,4).map(line=>line.replace(/C:.*?node_modules/, "node_modules")) }; throw error;
+  } }; registerSessionApi(app, auth, origin);
   registerJudgeApi(app, { pool,schema,auth,origin,sourceAttemptId: null }); await app.ready();
 });
 afterAll(async () => { await app.close(); await pool.query(`DROP SCHEMA ${schema} CASCADE`); await pool.end(); });
 async function guest(ip: string) {
   const response = await app.inject({ method: "POST", url: "/api/auth/sign-in/anonymous", headers: { origin, "content-type": "application/json" }, payload: {}, remoteAddress: ip });
-  expect(response.statusCode).toBe(200);
+  expect({status:response.statusCode,authFailure}).toEqual({status:200,authFailure:null});
   const cookies = response.cookies.map(c => `${c.name}=${c.value}`).join("; ");
   expect(cookies.length).toBeGreaterThan(30);
   expect(response.cookies.every(c => c.httpOnly && c.sameSite === "Lax")).toBe(true);
@@ -57,7 +59,9 @@ it("retains sessions and sign-in rate limits across a fresh authentication insta
   try {
     expect((await restarted.inject({ url: "/api/session", headers: { cookie } })).json().authenticated).toBe(true);
     // New cookies/forged IP headers cannot reset the database-backed IP bucket.
-    for (let i = 0; i < 4; i++) expect((await restarted.inject({ method: "POST", url: "/api/auth/sign-in/anonymous", headers: { origin, "x-ordertruth-client-ip": `192.0.2.${100+i}` }, payload: {}, remoteAddress: "192.0.2.40" })).statusCode).toBe(200);
+    for (let i = 0; i < 4; i++) expect((await restarted.inject({ method: "POST", url: "/api/auth/sign-in/anonymous", headers: { origin,
+      "x-ordertruth-client-ip": `192.0.2.${100+i}`,"x-forwarded-for": `192.0.2.${100+i}`,forwarded: `for=192.0.2.${100+i}`,
+    }, payload: {}, remoteAddress: "192.0.2.40" })).statusCode).toBe(200);
     expect((await app.inject({ method: "POST", url: "/api/auth/sign-in/anonymous", headers: { origin }, payload: {}, remoteAddress: "192.0.2.40" })).statusCode).toBe(429);
     expect((await restarted.inject({ method: "POST", url: "/api/auth/sign-out", headers: { origin, cookie }, payload: {}, remoteAddress: "192.0.2.41" })).statusCode).toBe(200);
     expect((await app.inject({ url: "/api/session", headers: { cookie } })).json().authenticated).toBe(false);
@@ -76,7 +80,10 @@ it("runs detection, explicit browser approval and verified repair through real g
   const run = await new PostgresScenarioStore(pool,schema).createQualification(identity.userId,attempt.id);
   const path = `/api/scenarios/${run.id}`;
   const post = (action: string,payload: Record<string,unknown> = {},activeCookie = cookie,activeOrigin = origin) => app.inject({ method: "POST",url: `${path}/${action}`,headers: { cookie: activeCookie,origin: activeOrigin },payload });
-  expect((await app.inject({ method: "POST",url: "/api/scenarios",headers: { cookie,origin },payload: {} })).statusCode).toBe(503);
+  const noSourceKey = randomUUID();
+  const noSource = await app.inject({ method: "POST",url: "/api/scenarios",headers: { cookie,origin },payload: { operationId: noSourceKey } });
+  expect(noSource.statusCode).toBe(503); expect(noSource.json()).toMatchObject({ outcome: "REJECTED",code: "SOURCE_UNAVAILABLE" });
+  expect((await pool.query(`SELECT count(*)::int AS n FROM ${schema}.scenario_operations WHERE operation_id=$1`,[noSourceKey])).rows[0].n).toBe(0);
   expect((await post("duplicate",{},foreign)).statusCode).toBe(404);
   expect((await post("duplicate",{},cookie,"https://foreign.invalid")).statusCode).toBe(403);
   expect((await post("duplicate",{ organizationId: "org_owner" })).statusCode).toBe(400);

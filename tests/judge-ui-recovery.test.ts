@@ -8,9 +8,9 @@ afterEach(async () => { await vi.runAllTimersAsync(); vi.useRealTimers(); vi.uns
 describe("judge combined recovery transitions",() => {
   it("requires reconciliation after foreign case -> owned creation -> uncertain mutation",async () => {
     let created = 0;const owned = scenario("run_owned");
-    const ui = await mountJudge(call => {
+    const ui = await mountJudge((call,body) => {
       if (call.path === "/api/session") return session;
-      if (call.path === "/api/scenarios" && call.method === "POST") { created++; return owned; }
+      if (call.path === "/api/scenarios" && call.method === "POST") { created++; return { ...owned,creation: { ...(body as object),outcome: "COMMITTED" } }; }
       if (call.path.endsWith("/duplicate")) { owned.orders.push({ ...owned.orders[0]!,id: "duplicate" }); return new Response('{"error":"Outcome uncertain"}',{ status: 503 }); }
       if (call.path === "/api/scenarios/run_foreign") return denied();
       if (call.path.endsWith("/investigation")) return null;
@@ -46,24 +46,24 @@ describe("judge combined recovery transitions",() => {
   for (const value of [{},null,{ run: { id: "run_partial" } },{ ...scenario("run_partial"),paymentReference: null }]) {
     it(`keeps recovery controls for malformed creation ${JSON.stringify(value)}`,async () => {
       const ui = await mountJudge(call => call.path === "/api/session" ? session : value);
-      await ui.click("Start judge experience");expect(ui.button("Resume/Recheck Case").disabled).toBe(false);
-      expect(ui.doc.root.textContent).toMatch(/creation.*uncertain/i);expect(ui.button("Start judge experience").disabled).toBe(true);
-      await ui.click("Resume/Recheck Case");expect(ui.doc.root.textContent).toMatch(/cannot.*(locate|reconcile)/i);
-      expect(ui.button("Start judge experience").disabled).toBe(true);expect(ui.calls.filter(c => c.method === "POST")).toHaveLength(1);
+      await ui.click("Inspect a payment outcome");expect(ui.button("Resume/Recheck Case").disabled).toBe(false);
+      expect(ui.doc.root.textContent).toMatch(/creation.*uncertain/i);expect(ui.button("Inspect a payment outcome").disabled).toBe(true);
+      await ui.click("Resume/Recheck Case");expect(ui.doc.root.textContent).toMatch(/invalid operation identity/i);
+      expect(ui.button("Inspect a payment outcome").disabled).toBe(true);expect(ui.calls.filter(c => c.method === "POST")).toHaveLength(1);
       expect(new URL(ui.location.href).searchParams.has("run")).toBe(false);
     });
   }
   it("cannot clear unidentified creation by rechecking an older valid case",async () => {
     const ui = await mountJudge(call => call.path === "/api/session" ? session : call.path === "/api/scenarios" ? {} : call.path.endsWith("/investigation") ? null : scenario("run_old"),"run_old");
     await ui.click("Start a new isolated case");await ui.click("Resume/Recheck Case");
-    expect(ui.location.href).toContain("run_old");expect(ui.doc.root.textContent).toMatch(/cannot.*(locate|reconcile)/i);
+    expect(ui.location.href).toContain("run_old");expect(ui.doc.root.textContent).toMatch(/invalid operation identity/i);
     expect(ui.button("Start a new isolated case").disabled).toBe(true);expect(ui.calls.filter(c => c.method === "POST")).toHaveLength(1);
   });
   it("retains an unidentified creation warning across reload without another POST",async () => {
     const storage = new Map<string,string>();
-    const first = await mountJudge(call => call.path === "/api/session" ? session : {},"",storage);await first.click("Start judge experience");
+    const first = await mountJudge(call => call.path === "/api/session" ? session : {},"",storage);await first.click("Inspect a payment outcome");
     const reload = await mountJudge(() => session,"",storage);
-    expect(reload.doc.root.textContent).toMatch(/cannot.*(locate|reconcile)/i);expect(reload.button("Start judge experience").disabled).toBe(true);
+    expect(reload.doc.root.textContent).toMatch(/invalid operation identity/i);expect(reload.button("Inspect a payment outcome").disabled).toBe(true);
     expect(reload.calls.filter(c => c.method === "POST")).toHaveLength(0);
   });
   it("keeps failed creation after a foreign case blocked even after read-only recheck",async () => {

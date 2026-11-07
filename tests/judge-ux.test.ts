@@ -22,13 +22,14 @@ describe("judge keyboard and completed-case UX",() => {
   });
   it("focuses the owned case heading after creation, detection after duplicate, and owner fields/toggle",async () => {
     const owned = scenario("run_owned");
-    const ui = await mountJudge(call => {
+    const ui = await mountJudge((call,body) => {
       if (call.path === "/api/session") return session;
       if (call.path.endsWith("/duplicate")) owned.orders.push({ ...owned.orders[0]!,id: "duplicate" });
+      if (call.path === "/api/scenarios") return { ...owned,creation: { ...(body as object),outcome: "COMMITTED" } };
       return owned;
     });
     expect(ui.doc.activeElement).toBeNull();
-    await ui.click("Start judge experience");expect(ui.doc.activeElement?.id).toBe("case-heading");
+    await ui.click("Inspect a payment outcome");expect(ui.doc.activeElement?.id).toBe("case-heading");
     await ui.click("Introduce duplicate");expect(ui.doc.activeElement).toBe(ui.button("Detect anomaly"));
     await ui.click("Owner access");expect(ui.doc.activeElement?.id).toBe("owner-email");
     await ui.click("Close owner sign-in");expect(ui.doc.activeElement?.id).toBe("owner-toggle");
@@ -42,7 +43,7 @@ describe("judge keyboard and completed-case UX",() => {
       if (call.path.endsWith("/approve")) approved = true;
       if (call.path.endsWith("/execute")) executed = true;
       if (call.path.includes("/receipts/")) return receipt("SUCCEEDED",true);
-      return { ...scenario("run_owned"),latestPlan: { ...plan,approved,has_receipt: executed } };
+      return { ...scenario("run_owned"),latestPlan: { ...plan,expires_at: new Date(Date.now()+900_000).toISOString(),approved,has_receipt: executed } };
     },"run_owned");
     await ui.click("Approve this exact merchant-only plan");expect(ui.doc.activeElement).toBe(ui.button("Execute approved local repair"));
     await ui.click("Execute approved local repair");expect(ui.doc.activeElement?.id).toBe("receipt-heading");
@@ -52,12 +53,13 @@ describe("judge keyboard and completed-case UX",() => {
   });
   for (const outcome of ["REJECTED","EXPIRED","SUCCEEDED"]) it(`keeps review controls for unverified ${outcome}`,async () => {
     const ui = await mountJudge(call => call.path === "/api/session" ? session : call.path.endsWith("/investigation") ? null : call.path.includes("/receipts/") ? receipt(outcome,false) : { ...scenario("run_owned"),latestPlan: plan },"run_owned");
-    expect(ui.button("Review exact repair plan").disabled).toBe(false);expect(ui.button("Execute approved local repair").disabled).toBe(false);
+    expect(ui.button("Review exact repair plan").disabled).toBe(false);
+    expect(ui.doc.root.querySelectorAll("button").some(b => b.textContent === "Execute approved local repair")).toBe(false);
     expect(ui.doc.root.textContent).toContain("Outcome needs review");expect(ui.calls.some(c => c.method === "POST")).toBe(false);
   });
   it("focuses the error announcement after a failed action without replay",async () => {
     const ui = await mountJudge(call => call.path === "/api/session" ? session : new Response('{}',{ status: 503 }));
-    await ui.click("Start judge experience");expect(ui.doc.activeElement?.id).toBe("action-error");expect(ui.doc.activeElement?.getAttribute("role")).toBe("alert");
+    await ui.click("Inspect a payment outcome");expect(ui.doc.activeElement?.id).toBe("action-error");expect(ui.doc.activeElement?.getAttribute("role")).toBe("alert");
     expect(ui.calls.filter(c => c.method === "POST")).toHaveLength(1);
   });
 });

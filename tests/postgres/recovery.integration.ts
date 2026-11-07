@@ -1,7 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { readFileSync } from "node:fs";
-import { parseEnv } from "node:util";
-import { afterAll, beforeAll, expect, it } from "vitest";
+import { afterAll, beforeAll, expect, it, vi } from "vitest";
 import { createPostgresPool } from "../../src/db/postgres.ts";
 import { migratePostgres } from "../../src/db/postgres-migrate.ts";
 import { PostgresCheckoutStore } from "../../src/db/postgres-checkout.ts";
@@ -11,9 +9,9 @@ import { registerPostgresRecoveryApi } from "../../src/merchant/postgres-api.ts"
 import { PostgresWebhookInbox } from "../../src/webhooks/postgres-inbox.ts";
 import { captureEvent } from "../helpers/webhook-fixtures.ts";
 import { EventSchema,summarizeEvent } from "../../src/webhooks/event.ts";
+import { PayPalError } from "../../src/paypal/client.ts";
 
-const env = parseEnv(readFileSync(new URL("../../.work/postgres/.env", import.meta.url), "utf8"));
-if (env.PGHOST !== "127.0.0.1" || env.PGPORT !== "55432" || env.PGDATABASE !== "ordertruth") throw new Error("Managed local PostgreSQL only");
+import { env } from "./local-db.ts";
 const pool = createPostgresPool(env.DATABASE_URL!);
 const schema = `qual_${randomBytes(10).toString("hex")}`;
 const checkout = new PostgresCheckoutStore(pool, schema);
@@ -135,6 +133,46 @@ it("prevents competing approved plans from correcting the same incident twice", 
   const outcomes = await Promise.all([recovery.execute("org_reference", first.id), recovery.execute("org_reference", second.id)]);
   expect(outcomes.map(o => o.outcome).sort()).toEqual(["REJECTED_STALE", "SUCCEEDED"]);
   expect((await pool.query(`SELECT count(*)::integer AS n FROM ${schema}.merchant_order_voids v JOIN ${schema}.merchant_orders m ON m.id=v.order_id WHERE m.intent_id=$1`, [f.intent.id])).rows[0].n).toBe(1);
+});
+it("refuses expired execution, requires a renewed exact approval and preserves the old refusal", async () => {
+  const f = await fixture(); const incident = await recovery.check("org_reference",f.intent.id);
+  const old = await recovery.plan("org_reference",incident.incidentId!,"qualification-actor");
+  await recovery.approveQualification("org_reference",old.id,old.plan_sha256);
+  const clock = vi.spyOn(Date,"now").mockReturnValue(Date.parse(old.expires_at));
+  let refused;
+  try { refused = await recovery.execute("org_reference",old.id); expect(refused.outcome).toBe("REJECTED_EXPIRED"); }
+  finally { clock.mockRestore(); }
+  const next = await recovery.plan("org_reference",incident.incidentId!,"qualification-actor");
+  expect(next.id).not.toBe(old.id); expect(next.plan_sha256).not.toBe(old.plan_sha256);
+  await expect(recovery.approveQualification("org_reference",next.id,old.plan_sha256)).rejects.toThrow(/hash/);
+  await recovery.approveQualification("org_reference",next.id,next.plan_sha256);
+  expect((await recovery.execute("org_reference",next.id)).outcome).toBe("SUCCEEDED");
+  expect(await recovery.execute("org_reference",old.id)).toEqual(refused);
+});
+
+it("blocks repair when a newer no-capture readback contradicts the old captured observation", async () => {
+  const f = await fixture(); const checked = await recovery.check("org_reference",f.intent.id);
+  const plan = await recovery.plan("org_reference",checked.incidentId!,"qualification-actor");
+  await recovery.approveQualification("org_reference",plan.id,plan.plan_sha256);
+  await checkout.recordReadback(f.attempt.id,{ id: `SYNTHETIC_${f.suffix.toUpperCase()}`,status: "APPROVED",intent: "CAPTURE",purchase_units: [{
+    custom_id: f.intent.id,amount: { currency_code: "USD",value: "1.00" },
+  }] },"SYNTHETIC_QUALIFICATION");
+  expect((await recovery.check("org_reference",f.intent.id)).result).toBe("OUT_OF_SCOPE");
+  await expect(recovery.plan("org_reference",checked.incidentId!,"qualification-actor")).rejects.toThrow(/eligible/);
+  expect((await recovery.execute("org_reference",plan.id)).outcome).toBe("REJECTED_STALE");
+  expect((await pool.query(`SELECT count(*)::int AS n FROM ${schema}.merchant_order_voids v JOIN ${schema}.merchant_orders m ON m.id=v.order_id WHERE m.intent_id=$1`,[f.intent.id])).rows[0].n).toBe(0);
+});
+it("does not authorize repair through a newer failed GET, and resumes after a confirming GET", async () => {
+  const f = await fixture(); const incident = await recovery.check("org_reference",f.intent.id);
+  await checkout.recordProviderResult(f.attempt.id,"readback",new PayPalError("timeout","Synthetic timeout",{
+    httpStatus: null,debugId: null,issues: [],durationMs: 1,
+  }),"SYNTHETIC_QUALIFICATION");
+  await expect(recovery.plan("org_reference",incident.incidentId!,"qualification-actor")).rejects.toThrow(/eligible/);
+  await checkout.recordReadback(f.attempt.id,{ id: `SYNTHETIC_${f.suffix.toUpperCase()}`,status: "COMPLETED",intent: "CAPTURE",purchase_units: [{
+    custom_id: f.intent.id,amount: { currency_code: "USD",value: "1.00" },payments: { captures: [{ id: `SYNTHETIC_CAPTURE_${f.suffix.toUpperCase()}`,status: "COMPLETED",amount: { currency_code: "USD",value: "1.00" } }] },
+  }] },"SYNTHETIC_QUALIFICATION");
+  const renewed = await recovery.plan("org_reference",incident.incidentId!,"qualification-actor");
+  expect(renewed.incident_id).toBe(incident.incidentId);
 });
 it("refuses changed merchant facts after approval without partial correction", async () => {
   const f = await fixture(); const incident = await recovery.check("org_reference", f.intent.id);

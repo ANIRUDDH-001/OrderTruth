@@ -8,7 +8,7 @@ import { canonical, sha256 } from "../domain/canonical.ts";
 import { withTransaction } from "../db/postgres.ts";
 import { postgresWebhookProof } from "../db/postgres-webhook-proof.ts";
 
-type Evidence = { seq: number; evidence_class: string; http_status: number | null; created_at: string; summary_json: string };
+type Evidence = { seq: number; evidence_class: string; operation: string; http_status: number | null; created_at: string; summary_json: string };
 type EffectiveOrder = MerchantOrderRow & { effective_status: string };
 const hashPlan = (plan: RepairPlan): string => { const { plan_sha256: _, ...body } = plan; return sha256(canonical(body)); };
 const intactPlan = (plan: RepairPlan): boolean => hashPlan(plan) === plan.plan_sha256 && sha256(plan.facts_json) === plan.facts_sha256;
@@ -71,7 +71,11 @@ export class PostgresRecoveryService {
     const voids = (await client.query(`SELECT v.* FROM merchant_order_voids v JOIN merchant_orders m ON m.id=v.order_id LEFT JOIN scenario_run_orders r ON r.order_id=m.id
       WHERE m.organization_id=$1 AND m.intent_id=$2 AND r.run_id IS NOT DISTINCT FROM $3::text ORDER BY v.order_id`, [org, intentId,this.scope?.runId ?? null])).rows;
     const resolution = incident ? (await client.query("SELECT * FROM incident_resolutions WHERE incident_id=$1", [incident.id])).rows[0] ?? null : null;
-    const readbacks = evidence.filter(e => e.evidence_class === "PAYPAL_API_READBACK");
+    // A newer inconclusive GET must block correction rather than silently
+    // falling back to an older completed capture. Historical evidence stays.
+    const newestReadback = evidence.filter(e => e.evidence_class === "PAYPAL_API_READBACK").at(-1);
+    const newestReadbackAttempt = evidence.filter(e => e.evidence_class === "PAYPAL_API_RESPONSE" && ["readback","readback_error"].includes(e.operation)).at(-1);
+    const readbacks = newestReadback && (!newestReadbackAttempt || newestReadbackAttempt.seq < newestReadback.seq) ? [newestReadback] : [];
     const payment: PaymentFacts = { intentId, intentSku: intent.sku, intentCurrency: intent.currency, intentMinor: intent.amount_minor,
       attemptId: attempt.id, attemptState: attempt.state, paypalOrderId: attempt.paypal_order_id, captureId: attempt.capture_id,
       captureStatus: attempt.capture_status, capturedMinor: attempt.captured_minor, capturedCurrency: attempt.captured_currency,

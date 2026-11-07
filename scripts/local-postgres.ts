@@ -4,6 +4,7 @@ import { existsSync, lstatSync, mkdirSync, readFileSync, realpathSync, readdirSy
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseEnv } from "node:util";
+import { assertLocalDatabase } from "./qualification-safety.ts";
 
 const PORT = "55432";
 const USER = "ordertruth_dev";
@@ -58,13 +59,23 @@ export function localPostgres(command: string, root: string, bin?: string): stri
     writeFileSync(envFile, `PGHOST=127.0.0.1\nPGPORT=${PORT}\nPGUSER=${USER}\nPGPASSWORD=${password}\nPGDATABASE=ordertruth\nDATABASE_URL=postgresql://${USER}:${password}@127.0.0.1:${PORT}/ordertruth\n`, { mode: 0o600, flag: "wx" });
   }
   const env = parseEnv(readFileSync(envFile, "utf8"));
+  assertLocalDatabase(env.DATABASE_URL ?? "");
   if (env.PGHOST !== "127.0.0.1" || env.PGPORT !== PORT || env.PGUSER !== USER
-      || env.PGDATABASE !== "ordertruth" || !/^[a-f0-9]{64}$/.test(env.PGPASSWORD ?? "")) {
+      || env.PGDATABASE !== "ordertruth" || !/^[a-f0-9]{64}$/.test(env.PGPASSWORD ?? "")
+      || env.DATABASE_URL !== `postgresql://${USER}:${env.PGPASSWORD}@127.0.0.1:${PORT}/ordertruth`) {
     throw new Error("Invalid managed credentials; refusing another host, port or identity");
   }
   const clientEnv = { ...childEnv, PGHOST: env.PGHOST, PGPORT: env.PGPORT, PGUSER: env.PGUSER,
     PGPASSWORD: env.PGPASSWORD, PGDATABASE: env.PGDATABASE, PGCONNECT_TIMEOUT: "5" };
   const sql = (query: string, database = "ordertruth") => run("psql", ["-X", "-w", "-v", "ON_ERROR_STOP=1", "-At", "-d", database], { env: clientEnv, input: query });
+  const verifyCluster = () => {
+    const identity = sql("SELECT current_user, inet_server_addr(), current_setting('port'), current_setting('server_version_num'), current_setting('data_directory');", "postgres").split("|");
+    if (identity[0] !== USER || identity[1] !== "127.0.0.1" || identity[2] !== PORT
+      || Number(identity[3]) < 180000 || Number(identity[3]) >= 190000
+      || !identity[4] || realpathSync(identity[4]).toLowerCase() !== realpathSync(data).toLowerCase()) {
+      throw new Error("Database cluster ownership/version mismatch; no migration is allowed");
+    }
+  };
   if (!existsSync(join(data, "PG_VERSION"))) {
     if (command !== "start") throw new Error("Local cluster is not initialized; use start");
     if (existsSync(data) && readdirSync(data).length) throw new Error("Refusing incomplete nonempty cluster; inspect it manually");
@@ -84,10 +95,13 @@ export function localPostgres(command: string, root: string, bin?: string): stri
     // Its output already goes to server.log; don't wait for inherited pipes to close.
     if (status.status === 3) run("pg_ctl", ["start", "-D", data, "-l", join(base, "server.log"), "-w", "-t", "15", "-o", `-h 127.0.0.1 -p ${PORT}`], { quiet: true });
     else if (status.status !== 0) throw new Error("Cannot establish managed cluster status");
+    verifyCluster(); // Establish ownership BEFORE even creating the test database.
     if (sql("SELECT count(*) FROM pg_database WHERE datname='ordertruth';", "postgres") === "0") {
       sql("CREATE DATABASE ordertruth;", "postgres");
     }
   }
+  verifyCluster();
+  if (sql("SELECT pg_get_userbyid(datdba) FROM pg_database WHERE datname='ordertruth';") !== USER) throw new Error("Test database owner mismatch");
   const actual = sql("SELECT current_database(), current_user, inet_server_addr(), current_setting('port'), current_setting('fsync'), current_setting('synchronous_commit');");
   if (actual !== `ordertruth|${USER}|127.0.0.1|${PORT}|on|on`) throw new Error("Local database identity/durability settings did not match");
   return `Local PostgreSQL ready on 127.0.0.1:${PORT}; credentials remain in ignored .work/postgres/.env`;

@@ -1,6 +1,4 @@
 import { randomBytes } from "node:crypto";
-import { readFileSync } from "node:fs";
-import { parseEnv } from "node:util";
 import { afterAll, beforeAll, expect, it } from "vitest";
 import { createPostgresPool } from "../../src/db/postgres.ts";
 import { migratePostgres } from "../../src/db/postgres-migrate.ts";
@@ -13,8 +11,7 @@ import { PostgresCheckoutStore } from "../../src/db/postgres-checkout.ts";
 import { PostgresCheckoutService } from "../../src/postgres-checkout-service.ts";
 import { WebhookProcessor } from "../../src/webhooks/processor.ts";
 
-const env = parseEnv(readFileSync(new URL("../../.work/postgres/.env", import.meta.url), "utf8"));
-if (env.PGHOST !== "127.0.0.1" || env.PGPORT !== "55432" || env.PGDATABASE !== "ordertruth") throw new Error("Managed local PostgreSQL only");
+import { env } from "./local-db.ts";
 const pool = createPostgresPool(env.DATABASE_URL!);
 const schema = `qual_${randomBytes(10).toString("hex")}`;
 const inbox = new PostgresWebhookInbox(pool, schema, "SYNTHETIC_QUALIFICATION");
@@ -22,6 +19,36 @@ beforeAll(() => migratePostgres(pool, schema));
 afterAll(async () => { await pool.query(`DROP SCHEMA ${schema} CASCADE`); await pool.end(); });
 const summary = () => summarizeEvent(EventSchema.parse(captureEvent({ orderId: "SYNTHETICORDER1", captureId: "SYNTHETICCAPTURE1" })));
 const delivery = (id: string) => inbox.recordDelivery({ claimedEventId: id, claimedEventType: "PAYMENT.CAPTURE.COMPLETED", bodySha256: "a".repeat(64), bodyBytes: 100, correlationId: "synthetic-webhook", nowMs: Date.now() });
+it("keeps authenticated intake available at rejection saturation without growing rejected or duplicate storage", async () => {
+  const schema = `qual_${randomBytes(10).toString("hex")}`;
+  await migratePostgres(pool,schema);
+  try {
+    await pool.query(`INSERT INTO ${schema}.webhook_deliveries(state,claimed_event_id,body_sha256,body_bytes,correlation_id,received_at_ms,created_at,updated_at)
+      SELECT 'received_unverified',NULL,repeat('a',64),1,'synthetic-saturation',0,'2026-11-07T00:00:00.000Z','2026-11-07T00:00:00.000Z' FROM generate_series(1,5000)`);
+    await pool.query(`UPDATE ${schema}.webhook_deliveries SET state='rejected',reason='synthetic invalid signature' WHERE correlation_id='synthetic-saturation'`);
+    let calls = 0;
+    const restarted = new PostgresWebhookInbox(pool,schema,"SYNTHETIC_QUALIFICATION");
+    const intake = new WebhookIntake(restarted, { verify: async () => { calls++; return { status: "SUCCESS", durationMs: 1, debugId: "synthetic" }; } }, {
+      webhookId: TEST_WEBHOOK_ID, maxTransmissionAgeMs: 300_000, maxFutureSkewMs: 30_000, log: silentLogger(),
+    });
+    const before = (await pool.query(`SELECT count(*)::int AS n FROM ${schema}.webhook_deliveries`)).rows[0].n;
+    expect((await intake.receive(Buffer.from("{}"),{},"synthetic-bad")).status).toBe(400);
+    expect(calls).toBe(0);
+    const raw = JSON.stringify(captureEvent({ orderId: "SATURATIONORDER", captureId: "SATURATIONCAPTURE" }));
+    const accepted = await intake.receive(Buffer.from(raw),signedHeaders(raw),"synthetic-signed");
+    expect(accepted.status).toBe(200); expect(accepted.body.result).toBe("accepted");
+    const proofBefore = (await pool.query(`SELECT * FROM ${schema}.evidence WHERE evidence_class='PAYPAL_VERIFIED_WEBHOOK' ORDER BY seq`)).rows;
+    const duplicates = await Promise.all(Array.from({ length: 5 },() => intake.receive(Buffer.from(raw),signedHeaders(raw),"synthetic-redelivery")));
+    expect(duplicates.every(r => r.status === 200 && r.body.result === "duplicate")).toBe(true);
+    expect((await pool.query(`SELECT count(*)::int AS n FROM ${schema}.webhook_deliveries`)).rows[0].n).toBe(before+1);
+    expect((await pool.query(`SELECT * FROM ${schema}.evidence WHERE evidence_class='PAYPAL_VERIFIED_WEBHOOK' ORDER BY seq`)).rows).toEqual(proofBefore);
+    const reject = new WebhookIntake(restarted,{ verify: async () => ({ status: "FAILURE", durationMs: 1, debugId: null }) }, {
+      webhookId: TEST_WEBHOOK_ID,maxTransmissionAgeMs: 300_000,maxFutureSkewMs: 30_000,log: silentLogger(),
+    });
+    expect((await reject.receive(Buffer.from(raw),signedHeaders(raw),"synthetic-invalid-signature")).status).toBe(400);
+    expect((await pool.query(`SELECT count(*)::int AS n FROM ${schema}.webhook_deliveries`)).rows[0].n).toBe(before+1);
+  } finally { await pool.query(`DROP SCHEMA ${schema} CASCADE`); }
+});
 it("deduplicates concurrent verified deliveries atomically with one event and one evidence row", async () => {
   const s = summary(); const ids = await Promise.all(Array.from({ length: 6 }, () => delivery(s.id)));
   const results = await Promise.all(ids.map(id => inbox.acceptVerified(id, s, { ms: 1, debugId: "synthetic" }, "synthetic-webhook")));
@@ -66,7 +93,9 @@ it("awaits durable acceptance before returning success and returns 503 on a fail
     const result = await intake.receive(Buffer.from(failedRaw), signedHeaders(failedRaw), "synthetic-intake-failure");
     expect(result.status).toBe(503);
     expect(await inbox.getEvent(failed.id)).toBeUndefined();
-    expect((await inbox.getDelivery(result.body.delivery!))?.state).toBe("retryable_failure");
+    // Verification-before-persistence publishes no partial delivery/event on failure.
+    expect(result.body.delivery).toBeUndefined();
+    expect((await pool.query(`SELECT count(*)::int AS n FROM ${schema}.webhook_deliveries WHERE claimed_event_id=$1`,[failed.id])).rows[0].n).toBe(0);
   } finally { await pool.query(`DROP TRIGGER qualification_reject_event ON ${schema}.webhook_events`); }
 });
 it("processes a verified event only after agreeing GET and preserves state on disagreement", async () => {

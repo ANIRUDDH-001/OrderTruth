@@ -23,7 +23,7 @@ import { WebhookProcessor } from "../webhooks/processor.ts";
 import { EVENT_TERMINAL } from "../webhooks/inbox.ts";
 import { TokenBucket } from "../webhooks/rate-limit.ts";
 
-export async function buildHostedApp(config: ReturnType<typeof loadPostgresConfig>,options: { staticFiles?: boolean; schema?: string } = {}) {
+export async function buildHostedApp(config: ReturnType<typeof loadPostgresConfig>,options: { staticFiles?: boolean; schema?: string; logStream?: { write(line: string): unknown } } = {}) {
   const schema = options.schema ?? "ordertruth";
   if (schema !== "ordertruth" && (process.env.NODE_ENV !== "test" || !/^qual_[a-f0-9]{20}$/.test(schema))) throw new Error("Invalid application database schema");
   const pool = createPostgresPool(config.databaseUrl);
@@ -35,6 +35,13 @@ export async function buildHostedApp(config: ReturnType<typeof loadPostgresConfi
   const checkout = new PostgresCheckoutService(paypal,checkoutStore);
   const app = Fastify({ logger: false,bodyLimit: 16_384,genReqId: () => randomUUID(),trustProxy: false });
   app.addHook("onClose",async () => { await pool.end(); });
+  // Allowlist operational metadata. Never log raw URLs, IDs in paths, headers,
+  // request/response bodies, auth payloads or exception messages.
+  app.addHook("onResponse",async (request,reply) => {
+    const record = { at: new Date().toISOString(),evt: "http_response",requestId: request.id,
+      method: request.method,route: request.routeOptions.url ?? "unmatched",status: reply.statusCode,elapsedMs: Math.round(reply.elapsedTime) };
+    (options.logStream ?? process.stdout).write(JSON.stringify(record)+"\n");
+  });
   app.addHook("onSend",async (request,reply) => {
     reply.header("x-request-id",request.id); reply.header("x-content-type-options","nosniff"); reply.header("referrer-policy","no-referrer");
     reply.header("content-security-policy","frame-ancestors 'none'");
@@ -51,7 +58,7 @@ export async function buildHostedApp(config: ReturnType<typeof loadPostgresConfi
     infer: evidence => callInvestigator({ apiKey: config.ai.apiKey!,model: config.ai.model ?? "gemini-3.5-flash-lite",evidence }),
   }) : undefined;
   registerJudgeApi(app,{ pool,schema,auth,origin: config.origin,sourceAttemptId: config.sourceAttemptId,...(investigator ? { investigator } : {}) });
-  app.get("/api/health",async () => ({ ok: true,environment: "sandbox",persistence: "postgresql",schemaVersion: 8 }));
+  app.get("/api/health",async () => ({ ok: true,environment: "sandbox",persistence: "postgresql",schemaVersion: 9 }));
   const browserAttempt = (a: AttemptRow) => ({ attemptId: a.id,orderId: a.paypal_order_id,state: a.state,captureId: a.capture_id,captureStatus: a.capture_status,
     amount: a.captured_minor !== null && a.captured_currency === "USD" ? { currency: a.captured_currency,value: toProviderValue({ currency: a.captured_currency,minor: a.captured_minor }) } : null,
     reasons: a.verdict_reasons ? JSON.parse(a.verdict_reasons) as string[] : [] });
