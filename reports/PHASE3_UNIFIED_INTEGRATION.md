@@ -109,6 +109,26 @@ Independent review of the final presentation and public artifacts found no impor
 - Vercel automatic preview `dpl_7oKqGm4yvm79WzeJhKhYJ1Ku99xw`: **expected ERROR/refused**. Read-only build-log inspection reproduced the exact `Preview API isolation is not qualified` packaging error on the final code push. This is separate from GitHub Actions success. No deployable write-capable preview was produced.
 - Remote main, Phase1 and handoff refs rechecked after publication: unchanged at the supplied SHAs. Original local checkouts and owner data preserved.
 
+## Follow-up: deployment policy and fresh pre-push E2E
+
+The owner supplied the automatic Vercel preview failure again and required thorough local E2E **before** another push. The report-only tip `47a3440d58f185a8695bc88c0dd806e9db7365db` had already passed all three Actions jobs ([42366706530](https://github.com/ANIRUDDH-001/OrderTruth/actions/runs/42366706530)). The logged exception was the intended preview guard, after successful frontend compilation.
+
+Implemented: `vercel.json` now sets `git.deploymentEnabled` to `{ "integration/ordertruth-unified": false }`. This dedicated, unhosted review branch no longer requests automatic Vercel previews that are forbidden by its safety policy. Unspecified branches retain Vercel's documented default; main, production rewriting, build command and the manual-preview refusal remain unchanged. This does **not** create a working interactive preview or resolve the hosted V9 cutover. Official current documentation was fetched through Context7: [Git deployment configuration](https://vercel.com/docs/project-configuration/git-configuration).
+
+The regression in `tests/preview-isolation.test.ts` failed before the policy change. Before committing/pushing the fix, fresh local verification passed:
+
+- Full offline suite **1,274 / 72 files**, root typecheck and frontend build (`prepush-offline.log`, `prepush-typecheck.log`, `prepush-build.log`).
+- V2 PostgreSQL **56 / 11 files**, independent V3 PostgreSQL **113 / 13 files** (`prepush-v2.log`, `v3-postgres.log`); V3 cluster stopped in `finally`.
+- Actual manual-preview packaging still refused with the expected safety error (`preview-rejection.json`).
+- Actual Codex in-app browser: new anonymous owned case referencing the unchanged genuine historical observation → controlled duplicate → detect → honest AI-unavailable fallback → exact plan/approval → execution → independent receipt → reload/read-only recheck → mobile390px Lab → keyboard return to the same receipt. No console warnings/errors; Lab remained within viewport. Screenshots `prepush-e2e-receipt.png`, `prepush-e2e-reopened.png`, `prepush-lab-mobile.png` in the private browser evidence directory.
+- A **separate fresh Node process** independently verified that same browser run's persisted receipt as `SUCCEEDED` and current merchant postconditions true (`.work/runs/prepush-sql-verification.json`). No provider/model calls.
+
+Independent narrow review found no important issue and cleared this dedicated change. No main merge, service update, deployment/promotion API or Neon migration was performed.
+
+Read-only platform checks: Render service `srv-dbccdgjl550s73d37ao0` reports live deploy `dep-dbcfi0eea8bs73fd2030`, source `e8967edc59b94f4a28b58d09661408cef7131bed`, branch main, autoDeploy off. The previously owner-confirmed My Workspace was explicitly request-scoped. Direct Render `/api/health` timed out after15s; the Vercel production health read then returned HTTP200 in13.4s with sandbox/schema8. These are bounded transport observations, not an outage diagnosis or readiness certification. No authenticated hosted workflow was executed. The Vercel project setting remains Node24.x, but package engines select Node22 correctly; the warning is not the build failure.
+
+Post-push GitHub Actions and absence of a new automatic Vercel deployment must be independently observed for the new SHA; final identities/results are supplied in the delivery message. The earlier failed previews remain historical records.
+
 UNIFIED SOURCE INTEGRATION: PASS (local scope and stated browser/Docker limitations)
 
 HOSTED RELEASE READINESS: HOLD
