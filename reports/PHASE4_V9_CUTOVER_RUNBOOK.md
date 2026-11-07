@@ -1,6 +1,6 @@
 # V8 → V9 cutover runbook
 
-**NOT EXECUTED HOSTED.** Source-pinned local rehearsal only. Use final CI-green Phase4 code SHA from readiness publication checkpoint as `CANDIDATE_SHA`; refuse symbolic branch tips or any different source. No authorization is granted by this file.
+**NOT EXECUTED HOSTED.** Source-pinned local rehearsal only. `CANDIDATE_SHA=58c9869a9e166deed531563cd3056ba53705fef7`; require its CI-green result in readiness publication checkpoint before use. Refuse symbolic branch tips or any different source. A subsequent report-only commit is documentation, not a replacement application deployment target. No authorization is granted by this file.
 
 ## Fixed targets and stop conditions
 
