@@ -1,0 +1,56 @@
+name: Production verification
+on:
+  workflow_run:
+    workflows: [CI]
+    branches: [main]
+    types: [completed]
+permissions:
+  contents: read
+concurrency:
+  group: production-verification
+  cancel-in-progress: true
+jobs:
+  public-release:
+    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_repository.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22.18.0
+          package-manager-cache: false
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile
+      - name: Verify actual public serving bytes and both backend ingress paths
+        env:
+          EXPECTED_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          node --import tsx --input-type=module <<'JS'
+          import {verifyPublicRelease} from './scripts/public-release.ts';
+          import {writeFileSync} from 'node:fs';
+          import {setTimeout as delay} from 'node:timers/promises';
+          const sha=process.env.EXPECTED_SHA;
+          if(!/^[a-f0-9]{40}$/.test(sha))throw Error('Invalid workflow source');
+          for(let attempt=0;attempt<40;attempt++){
+            try{
+              const frontend=await verifyPublicRelease('https://order-truth.vercel.app',sha);
+              for(const origin of ['https://ordertruth.onrender.com','https://order-truth.vercel.app']){
+                const get=async path=>{const r=await fetch(origin+path,{redirect:'error',cache:'no-store',signal:AbortSignal.timeout(20000)});if(!r.ok)throw Error('Backend not ready');return r.json();};
+                const identity=await get('/api/release/identity'),ready=await get('/api/readiness');
+                if(identity.sourceSha!==sha||identity.schemaVersion!==9||identity.backendContract!=='phase1-core-v1'||!ready.ready||ready.schemaVersion!==9)throw Error('Backend release differs');
+              }
+              writeFileSync('production-verification.json',JSON.stringify({sourceSha:sha,frontend,backendSchema:9,providerCalls:0,modelCalls:0},null,2));
+              console.log('PASS: public assets, source, contract and readiness match '+sha);process.exit(0);
+            }catch{console.log('Waiting for the coordinated production release ('+(attempt+1)+'/40)');await delay(15000);}
+          }
+          throw Error('Production release did not become ready; READY deployment status was insufficient');
+          JS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: production-verification-${{ github.event.workflow_run.head_sha }}
+          path: production-verification.json
+          retention-days: 30
