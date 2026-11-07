@@ -5,7 +5,11 @@ export function renderLab(doc: Document, data: LabPageData): void {
   const el = <K extends keyof HTMLElementTagNameMap>(tag: K, text = "", cls = "") => {
     const node = doc.createElement(tag); node.textContent = text; node.className = cls; return node;
   };
-  const link = (text: string, href: string, cls = "") => { const a = el("a", text, cls); a.href = href; return a; };
+  const link = (text: string, href: string, cls = "") => {
+    const a = el("a", text, cls); a.href = href;
+    if (href.startsWith("/lab/evidence/")) a.setAttribute("download", text);
+    return a;
+  };
   const panel = (heading: string, description = "") => { const s = el("section", "", "panel lab-panel"); s.append(el("h2", heading)); if (description) s.append(el("p", description, "muted")); return s; };
   const field = (label: string, value: string) => { const row = el("div", "", "record"); row.append(el("span", label), el("strong", value)); return row; };
   const table = (caption: string, columns: string[]) => {

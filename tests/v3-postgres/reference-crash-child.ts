@@ -10,7 +10,10 @@ const runtime = await createReferenceRuntime({ pool,aux,auxConnectionString:url,
   capabilityKey:Buffer.alloc(32,11),testKey:Buffer.alloc(32,12),
   provider:{apiBase:"https://api-m.sandbox.paypal.com",getOrder:async()=>input.raw},
   inbox:{getEvent:()=>undefined,getDelivery:()=>undefined},
-  afterHandler:async()=>{ process.kill(process.pid,"SIGKILL"); await new Promise(()=>{}); },
+  afterHandler:async()=>{
+    await new Promise<void>(resolve => process.stdout.write("REFERENCE_COMMITTED_CRASH_HOOK\n",() => resolve()));
+    process.kill(process.pid,"SIGKILL"); await new Promise(()=>{});
+  },
 });
 await runtime.returnFor(input.intentId);
 throw new Error("crash hook not reached");

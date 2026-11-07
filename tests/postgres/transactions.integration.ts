@@ -1,18 +1,13 @@
 import { randomBytes } from "node:crypto";
-import { readFileSync } from "node:fs";
-import { parseEnv } from "node:util";
 import pg from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createPostgresPool, withTransaction } from "../../src/db/postgres.ts";
 
 // Deliberately cannot use DATABASE_URL from the shell/application or a hosted DB.
-const env = parseEnv(readFileSync(new URL("../../.work/postgres/.env", import.meta.url), "utf8"));
-if (env.PGHOST !== "127.0.0.1" || env.PGPORT !== "55432" || env.PGDATABASE !== "ordertruth") {
-  throw new Error("Qualification requires the managed loopback database");
-}
+import { env } from "./local-db.ts";
 const url = env.DATABASE_URL!;
 const schema = `qual_${randomBytes(10).toString("hex")}`;
-const observer = new pg.Pool({ host: "127.0.0.1", port: 55432, database: "ordertruth", user: env.PGUSER, password: env.PGPASSWORD, max: 2 });
+const observer = new pg.Pool({ host: "127.0.0.1", port: Number(env.PGPORT), database: "ordertruth", user: env.PGUSER, password: env.PGPASSWORD, max: 2 });
 let pool: pg.Pool;
 beforeAll(async () => {
   await observer.query(`CREATE SCHEMA ${schema}`);

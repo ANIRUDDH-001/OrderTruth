@@ -98,20 +98,22 @@ describe("handler timing summary",() => {
 });
 
 const session = { authenticated: true,userId: "fixture_owner",owner: false };
-const analysis = (next: string) => ({ status: "FRESH",freshModelExecution: true,reason: null,generatedAt: "2026-10-29T06:12:15.000Z",model: "fixture-model",evidence: [],
+const analysis = (next: string) => ({ status: "FRESH",freshModelExecution: true,reason: null,generatedAt: "2026-10-29T06:12:15.000Z",model: "fixture-model",evidence: [{ id: "E5",source: "SYNTHETIC_PAYMENT_OBSERVATION",observedAt: "2026-10-29T06:12:15.000Z",facts: {} }],
   baseline: { summary: "Rules-based guidance",nextDiagnostic: next },
   investigation: { summary: "Two orders reference one payment.",nextDiagnostic: next,diagnosticReason: "Check the recorded writes.",
     hypotheses: [{ explanation: "A race between handlers or client retries may explain the second order.",evidenceIds: ["E5"],confidence: "MEDIUM",status: "HYPOTHESIS" }] } });
 const find = (node: JudgeNode,match: (n: JudgeNode) => boolean): JudgeNode[] => [...(match(node) ? [node] : []),...node.children.flatMap(c => find(c,match))];
 async function runDiagnostic(evidence: unknown,next = "HANDLER_TIMING") {
+  let checked = false;
   const ui = await mountJudge(call => {
     if (call.path === "/api/session") return session;
     if (call.path.endsWith("/investigation")) return null;
     if (call.path.endsWith("/investigate")) return analysis(next);
     if (call.path.endsWith("/diagnostics")) return evidence;
-    return scenario("run_owned");
+    if (call.path.endsWith("/check")) { checked = true;return { result: "VIOLATED" }; }
+    const s = scenario("run_owned");s.orders.push({ ...s.orders[0]!,id: "duplicate" });return { ...s,latestCheck: checked ? { seq: 1,result: "VIOLATED",activeOrderCount: 2,evaluatedAt: "2026-11-07T00:00:00Z",incidentId: "incident_fixture" } : null };
   },"run_owned");
-  await ui.click("Investigate with AI");
+  await ui.click("Detect anomaly");await ui.click("Investigate with AI");
   await ui.click(next === "HANDLER_TIMING" ? "Run handler timing check" : "Run idempotency-key comparison");
   return ui;
 }
@@ -128,7 +130,7 @@ describe("judge timing diagnostic view",() => {
     expect(rows.map(r => find(r,n => n.tag === "th").map(n => [n.textContent,n.getAttribute("scope")])[0])).toEqual(
       [["Order","row"],["Written by","row"],["Started","row"],["Finished","row"],["Took","row"]]);
     const cells = rows.map(r => find(r,n => n.tag === "td"));
-    expect(cells[0]!.map(c => [c.textContent,c.getAttribute("title")])).toEqual([["mo_5fc89787…","mo_5fc89787-f051-4521-901a-aa4c4ac54ac2"],["mo_1d9841c0…","mo_1d9841c0-2f9b-494e-affd-3e3355364997"]]);
+    expect(cells[0]!.map(c => c.textContent)).toEqual(["mo_5fc89787-f051-4521-901a-aa4c4ac54ac2","mo_1d9841c0-2f9b-494e-affd-3e3355364997"]);
     expect(cells[1]!.map(c => c.textContent)).toEqual(["capture_return","webhook_capture_completed"]);
     expect(cells[2]!.map(c => c.getAttribute("title"))).toEqual(["2026-10-29T06:11:34.478Z","2026-10-29T06:11:51.125Z"]);
     expect(cells[3]!.map(c => c.getAttribute("title"))).toEqual(["2026-10-29T06:11:34.511Z","2026-10-29T06:11:51.141Z"]);

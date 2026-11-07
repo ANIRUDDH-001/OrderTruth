@@ -29,6 +29,8 @@ describe("slow-request notice on the judge page",() => {
       return scenario("run_owned");
     },"run_owned",undefined,{ settle: false });
     await vi.advanceTimersByTimeAsync(1_999);
+    expect(ui.doc.root.textContent).toContain("Confirming your session");
+    expect(ui.doc.root.textContent).not.toContain("Connection needs attention");
     expect(status(ui)?.textContent).toBe("Loading your session…");
     await vi.advanceTimersByTimeAsync(45_000-1_999);
     const notice = status(ui)!;

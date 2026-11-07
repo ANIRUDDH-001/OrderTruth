@@ -1,6 +1,4 @@
 import { randomBytes } from "node:crypto";
-import { readFileSync } from "node:fs";
-import { parseEnv } from "node:util";
 import { afterAll, beforeAll, expect, it } from "vitest";
 import { createPostgresPool } from "../../src/db/postgres.ts";
 import { migratePostgres } from "../../src/db/postgres-migrate.ts";
@@ -9,8 +7,7 @@ import { PostgresCheckoutService } from "../../src/postgres-checkout-service.ts"
 import { PayPalError, type PayPalCall } from "../../src/paypal/client.ts";
 import type { OrderReadback } from "../../src/domain/checkout.ts";
 
-const env = parseEnv(readFileSync(new URL("../../.work/postgres/.env", import.meta.url), "utf8"));
-if (env.PGHOST !== "127.0.0.1" || env.PGPORT !== "55432" || env.PGDATABASE !== "ordertruth") throw new Error("Managed local PostgreSQL only");
+import { env } from "./local-db.ts";
 const pool = createPostgresPool(env.DATABASE_URL!);
 // With one connection, a provider callback can query only if orchestration has
 // released its transaction. This checks this pool, not unrelated parallel tests.

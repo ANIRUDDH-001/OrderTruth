@@ -29,6 +29,9 @@ describe("Integration Lab view", () => {
     const links = ui.doc.root.querySelectorAll("a").map(a => (a as unknown as HTMLAnchorElement).href);
     expect(links).toContain("/lab/evidence/manifest.json");
     for (const f of data.publication.files) expect(links).toContain(`/lab/evidence/${f.file}`);
+    const downloads = ui.doc.root.querySelectorAll("a").filter(a => (a as unknown as HTMLAnchorElement).href.startsWith("/lab/evidence/"));
+    expect(downloads).toHaveLength(data.publication.files.length + 1);
+    for (const a of downloads) expect(a.getAttribute("download")).toBe(a.textContent);
     expect(ui.doc.root.textContent).toContain(data.publication.manifestSha256);
   });
   it("renders a markup-like limitation as text", async () => {

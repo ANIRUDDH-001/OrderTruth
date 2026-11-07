@@ -8,6 +8,7 @@ import { POSTGRES_BROWSER_APPROVAL_V5 } from "./postgres-browser-approval.ts";
 import { POSTGRES_INVESTIGATION_V6 } from "./postgres-investigation-schema.ts";
 import { POSTGRES_INVESTIGATION_HISTORY_V7 } from "./postgres-investigation-history.ts";
 import { POSTGRES_DEMO_LIMITS_V8 } from "./postgres-demo-limits.ts";
+import { POSTGRES_CREATION_V9 } from "./postgres-creation-schema.ts";
 
 export async function migratePostgres(pool: Pool, schema: string): Promise<void> {
   if (schema !== "ordertruth" && !/^qual_[a-f0-9]{20}$/.test(schema)) throw new Error("Use the owned OrderTruth schema or an isolated qualification schema");
@@ -22,7 +23,7 @@ export async function migratePostgres(pool: Pool, schema: string): Promise<void>
       await client.query("CREATE TABLE ordertruth_postgres_migrations(version integer PRIMARY KEY, applied_at timestamptz NOT NULL DEFAULT now())");
     }
     const version = (await client.query("SELECT coalesce(max(version),0) AS version FROM ordertruth_postgres_migrations")).rows[0].version;
-    if (version > 8) throw new Error("Database schema is newer than this application");
+    if (version > 9) throw new Error("Database schema is newer than this application");
     if (version === 0) {
       await client.query(POSTGRES_SCHEMA_V1);
       await client.query("INSERT INTO ordertruth_postgres_migrations(version) VALUES(1)");
@@ -54,6 +55,10 @@ export async function migratePostgres(pool: Pool, schema: string): Promise<void>
     if (version < 8) {
       await client.query(POSTGRES_DEMO_LIMITS_V8);
       await client.query("INSERT INTO ordertruth_postgres_migrations(version) VALUES(8)");
+    }
+    if (version < 9) {
+      await client.query(POSTGRES_CREATION_V9);
+      await client.query("INSERT INTO ordertruth_postgres_migrations(version) VALUES(9)");
     }
   });
 }

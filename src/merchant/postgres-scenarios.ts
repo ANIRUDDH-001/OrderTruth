@@ -6,9 +6,16 @@ import { evaluateContract, readbackFact } from "./contract.ts";
 
 type Run = { id: string; user_id: string; payment_attempt_id: string; source_evidence_seq: number; provenance: string; label: string; created_at: string };
 type ScopedIntent = IntentRow & { organization_id: string };
+export const validScenarioOperation = (key: string): boolean => /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(key);
+export class ScenarioCreationRejection extends Error {
+  constructor(readonly code: "SOURCE_UNAVAILABLE" | "SCENARIO_CAPACITY") { super(code === "SCENARIO_CAPACITY" ? "Scenario admission limit reached" : "Scenario requires a genuine Sandbox payment observation"); }
+}
 export class PostgresScenarioStore {
-  constructor(readonly pool: Pool, readonly schema = "ordertruth") {
+  constructor(readonly pool: Pool, readonly schema = "ordertruth", private readonly admission = { global: 1000, perUser: 10, leaseMs: 3_600_000 }) {
     if (schema !== "ordertruth" && !/^qual_[a-f0-9]{20}$/.test(schema)) throw new Error("Invalid OrderTruth schema");
+    if (!Number.isInteger(admission.global) || admission.global < 1 || admission.global > 1000
+      || !Number.isInteger(admission.perUser) || admission.perUser < 1 || admission.perUser > 10
+      || !Number.isInteger(admission.leaseMs) || admission.leaseMs < 1 || admission.leaseMs > 3_600_000) throw new Error("Invalid scenario admission policy");
   }
   private tx<T>(action: (client: PoolClient) => Promise<T>) {
     return withTransaction(this.pool, async client => {
@@ -16,35 +23,50 @@ export class PostgresScenarioStore {
       return action(client);
     });
   }
-  private async payment(client: PoolClient, id: string) {
+  private async payment(client: PoolClient, id: string, creating = false) {
     const a = (await client.query<AttemptRow>("SELECT * FROM payment_attempts WHERE id=$1 FOR UPDATE", [id])).rows[0];
-    if (!a) throw new Error("Payment not found");
+    if (!a) { if (creating) throw new ScenarioCreationRejection("SOURCE_UNAVAILABLE"); throw new Error("Payment not found"); }
     const i = (await client.query<ScopedIntent>("SELECT * FROM checkout_intents WHERE id=$1 FOR UPDATE", [a.intent_id])).rows[0]!;
     return { a, i };
   }
-  async create(user: string, attempt: string): Promise<Run> { return this.createRun(user, attempt, false); }
-  async createQualification(user: string, attempt: string): Promise<Run> {
+  async create(user: string, attempt: string, operationId: string = randomUUID()): Promise<Run> { return this.createRun(user, attempt, false, operationId); }
+  async createQualification(user: string, attempt: string, operationId: string = randomUUID()): Promise<Run> {
     if (process.env.NODE_ENV !== "test") throw new Error("Synthetic scenarios are test-only");
-    return this.createRun(user, attempt, true);
+    return this.createRun(user, attempt, true, operationId);
   }
-  private async createRun(user: string, attempt: string, synthetic: boolean): Promise<Run> {
+  async lookupOperation(user: string, operationId: string) {
+    if (!validScenarioOperation(operationId)) throw new Error("Invalid operation identity");
+    const mapped = (await this.pool.query(`SELECT run_id FROM ${this.schema}.scenario_operations WHERE user_id=$1 AND operation_id=$2`, [user,operationId])).rows[0];
+    // An absent row is deliberately UNKNOWN: another transaction may commit later.
+    return mapped ? this.get(user,mapped.run_id as string) : null;
+  }
+  private async createRun(user: string, attempt: string, synthetic: boolean, operationId: string): Promise<Run> {
+    if (!validScenarioOperation(operationId)) throw new Error("Invalid operation identity");
     return this.tx(async client => {
-      const { a, i } = await this.payment(client, attempt);
+      await client.query("SELECT pg_advisory_xact_lock(hashtextextended($1,0))", [JSON.stringify([this.schema,"scenario-operation",user,operationId])]);
+      const existing = (await client.query<Run>(`SELECT r.* FROM scenario_operations o JOIN scenario_runs r ON r.id=o.run_id
+        WHERE o.user_id=$1 AND o.operation_id=$2`, [user,operationId])).rows[0];
+      if (existing) return existing;
+      if (!attempt) throw new ScenarioCreationRejection("SOURCE_UNAVAILABLE");
+      const { a, i } = await this.payment(client, attempt, true);
       const provenance = synthetic ? "SYNTHETIC_QUALIFICATION" : "PAYPAL_SANDBOX_GET";
       const source = (await client.query<{ seq: number; http_status: number; created_at: string; summary_json: string }>(`SELECT * FROM evidence
         WHERE attempt_id=$1 AND evidence_class='PAYPAL_API_READBACK' AND http_status=200 AND summary_json::jsonb->>'provenance'=$2 ORDER BY seq DESC LIMIT 1`, [attempt,provenance])).rows[0];
-      if (!source) throw new Error("Scenario requires a genuine Sandbox payment observation");
+      if (!source) throw new ScenarioCreationRejection("SOURCE_UNAVAILABLE");
       const evaluated = evaluateContract({ intentId: i.id,intentSku: i.sku,intentCurrency: i.currency,intentMinor: i.amount_minor,
         attemptId: a.id,attemptState: a.state,paypalOrderId: a.paypal_order_id,captureId: a.capture_id,captureStatus: a.capture_status,capturedMinor: a.captured_minor,capturedCurrency: a.captured_currency,
         readbacks: [readbackFact(source)] }, []);
-      if (!evaluated.eligible) throw new Error("Source observation does not establish the captured payment");
+      if (!evaluated.eligible) throw new ScenarioCreationRejection("SOURCE_UNAVAILABLE");
       // One bounded admission lock prevents concurrent requests exceeding limits.
       await client.query("SELECT pg_advisory_xact_lock(hashtextextended($1,0))", [`${this.schema}:scenario-admission`]);
-      const counts = (await client.query("SELECT count(*)::integer AS total,count(*) FILTER(WHERE user_id=$1)::integer AS own FROM scenario_runs", [user])).rows[0];
-      if (counts.total >= 1000 || counts.own >= 10) throw new Error("Scenario admission limit reached; existing receipts remain available");
+      const counts = (await client.query(`SELECT count(*)::integer AS total,count(*) FILTER(WHERE r.user_id=$1)::integer AS own
+        FROM scenario_admissions a JOIN scenario_runs r ON r.id=a.run_id WHERE a.expires_at>clock_timestamp()`, [user])).rows[0];
+      if (counts.total >= this.admission.global || counts.own >= this.admission.perUser) throw new ScenarioCreationRejection("SCENARIO_CAPACITY");
       const run: Run = { id: `run_${randomUUID()}`,user_id: user,payment_attempt_id: attempt,source_evidence_seq: source.seq,provenance,label: "CONTROLLED_MERCHANT_SCENARIO",created_at: new Date().toISOString() };
       await client.query("INSERT INTO scenario_runs VALUES($1,$2,$3,$4,$5,$6,$7)", Object.values(run));
       await this.order(client, run, a, i, false);
+      await client.query("INSERT INTO scenario_operations(user_id,operation_id,run_id) VALUES($1,$2,$3)", [user,operationId,run.id]);
+      await client.query("INSERT INTO scenario_admissions(run_id,expires_at) VALUES($1,clock_timestamp()+$2*interval '1 millisecond')", [run.id,this.admission.leaseMs]);
       return run;
     });
   }
@@ -89,8 +111,14 @@ export class PostgresScenarioStore {
         EXISTS(SELECT 1 FROM repair_approvals a WHERE a.plan_id=p.id) AS approved,
         EXISTS(SELECT 1 FROM repair_executions e JOIN repair_outcomes o ON o.execution_id=e.id WHERE e.plan_id=p.id) AS has_receipt
         FROM repair_plans p JOIN scenario_run_plans r ON r.plan_id=p.id WHERE r.run_id=$1 ORDER BY p.created_at DESC,p.id DESC LIMIT 1`, [id])).rows[0] ?? null;
+      const latestCheck = (await client.query(`SELECT e.seq,e.result,e.active_order_count AS "activeOrderCount",e.evaluated_at AS "evaluatedAt",
+        (SELECT x.id FROM scenario_run_incidents r JOIN incidents x ON x.id=r.incident_id
+          WHERE r.run_id=$1 AND x.opened_by_evaluation_seq<=e.seq ORDER BY x.opened_at DESC,x.id DESC LIMIT 1) AS "incidentId"
+        FROM invariant_evaluations e WHERE e.intent_id=$2 AND left(e.run_id,6)='check_'
+          AND e.facts_json::jsonb->'repairFacts'->>'scenarioRunId'=$1 ORDER BY e.seq DESC LIMIT 1`, [id,i.id])).rows[0] ?? null;
+      if (latestCheck && latestCheck.result !== "VIOLATED") latestCheck.incidentId = null;
       return { run, orders, organizationId: i.organization_id, intentId: i.id,
-        latestPlan,
+        latestPlan,latestCheck,
         paymentReference: { attemptId: run.payment_attempt_id,evidenceSeq: run.source_evidence_seq,observedAt: source.created_at as string,provenance: run.provenance,
           note: "Original payment observation; this run changes only controlled merchant state. No payment is cloned or modified." } };
     });

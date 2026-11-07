@@ -3,7 +3,7 @@ import type { Pool } from "pg";
 import { z } from "zod";
 import type { createSessionAuth } from "./auth.ts";
 import { sessionIdentity } from "./session-api.ts";
-import { PostgresScenarioStore } from "../merchant/postgres-scenarios.ts";
+import { PostgresScenarioStore, ScenarioCreationRejection, validScenarioOperation } from "../merchant/postgres-scenarios.ts";
 import { PostgresRecoveryService } from "../merchant/postgres-recovery.ts";
 import { PostgresInvestigationStore } from "../ai/postgres-investigation.ts";
 import type { PostgresInvestigationService } from "../ai/postgres-investigation-service.ts";
@@ -18,6 +18,8 @@ export function registerJudgeApi(app: FastifyInstance, options: {
   const scenarios = new PostgresScenarioStore(options.pool,options.schema);
   const id = z.string().regex(/^[a-zA-Z0-9_-]{1,100}$/);
   const empty = z.object({}).strict();
+  const operation = z.string().refine(validScenarioOperation);
+  const creationBody = z.object({ operationId: operation }).strict();
   const planBody = z.object({ planId: id }).strict();
   const approvalBody = z.object({ planId: id,planSha256: z.string().regex(/^[a-f0-9]{64}$/) }).strict();
   const investigationStore = new PostgresInvestigationStore(options.pool,options.schema);
@@ -27,21 +29,62 @@ export function registerJudgeApi(app: FastifyInstance, options: {
       if (request.method === "POST" && request.headers.origin !== options.origin) return reply.code(403).send({ error: "Same-origin request required" });
     });
     routes.setErrorHandler((error,_request,reply) => {
+      if (_request.routeOptions.url === "/api/scenario-operations/:operationId") return reply.code(503).send({
+        error: "Creation outcome unknown; reconcile the same operation identity",outcome: "UNKNOWN",code: "CREATION_OUTCOME_UNKNOWN",
+      });
+      if (_request.routeOptions.url === "/api/scenarios" && _request.method === "POST") {
+        const status = (error as { statusCode?: number }).statusCode;
+        if (status && status >= 400 && status < 500) return reply.code(status).send({ error: "Invalid creation request",outcome: "REJECTED",code: "INVALID_OPERATION_ID" });
+        return reply.code(503).send({ error: "Creation outcome unknown; reconcile the same operation identity",outcome: "UNKNOWN",code: "CREATION_OUTCOME_UNKNOWN" });
+      }
       const message = error instanceof Error ? error.message : "";
       if (/not found/i.test(message)) return reply.code(404).send({ error: "Scenario not found" });
       if (/hash|expired|stale|eligible|identity differs/i.test(message)) return reply.code(409).send({ error: "Case changed; recheck before approval" });
       if (/admission limit/i.test(message)) return reply.code(429).send({ error: "Scenario capacity reached; existing receipts remain available" });
       return reply.code(503).send({ error: "Scenario unavailable; committed evidence and receipts are preserved" });
     });
+    routes.get("/api/readiness",async (_request,reply) => {
+      try {
+        const version = (await options.pool.query(`SELECT max(version) AS version FROM ${options.schema}.ordertruth_postgres_migrations`)).rows[0]?.version;
+        if (version !== 9) return reply.code(503).send({ ready: false });
+        return { ready: true,persistence: "postgresql",schemaVersion: 9,backendContract: "phase1-core-v1" };
+      } catch { return reply.code(503).send({ ready: false }); }
+    });
+    const unknownCreation = (reply: import("fastify").FastifyReply) => reply.code(503).send({
+      error: "Creation outcome unknown; reconcile the same operation identity", outcome: "UNKNOWN", code: "CREATION_OUTCOME_UNKNOWN",
+    });
+    routes.get<{ Params: { operationId: string } }>("/api/scenario-operations/:operationId", async (request,reply) => {
+      const identity = await sessionIdentity(options.auth,request); if (!identity) return reply.code(401).send({ error: "Session required" });
+      if (!operation.safeParse(request.params.operationId).success) return reply.code(400).send({ error: "Invalid operation identity",outcome: "REJECTED",code: "INVALID_OPERATION_ID" });
+      try {
+        const scenario = await scenarios.lookupOperation(identity.userId,request.params.operationId);
+        return { operationId: request.params.operationId,outcome: scenario ? "COMMITTED" : "UNKNOWN",scenario };
+      } catch { request.log.warn({ evt: "scenario_creation_reconcile_unknown",requestId: request.id }); return unknownCreation(reply); }
+    });
     routes.post("/api/scenarios", { bodyLimit: 4096 }, async (request,reply) => {
       const identity = await sessionIdentity(options.auth,request); if (!identity) return reply.code(401).send({ error: "Start a judge session first" });
-      if (!empty.safeParse(request.body).success) return reply.code(400).send({ error: "Scenario creation accepts no payment or price overrides" });
-      const source = options.sourceAttemptId ?? (await options.pool.query(`SELECT a.id FROM ${options.schema}.payment_attempts a
-        JOIN ${options.schema}.evidence e ON e.attempt_id=a.id WHERE a.state='captured' AND e.evidence_class='PAYPAL_API_READBACK'
-        AND e.http_status=200 AND e.summary_json::jsonb->>'provenance'='PAYPAL_SANDBOX_GET' ORDER BY e.seq DESC LIMIT 1`)).rows[0]?.id as string | undefined;
-      if (!source) return reply.code(503).send({ error: "An owner-approved Sandbox observation is not available yet" });
-      const run = await scenarios.create(identity.userId,source);
-      return scenarios.get(identity.userId,run.id);
+      const parsed = creationBody.safeParse(request.body);
+      if (!parsed.success) return reply.code(400).send({ error: "A UUID v4 operation identity is required; no payment or price overrides",outcome: "REJECTED",code: "INVALID_OPERATION_ID" });
+      const operationId = parsed.data.operationId;
+      try {
+        // Resolve committed operations before discovering/validating today's source.
+        const existing = await scenarios.lookupOperation(identity.userId,operationId);
+        if (existing) return { ...existing,creation: { operationId,outcome: "COMMITTED" } };
+        const source = options.sourceAttemptId ?? (await options.pool.query(`SELECT a.id FROM ${options.schema}.payment_attempts a
+          JOIN ${options.schema}.evidence e ON e.attempt_id=a.id WHERE a.state='captured' AND e.evidence_class='PAYPAL_API_READBACK'
+          AND e.http_status=200 AND e.summary_json::jsonb->>'provenance'='PAYPAL_SANDBOX_GET' ORDER BY e.seq DESC LIMIT 1`)).rows[0]?.id as string | undefined;
+        // Even no-source requests enter same-key serialization: a prior request
+        // may have committed since the read above, in which case it wins.
+        const run = await scenarios.create(identity.userId,source ?? "",operationId);
+        return { ...await scenarios.get(identity.userId,run.id),creation: { operationId,outcome: "COMMITTED" } };
+      } catch (error) {
+        if (error instanceof ScenarioCreationRejection) return reply.code(error.code === "SCENARIO_CAPACITY" ? 429 : 503).send({
+          error: error.code === "SCENARIO_CAPACITY" ? "Scenario capacity reached; existing receipts remain available" : "An owner-approved Sandbox observation is not available yet",
+          outcome: "REJECTED",code: error.code,
+        });
+        request.log.warn({ evt: "scenario_creation_unknown",requestId: request.id });
+        return unknownCreation(reply);
+      }
     });
     routes.get<{ Params: { runId: string } }>("/api/scenarios/:runId", async (request,reply) => {
       const identity = await sessionIdentity(options.auth,request); if (!identity) return reply.code(401).send({ error: "Session required" });

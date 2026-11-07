@@ -137,12 +137,12 @@ describe("assembled reference merchant offline integration", () => {
     const c=config();await initializeReferenceStore(pool,c);const p=await purchase(c);
     const raw=(await s.paypal.getOrder(p.orderId,{correlationId:"offline-child"})).body;
     const path=fileURLToPath(new URL("./reference-crash-child.ts",import.meta.url));
-    const child=await new Promise<{code:number|null;signal:NodeJS.Signals|null;stderr:string}>((resolve,reject)=>{
+    const child=await new Promise<{code:number|null;signal:NodeJS.Signals|null;stderr:string;stdout:string}>((resolve,reject)=>{
       const processChild=spawn(process.execPath,["--import","tsx",path,JSON.stringify({db:db.config,config:c,raw,intentId:p.intentId})],{env:process.env,windowsHide:true});
-      let stderr="";processChild.stderr.on("data",d=>{stderr+=d;});processChild.stdout.resume();
+      let stderr="",stdout="";processChild.stderr.on("data",d=>{stderr+=d;});processChild.stdout.on("data",d=>{stdout+=d;});
       const timer=setTimeout(()=>{processChild.kill("SIGKILL");reject(new Error("reference child deadline"));},20000);
       processChild.on("error",e=>{clearTimeout(timer);reject(e);});
-      processChild.on("close",(code,signal)=>{clearTimeout(timer);resolve({code,signal,stderr});});
+      processChild.on("close",(code,signal)=>{clearTimeout(timer);resolve({code,signal,stderr,stdout});});
     });
     mkdirSync(".work/runs/g2-g3-v4-20261105/g2",{recursive:true});
     const cleanStderr=child.stderr.split(String(db.config.password)).join("[REDACTED]");
@@ -150,8 +150,11 @@ describe("assembled reference merchant offline integration", () => {
     const death={provenance:"OFFLINE_MOCK_PROVIDER",code:child.code,signal:child.signal,stderrBytes:Buffer.byteLength(cleanStderr),beforeRestart:await rows(),journalBefore:(await pool.query("SELECT event_id FROM lab_webhook.receipts")).rows,attempts:(await pool.query("SELECT path,state FROM lab_reference.attempts")).rows};
     writeFileSync(".work/runs/g2-g3-v4-20261105/g2/process-death.json",JSON.stringify(death,null,2));
     expect(death.journalBefore).toHaveLength(0);
-    expect(child.signal).toBe("SIGKILL");
-    expect(child.code).toBeNull();
+    expect(child.stdout).toBe("REFERENCE_COMMITTED_CRASH_HOOK\n");
+    // Windows terminates self-SIGKILL with exit 1 and no POSIX signal. Require
+    // the crash hook marker as well as the exact platform termination result.
+    expect(child.signal).toBe(process.platform === "win32" ? null : "SIGKILL");
+    expect(child.code).toBe(process.platform === "win32" ? 1 : null);
     expect(await count(),child.stderr).toBe(1);
     expect((await pool.query("SELECT state FROM lab_reference.attempts")).rows).toEqual([{state:"started"}]);
     const restarted=await runtime(c);
