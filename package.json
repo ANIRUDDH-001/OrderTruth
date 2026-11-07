@@ -14,7 +14,6 @@
   },
   "packageManager": "pnpm@11.4.0",
   "scripts": {
-    "release": "tsx scripts/release.ts",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "typecheck:packages": "tsc --noEmit -p packages/tsconfig.json",
     "db:local": "tsx scripts/local-postgres.ts",
