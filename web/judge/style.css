@@ -172,3 +172,6 @@ h1{font-size:34px}
 }
 
 #request-status{max-width:1240px;margin:20px auto 0} .recent-cases a{overflow-wrap:anywhere;display:inline-block;min-height:44px;padding:8px 0}@media(max-width:1288px){#request-status{margin:16px 16px 0}}
+.brand::before{display:none}.brand{display:inline-flex;align-items:center;gap:12px}.brand img{width:30px;height:30px;flex:none;order:-1}
+.install-app-button{position:fixed;right:20px;bottom:20px;z-index:5;box-shadow:0 3px 16px #102d351f}.install-app-status{position:fixed;right:20px;bottom:78px;max-width:340px;padding:16px;background:#fff;border:1px solid #8aaba8;border-radius:8px;z-index:5}.install-app-button[hidden],.install-app-status[hidden]{display:none}
+@media(display-mode:standalone){.install-app-button{display:none}}

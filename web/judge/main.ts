@@ -2,10 +2,11 @@ import type { InvestigationEvidence,DiagnosticKind } from "../../src/ai/investig
 import { RequestError,requestJson,slowNotice,REQUEST_BUDGET_MS } from "./request.ts";
 import { readCase,readSession,parseCreation,parsePendingCreation,parseOperation,detectedFromCase,validateHistory,parseDiagnostic,planExpired,aiAvailability,type PendingCreation,type Analysis,type Scenario,type Plan,type Receipt,type Session,type SessionStatus } from "./recovery.ts";
 import { describeHandlerTiming,type TimingRow } from "./diagnostics.ts";
+import {initPwa} from './pwa.ts';
 
 const root = document.querySelector<HTMLElement>("#app")!;
 const state = { session: { authenticated: false } as Session,sessionStatus: "UNKNOWN" as SessionStatus,scenario: null as Scenario|null,analysis: null as Analysis|null,plan: null as Plan|null,receipt: null as Receipt|null,
-  approved: false,detected: false,needsRecheck: false,pendingMutationRun: null as string|null,unidentifiedCreation: null as string|null,creationOperation: null as PendingCreation|null,busy: "",error: "",notice: "",historyNotice: "",role: "operations",ownerForm: false,diagnostics: [] as InvestigationEvidence[] };
+  approved: false,detected: false,needsRecheck: false,pendingMutationRun: null as string|null,unidentifiedCreation: null as string|null,creationOperation: null as PendingCreation|null,busy: "",error: "",notice: "",maintenance:false,historyNotice: "",role: "operations",ownerForm: false,diagnostics: [] as InvestigationEvidence[] };
 const CREATION_MARKER = "ordertruth.judge.unidentifiedCreation";
 const MUTATION_MARKER = "ordertruth.judge.pendingMutation";
 const CREATION_LIMITATION = "Creation outcome remains uncertain. This UI cannot locate or reconcile that creation without a validated case ID. Existing case reads do not establish rollback; no POST was repeated.";
@@ -14,14 +15,15 @@ let planExpiryTimer: ReturnType<typeof setTimeout>|undefined;
 function el<K extends keyof HTMLElementTagNameMap>(tag: K,text = "",className = ""): HTMLElementTagNameMap[K] { const node = document.createElement(tag); node.textContent = text; node.className = className; return node; }
 function section(title: string,description: string) { const node = el("section","","panel"); node.append(el("h2",title),el("p",description,"muted")); return node; }
 function button(text: string,action: () => Promise<void>|void,secondary = false,mutation = false) {
-  const node = el("button",text,secondary ? "button secondary" : "button"); node.type = "button"; node.disabled = !!state.busy || (mutation && (state.needsRecheck || state.sessionStatus !== "AUTHENTICATED"));
+  const node = el("button",text,secondary ? "button secondary" : "button"); node.type = "button"; node.disabled = !!state.busy || (mutation && (state.maintenance || state.needsRecheck || state.sessionStatus !== "AUTHENTICATED"));
   node.addEventListener("click",() => { if (!state.busy && !node.disabled && node.getAttribute("aria-disabled") !== "true") void run(text,action); }); return node;
 }
 async function api<T>(path: string,body?: unknown): Promise<T> {
   const signingIn = path.startsWith("/api/auth/sign-in/");
   if (body !== undefined && ((!signingIn && (state.needsRecheck || state.sessionStatus !== "AUTHENTICATED")) || ["UNKNOWN","CHECKING"].includes(state.sessionStatus))) throw new Error("Resume/Recheck Case before another action. The previous request may have committed.");
-  try { return await requestJson<T>(path,body); }
+  try {const value=await requestJson<T>(path,body);state.maintenance=false;return value; }
   catch (error) {
+    if(error instanceof RequestError && error.kind==='MAINTENANCE')state.maintenance=true;
     if (body !== undefined) state.needsRecheck = true;
     const run = /^\/api\/scenarios\/([a-zA-Z0-9_-]{1,100})\//.exec(path)?.[1];
     const refused = error instanceof RequestError && error.kind === "HTTP" && error.status >= 400 && error.status < 500;
@@ -32,7 +34,7 @@ async function api<T>(path: string,body?: unknown): Promise<T> {
   }
 }
 // These run only boot()/resumeCase(), which send GET requests alone. Any other label keeps the write warning.
-const READ_ONLY_ACTIONS = new Set(["Loading your session","Resume/Recheck Case","Recheck committed receipt"]);
+const READ_ONLY_ACTIONS = new Set(["Loading your session","Resume/Recheck Case","Recheck committed receipt","Check availability"]);
 async function run(label: string,action: () => Promise<void>|void) {
   if (state.busy) return;
   state.busy = label; state.error = ""; state.notice = "";
@@ -47,7 +49,10 @@ async function run(label: string,action: () => Promise<void>|void) {
     const elapsed = Date.now()-started;
     if (elapsed === 2000 || elapsed % 15000 === 0) { const status = root.querySelector<HTMLElement>("#request-status"); if (status) status.textContent = `${label}… ${slowNotice(elapsed,kind)}`.trim(); }
   },1000);
-  try { await action(); } catch (error) { state.error = error instanceof Error ? error.message : "Request unavailable. Your committed case is preserved."; }
+  try { await action(); } catch (error) {
+    if(error instanceof RequestError && error.kind==='MAINTENANCE')state.notice=error.message;
+    else state.error = error instanceof Error ? error.message : "Request unavailable. Your committed case is preserved.";
+  }
   finally { clearInterval(timer); state.busy = ""; render(); restoreActionFocus(label); }
 }
 function restoreActionFocus(label: string) {
@@ -223,7 +228,8 @@ function render() {
   clearTimeout(planExpiryTimer);
   root.replaceChildren();
   const header = el("header"); const brand = el("a","OrderTruth","brand"); brand.href = "/?view=overview"; brand.setAttribute("aria-label","OrderTruth overview");
-  const identity = el("span",state.sessionStatus === "AUTHENTICATED" ? (state.session.owner ? "Owner session" : "Private workspace") : state.sessionStatus === "SIGNED_OUT" ? "Sandbox workspace" : state.busy ? "Connecting to workspace" : "Session unconfirmed","session-label");
+  const mark=el('img');mark.src='/brand/mark.svg';mark.alt='';mark.width=30;mark.height=30;brand.append(mark);
+  const identity = el("span",state.maintenance ? "Service update in progress" : state.sessionStatus === "AUTHENTICATED" ? (state.session.owner ? "Owner session" : "Private workspace") : state.sessionStatus === "SIGNED_OUT" ? "Sandbox workspace" : state.busy ? "Connecting to workspace" : "Session unconfirmed","session-label");
   const ownerToggle = button(state.ownerForm ? "Close owner sign-in" : "Owner access",() => { state.ownerForm = !state.ownerForm; },true);
   ownerToggle.id = "owner-toggle"; ownerToggle.setAttribute("aria-expanded",String(state.ownerForm));
   const labLink = el("a","Integration Lab"); labLink.href = "/lab/";
@@ -254,8 +260,13 @@ function render() {
   start.disabled = !!state.busy || ["UNKNOWN","CHECKING"].includes(state.sessionStatus) || state.needsRecheck;
   if (!state.scenario) {
     const connection = el("section","","connection"); connection.setAttribute("aria-label","Workspace connection");
+    if(state.maintenance){
+      connection.append(el('strong','We’re updating OrderTruth'),el('p','Saved cases and receipts are preserved. New actions are paused until the service is ready. Check availability to reconnect safely.','muted'),button('Check availability',resumeCase,true));
+      main.append(connection);
+    } else {
     connection.append(el("strong",state.busy ? "Confirming your session" : state.sessionStatus === "UNKNOWN" ? "Connection needs attention" : state.needsRecheck ? "Recover the previous request first" : "Connection confirmed"),el("p",state.busy ? "You can read the workflow while we connect. This can take up to 90 seconds if the server is waking from idle." : state.sessionStatus === "UNKNOWN" ? "The server could not confirm your session. Recheck the connection to try a read-only request. No payment or repair will be submitted." : state.needsRecheck ? "Recheck the saved operation before starting another case. A timeout or incomplete response does not establish rollback." : "A private case needs an owner-approved stored PayPal Sandbox observation. Availability is checked when you begin. The case creates controlled merchant state; it does not charge a buyer.","muted"));
     toolbar.append(start,button("Resume/Recheck Case",resumeCase,!state.needsRecheck)); connection.append(toolbar); main.append(connection);
+    }
   } else {
     toolbar.append(button("Resume/Recheck Case",resumeCase,true));
     const views = el("div","","view-switch"); views.setAttribute("aria-label","Investigation view");
@@ -488,3 +499,4 @@ async function boot() {
   return true;
 }
 void run("Loading your session",async () => { await boot(); });
+initPwa();

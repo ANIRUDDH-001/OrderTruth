@@ -3,6 +3,17 @@ import { mountJudge,scenario } from "./helpers/judge-dom.ts";
 
 const session = { authenticated: true,userId: "original_user",owner: false };
 const denied = () => new Response('{"error":"Scenario not found"}',{ status: 404 });
+it('presents planned maintenance as a paused service and safely reconnects',async()=>{
+ let closed=true;
+ const ui=await mountJudge(()=>closed?new Response(JSON.stringify({code:'RELEASE_MAINTENANCE',error:'Raw operator reconciliation text'}),{status:503}):{authenticated:false});
+ expect(ui.doc.root.textContent).toContain('We’re updating OrderTruth');
+ expect(ui.doc.root.textContent).not.toContain('Connection needs attention');
+ expect(ui.doc.root.textContent).not.toContain('Raw operator reconciliation text');
+ expect(ui.doc.root.querySelector('#action-error')).toBeNull();
+ closed=false;await ui.click('Check availability');
+ expect(ui.doc.root.textContent).toContain('Connection confirmed');
+ expect(ui.calls.every(c=>c.method==='GET')).toBe(true);
+});
 afterEach(async () => { await vi.runAllTimersAsync(); vi.useRealTimers(); vi.unstubAllGlobals(); vi.resetModules(); });
 
 describe("judge combined recovery transitions",() => {

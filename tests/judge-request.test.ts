@@ -15,6 +15,11 @@ function fakeFetch(responses: Array<Response | Error>) {
 }
 const json = (status: number, body: unknown = {}) => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
 const noSleep = async () => {};
+it("recognizes explicit maintenance without retrying or exposing operator text",async()=>{
+ const {impl,calls}=fakeFetch([json(503,{code:"RELEASE_MAINTENANCE",error:"Raw operator reconciliation text"})]);
+ await expect(requestJson('/api/session',undefined,{fetchImpl:impl,sleep:noSleep})).rejects.toMatchObject({kind:'MAINTENANCE',outcomeUnknown:false,message:'OrderTruth is briefly unavailable while we update the service. Your saved cases and receipts are preserved.'});
+ expect(calls).toHaveLength(1);
+});
 
 describe("judge requests", () => {
   it("retries a GET through a cold-start gateway error and returns the body", async () => {

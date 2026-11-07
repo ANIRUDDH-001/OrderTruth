@@ -12,6 +12,8 @@
     { "source": "/api/:path*", "destination": "https://ordertruth.onrender.com/api/:path*" }
   ],
   "headers": [
+    { "source": "/sw.js", "headers": [{ "key": "Cache-Control", "value": "no-cache" },{ "key": "Service-Worker-Allowed", "value": "/" }] },
+    { "source": "/manifest.webmanifest", "headers": [{ "key": "Cache-Control", "value": "no-cache" },{ "key": "Content-Type", "value": "application/manifest+json" }] },
     { "source": "/release.json", "headers": [{ "key": "Cache-Control", "value": "no-store" }] },
     { "source": "/(.*)", "headers": [
       { "key": "X-Content-Type-Options", "value": "nosniff" },
