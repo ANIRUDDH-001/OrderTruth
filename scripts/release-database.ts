@@ -11,6 +11,7 @@ export async function inspectReleaseDatabase(envFile:string){
  const resolver=new Resolver({timeout:3000,tries:1});resolver.setServers(['1.1.1.1']);
  const address=(await resolver.resolve4(host))[0];if(!address)throw new Error('Direct database DNS unavailable');
  const c=new Client({host:address,port:5432,user:decodeURIComponent(u.username),password:decodeURIComponent(u.password),database:'neondb',ssl:{rejectUnauthorized:true,servername:host},connectionTimeoutMillis:10000,application_name:'ordertruth-release-readonly',options:'-c default_transaction_read_only=on -c statement_timeout=15000 -c lock_timeout=5000'});
+ c.on('error',()=>{}); // Pending queries reject; keep asynchronous disconnects inside the release/HOLD error path.
  try{await c.connect();await c.query('BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY');
   const versions=(await c.query('SELECT version FROM ordertruth.ordertruth_postgres_migrations ORDER BY version')).rows.map(r=>r.version as number);
   const counts=(await c.query(`SELECT
