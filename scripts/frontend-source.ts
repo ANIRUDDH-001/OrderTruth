@@ -1,6 +1,9 @@
 /** Explicitly allowlist the public source identity; never expose the environment. */
 export function frontendSource(env:Record<string,string|undefined>,localCommit:string|null):string|null {
-  const supplied=env.VERCEL_GIT_COMMIT_SHA ?? env.ORDERTRUTH_BUILD_SHA;
+  const identities=[env.VERCEL_GIT_COMMIT_SHA,env.ORDERTRUTH_BUILD_SHA].filter((value):value is string=>value!==undefined && value!=="");
+  if(identities.some(value=>!/^[a-f0-9]{40}$/.test(value))) throw new Error("Invalid frontend source identity");
+  if(new Set(identities).size>1) throw new Error("Conflicting frontend source identities");
+  const supplied=identities[0];
   if(supplied && !/^[a-f0-9]{40}$/.test(supplied)) throw new Error("Invalid frontend source identity");
   if(env.VERCEL && !supplied) throw new Error("Hosted frontend build requires an explicit source SHA");
   if(supplied && localCommit && supplied!==localCommit) throw new Error("Frontend build source differs from checkout");

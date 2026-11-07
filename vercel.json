@@ -12,6 +12,7 @@
     { "source": "/api/:path*", "destination": "https://ordertruth.onrender.com/api/:path*" }
   ],
   "headers": [
+    { "source": "/release.json", "headers": [{ "key": "Cache-Control", "value": "no-store" }] },
     { "source": "/(.*)", "headers": [
       { "key": "X-Content-Type-Options", "value": "nosniff" },
       { "key": "Referrer-Policy", "value": "no-referrer" },
