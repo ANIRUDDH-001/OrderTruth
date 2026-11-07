@@ -228,6 +228,17 @@ function render() {
   ownerToggle.id = "owner-toggle"; ownerToggle.setAttribute("aria-expanded",String(state.ownerForm));
   const labLink = el("a","Integration Lab"); labLink.href = "/lab/";
   header.append(brand,identity,labLink,ownerToggle); root.append(header);
+  if(state.sessionStatus === "AUTHENTICATED") {
+    const signOut=button("Sign out",async()=>{
+      if(state.pendingMutationRun || state.unidentifiedCreation || state.creationOperation) throw new Error("Reconcile the pending operation before signing out.");
+      await api("/api/auth/sign-out",{}); await discoverSession();
+      if(state.session.authenticated) throw new Error("Sign-out could not be confirmed; no new session was started.");
+      clearCase(); history.replaceState({},"","/?view=overview");
+      state.notice="Signed out. Existing cases and receipts remain stored under their original session.";
+    },true,true);
+    signOut.disabled ||= !!state.pendingMutationRun || !!state.unidentifiedCreation || !!state.creationOperation;
+    header.append(signOut);
+  }
   const main = el("main"); main.id = "workspace"; main.tabIndex = -1;
   main.setAttribute("aria-busy",String(!!state.busy));
   const intro = el("div","",state.scenario ? "intro case-intro" : "intro");
