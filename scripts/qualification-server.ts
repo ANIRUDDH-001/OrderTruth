@@ -50,7 +50,11 @@ const { createServer } = await import('node:net');
 phase = 'loopback port ownership check';
 await new Promise<void>((yes,no) => { const probe = createServer(); probe.once('error',no); probe.listen(3003,'127.0.0.1',() => probe.close(() => yes())); });
 phase = 'V2 bootstrap and migrations';
-const app = await buildHostedApp(config);
+const {maintenanceState}=await import('../src/server/release-barrier.ts');
+const {execFileSync}=await import('node:child_process');
+const barrierFile=resolve('.work/qualification/release-barrier');
+if(!existsSync(barrierFile)) writeFileSync(barrierFile,'OPEN',{flag:'wx'});
+const app = await buildHostedApp(config,{maintenance:maintenanceState({ORDERTRUTH_BARRIER_FILE:barrierFile}),sourceSha:execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8',windowsHide:true}).trim()});
 const faultPath = '.work/qualification/fault.json';
 // Explicit local transport fault after the real handler runs. Never shipped by
 // hosted-main and never substitutes successful application/database behavior.
@@ -74,11 +78,11 @@ app.get('/qualification/identity',async () => ({ pid: process.pid,qualificationO
 app.get('/qualification/',async (_req,reply) => reply.type('text/html').send(`<!doctype html><html lang="en"><meta charset="utf-8"><title>Local qualification only</title>
 <h1>Synthetic local qualification</h1><p>This separate test harness uses the actual V2 backend, session API and disposable PostgreSQL database.
 This setup button creates only labelled synthetic fixtures. Separately authorized historical observations may also be imported for product qualification. No PayPal or AI network call is permitted.</p>
-<button id="start">Start local test session and fixture</button><p id="status" role="status"></p>
+<button id="start">Start local test session and fixture</button><button id="end">End local test session</button><p id="status" role="status"></p>
 <script>document.querySelector('#start').onclick=async()=>{const s=document.querySelector('#status');try{
 for(const path of ['/api/auth/sign-in/anonymous','/qualification/fixture']){const r=await fetch(path,{method:'POST',headers:{'content-type':'application/json'},body:'{}'});
 if(!r.ok)throw Error('Local setup failed: HTTP '+r.status);const body=await r.json();if(body.runUrl)location.assign(body.runUrl);}
-}catch(e){s.textContent=e.message}};</script></html>`));
+}catch(e){s.textContent=e.message}};document.querySelector('#end').onclick=async()=>{const r=await fetch('/api/auth/sign-out',{method:'POST',headers:{'content-type':'application/json'},body:'{}'});if(r.ok)location.assign('/?view=overview');else document.querySelector('#status').textContent='Local sign-out failed';};</script></html>`));
 app.post('/qualification/fixture',async (req,reply) => {
   if (req.headers.origin !== origin || JSON.stringify(req.body) !== '{}') return reply.code(403).send({ error: 'Same-origin empty request required' });
   const session = await app.inject({ url: '/api/session',headers: { cookie: req.headers.cookie ?? '' } });

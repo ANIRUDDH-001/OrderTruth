@@ -33,7 +33,6 @@ const auxUrl = () => `postgres://${encodeURIComponent(String(db.config.user))}:$
 const orders = async () => Number((await db.client.query("SELECT count(*) AS n FROM shop.orders WHERE intent_id = 'SYN-INT-1'")).rows[0].n);
 /** The verifier's barrier, in miniature: handlers block on advisory lock `k` after their check until the test releases it. */
 const barrier = (k: number) => async () => { const c = await aux.connect(); try { await c.query("SELECT pg_advisory_lock($1)", [k]); await c.query("SELECT pg_advisory_unlock($1)", [k]); } finally { c.release(); } };
-const waiters = async (k: number) => Number((await db.client.query("SELECT count(*) AS n FROM pg_locks WHERE locktype = 'advisory' AND objid = $1 AND NOT granted", [k])).rows[0].n);
 async function deps(withGuard: boolean): Promise<MerchantDeps> {
   const capability = await createTestCaptureAuthority({ pools: { op: pool, aux }, merchantId: "SYN-M-A", fixture, key: testKey }).issue("SYN-OBS-1");
   if (!withGuard) return { pool, afterCheck: barrier(K1), capability };

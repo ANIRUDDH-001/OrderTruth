@@ -3,6 +3,7 @@ import type { Pool, PoolClient } from "pg";
 import { withTransaction } from "../db/postgres.ts";
 import type { AttemptRow, IntentRow } from "../db/store.ts";
 import { evaluateContract, readbackFact } from "./contract.ts";
+import { recordedCapture } from "./recorded-capture.ts";
 
 type Run = { id: string; user_id: string; payment_attempt_id: string; source_evidence_seq: number; provenance: string; label: string; created_at: string };
 type ScopedIntent = IntentRow & { organization_id: string };
@@ -106,7 +107,8 @@ export class PostgresScenarioStore {
       const { run, i } = await this.owned(client,user,id);
       const orders = (await client.query(`SELECT m.*,CASE WHEN v.order_id IS NULL THEN m.status ELSE 'voided_duplicate' END AS effective_status
         FROM scenario_run_orders s JOIN merchant_orders m ON m.id=s.order_id LEFT JOIN merchant_order_voids v ON v.order_id=m.id WHERE s.run_id=$1 ORDER BY m.created_at,m.id`, [id])).rows;
-      const source = (await client.query("SELECT created_at FROM evidence WHERE seq=$1", [run.source_evidence_seq])).rows[0];
+      const source = (await client.query(`SELECT e.created_at,e.http_status,e.evidence_class,e.summary_json,a.paypal_order_id
+        FROM evidence e JOIN payment_attempts a ON a.id=e.attempt_id WHERE e.seq=$1 AND e.attempt_id=$2`, [run.source_evidence_seq,run.payment_attempt_id])).rows[0];
       const latestPlan = (await client.query(`SELECT p.id,p.plan_sha256,p.keep_order_id,p.void_order_ids_json,p.expires_at,
         EXISTS(SELECT 1 FROM repair_approvals a WHERE a.plan_id=p.id) AS approved,
         EXISTS(SELECT 1 FROM repair_executions e JOIN repair_outcomes o ON o.execution_id=e.id WHERE e.plan_id=p.id) AS has_receipt
@@ -120,6 +122,7 @@ export class PostgresScenarioStore {
       return { run, orders, organizationId: i.organization_id, intentId: i.id,
         latestPlan,latestCheck,
         paymentReference: { attemptId: run.payment_attempt_id,evidenceSeq: run.source_evidence_seq,observedAt: source.created_at as string,provenance: run.provenance,
+          recordedCapture:run.provenance==="PAYPAL_SANDBOX_GET" ? recordedCapture(source,source.paypal_order_id) : null,
           note: "Original payment observation; this run changes only controlled merchant state. No payment is cloned or modified." } };
     });
   }

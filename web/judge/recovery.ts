@@ -2,7 +2,7 @@ import type { Investigation,InvestigationEvidence,DiagnosticKind } from "../../s
 /** Essential case reads never depend on optional investigation history or write APIs. */
 export type Plan = { id: string; plan_sha256: string; keep_order_id: string; void_order_ids_json: string; expires_at: string };
 export type Scenario = { run: { id: string; label: string }; orders: Array<{ id: string; effective_status: string; amount_minor: number; currency: string }>;
-  paymentReference: { attemptId: string; evidenceSeq: number; observedAt: string; provenance: string; note: string };latestPlan?: Plan & { approved: boolean; has_receipt: boolean };
+  paymentReference: { attemptId: string; evidenceSeq: number; observedAt: string; provenance: string; note: string;recordedCapture?:{status:"COMPLETED";currency:string;value:string}|null };latestPlan?: Plan & { approved: boolean; has_receipt: boolean };
   latestCheck?: { seq: number; result: string; activeOrderCount: number; evaluatedAt: string; incidentId: string|null }|null };
 export type Receipt = { receipt: { execution_id: string; outcome: string; completed_at: string; provider_before_sha256: string; provider_after_sha256: string }; verifiedCurrent: boolean; current: { activeOrders: number; matchingKeeper: number; providerUnchanged: boolean } };
 export type ReadApi = <T>(path: string) => Promise<T>;
@@ -104,6 +104,10 @@ export function parseScenario(value: unknown,expectedRunId?: string): Scenario {
     || ![scenario.paymentReference.observedAt,scenario.paymentReference.provenance,scenario.paymentReference.note].every(v => typeof v === "string")
     || !instant(scenario.paymentReference.observedAt) || !["PAYPAL_SANDBOX_GET","SYNTHETIC_QUALIFICATION"].includes(scenario.paymentReference.provenance)) throw invalid();
   const plan = scenario.latestPlan ?? null;
+  const capture=scenario.paymentReference.recordedCapture;
+  if(capture!==undefined && capture!==null && (scenario.paymentReference.provenance!=="PAYPAL_SANDBOX_GET" || !object(capture)
+    || capture.status!=="COMPLETED" || typeof capture.currency!=="string" || !/^[A-Z]{3}$/.test(capture.currency)
+    || typeof capture.value!=="string" || !/^\d{1,12}\.\d{2}$/.test(capture.value))) throw invalid();
   const check = scenario.latestCheck;
   if (check !== undefined && check !== null && (!object(check) || !Number.isSafeInteger(check.seq) || check.seq < 1
     || !["HOLDS","VIOLATED","NOT_ELIGIBLE","OUT_OF_SCOPE"].includes(check.result)

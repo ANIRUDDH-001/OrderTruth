@@ -11,6 +11,7 @@ import * as original from "../../packages/lab-merchant/src/v-a/original.ts";
 import { V_A_CONFIG } from "../../packages/lab-merchant/src/v-a/ordertruth.config.ts";
 import * as fix from "../../packages/lab-merchant/src/v-a/reference-fix.ts";
 import { createDisposableDatabase, type DisposableDatabase } from "./harness.ts";
+import {countAdvisoryWaiters} from "./advisory-waiters.ts";
 import { fixture, until } from "./setup.ts";
 
 const testKey = Buffer.alloc(32, 7), capabilityKey = Buffer.alloc(32, 9), K1 = 4101;
@@ -32,7 +33,7 @@ const auxUrl = () => `postgres://${encodeURIComponent(String(db.config.user))}:$
 const orders = async () => Number((await db.client.query("SELECT count(*) AS n FROM shop.orders WHERE intent_id = 'SYN-INT-1'")).rows[0].n);
 /** The verifier's barrier, in miniature: handlers block on advisory lock `k` after their check until the test releases it. */
 const barrier = (k: number) => async () => { const c = await aux.connect(); try { await c.query("SELECT pg_advisory_lock($1)", [k]); await c.query("SELECT pg_advisory_unlock($1)", [k]); } finally { c.release(); } };
-const waiters = async (k: number) => Number((await db.client.query("SELECT count(*) AS n FROM pg_locks WHERE locktype = 'advisory' AND objid = $1 AND NOT granted", [k])).rows[0].n);
+const waiters = (k:number) => countAdvisoryWaiters(db.client,k);
 async function deps(withGuard: boolean): Promise<MerchantDeps> {
   const capability = await createTestCaptureAuthority({ pools: { op: pool, aux }, merchantId: "SYN-M-A", fixture, key: testKey }).issue("SYN-OBS-1");
   if (!withGuard) return { pool, afterCheck: barrier(K1), capability };

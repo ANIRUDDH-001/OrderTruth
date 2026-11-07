@@ -304,7 +304,9 @@ function caseView() {
   const caseHeading = merchant.querySelector("h2")!; caseHeading.id = "case-heading"; caseHeading.tabIndex = -1;
   const active = scenario.orders.filter(o => o.effective_status === "placed");
   const comparison = el("div","","comparison"); const payment = el("div","","payment-fact"),orders = el("div","","merchant-fact");
-  payment.append(el("span","Payment evidence","muted"),el("strong","1 recorded observation"),el("p",scenario.paymentReference.provenance === "PAYPAL_SANDBOX_GET" ? "PayPal Sandbox GET readback" : "Synthetic qualification input"),el("p","Capture amount and status are not included in this case response.","muted"));
+  const capture=scenario.paymentReference.recordedCapture;
+  payment.append(el("span","Payment evidence","muted"),el("strong","1 recorded observation"),el("p",scenario.paymentReference.provenance === "PAYPAL_SANDBOX_GET" ? "PayPal Sandbox GET readback" : "Synthetic qualification input"),
+    el("p",capture ? `Recorded capture: ${capture.status} · ${capture.currency} ${capture.value}. Historical provider observation; no fresh PayPal call.` : "Capture amount and status are unavailable in this observation.","muted"));
   orders.append(el("span","Controlled merchant outcome","muted"),el("strong",`${active.length} active ${active.length === 1 ? "order" : "orders"}`),el("p",active.length > 1 ? "One observation is linked to multiple active orders." : active.length === 1 ? "One active order remains linked to the observation." : "No active merchant orders are present in this response. Recheck the case before proceeding.")); comparison.append(payment,orders); merchant.append(comparison);
   const verdict = el("p",currentVerified ? "Current merchant state verified: one active order." : state.detected && active.length > 1 ? "Deterministic finding: duplicate active merchant orders." : "Check the merchant outcome first. Deterministic checks establish whether a duplicate is actionable.",state.detected ? "result-label" : "scope-note"); merchant.append(verdict);
   const orderList = el("div","","order-list");

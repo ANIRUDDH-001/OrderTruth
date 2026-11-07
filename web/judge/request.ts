@@ -4,6 +4,8 @@
 export class RequestError extends Error {
   constructor(message: string, readonly status: number, readonly kind: "HTTP"|"NETWORK"|"TIMEOUT"|"INVALID_RESPONSE" = "HTTP",readonly outcomeUnknown = false) { super(message); this.name = "RequestError"; }
 }
+declare const __ORDERTRUTH_SOURCE__:string|null;
+const source=typeof __ORDERTRUTH_SOURCE__ === "undefined" ? null : __ORDERTRUTH_SOURCE__;
 // Local waiting budgets, not host availability guarantees. One budget includes
 // every attempt, backoff and body read. Optional history has its own shorter budget.
 export const REQUEST_BUDGET_MS = { read: 90_000,write: 45_000,history: 8_000 } as const;
@@ -35,7 +37,7 @@ export async function requestJson<T>(path: string, body?: unknown, options: {
       if (controller.signal.aborted) throw timeoutError;
       let response: Response;
       try {
-        response = await bounded(fetchImpl(path,{ credentials: "same-origin",signal: controller.signal,...(post ? { method: "POST",headers: { "content-type": "application/json" },body: JSON.stringify(body) } : {}) }));
+        response = await bounded(fetchImpl(path,{ credentials: "same-origin",signal: controller.signal,...(post ? { method: "POST",headers: { "content-type": "application/json",...(source ? {"x-ordertruth-source":source} : {}) },body: JSON.stringify(body) } : {}) }));
       } catch { if (controller.signal.aborted) throw timeoutError; failure = new RequestError(NETWORK_MESSAGE,0,"NETWORK",post); continue; }
       let data: unknown;
       try { data = await bounded(response.json()); }

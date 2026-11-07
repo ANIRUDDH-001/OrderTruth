@@ -1,5 +1,5 @@
 param(
-  [ValidateSet('bootstrap','install','build','serve','check','stop','stop-db','pnpm')][string]$Task = 'check',
+  [ValidateSet('bootstrap','install','build','serve','check','stop','stop-db','backup-local','pnpm')][string]$Task = 'check',
   [Parameter(ValueFromRemainingArguments = $true)][string[]]$ToolArgs
 )
 $ErrorActionPreference = 'Stop'
@@ -76,6 +76,7 @@ if ($Task -eq 'bootstrap') {
   Invoke-Local -Arguments @((Join-Path $nodeDir 'node_modules/npm/bin/npm-cli.js'),'install','--prefix',(Join-Path $tools 'pnpm'),'pnpm@11.4.0','--ignore-scripts','--no-package-lock','--no-audit','--no-fund')
 } elseif (!(Test-Path $pnpm)) { throw 'Run bootstrap first to install isolated pnpm' }
 switch ($Task) {
+  'backup-local' { Invoke-Local -Arguments @('--import','tsx','scripts/release-backup-local.ts') }
   'bootstrap' { Invoke-Local -Arguments @($pnpm,'--version') }
   'install' { Invoke-Local -Arguments @($pnpm,'install','--frozen-lockfile') }
   'build' { Invoke-Local -Arguments @($pnpm,'build:frontend') }
@@ -88,6 +89,7 @@ switch ($Task) {
       throw 'Custom test configuration is excluded; use the guarded test:postgres task for PostgreSQL tests'
     }
     if ($ToolArgs -contains 'test:postgres') {
+      $safe['ORDERTRUTH_REHEARSE_BACKUP'] = 'true'
       Invoke-Local -Arguments @('--import','tsx','scripts/local-postgres.ts','check')
     }
     Invoke-Local -Arguments (@($pnpm) + $ToolArgs)

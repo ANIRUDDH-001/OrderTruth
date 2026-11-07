@@ -22,18 +22,25 @@ import { PayPalPostbackVerifier } from "../webhooks/verifier.ts";
 import { WebhookProcessor } from "../webhooks/processor.ts";
 import { EVENT_TERMINAL } from "../webhooks/inbox.ts";
 import { TokenBucket } from "../webhooks/rate-limit.ts";
+import { installReleaseBarrier } from "./release-barrier.ts";
 
-export async function buildHostedApp(config: ReturnType<typeof loadPostgresConfig>,options: { staticFiles?: boolean; schema?: string; logStream?: { write(line: string): unknown } } = {}) {
+export async function buildHostedApp(config: ReturnType<typeof loadPostgresConfig>,options: { staticFiles?: boolean; schema?: string; maintenance?: () => boolean; sourceSha?:string; migration?: "check" | "apply"; logStream?: { write(line: string): unknown } } = {}) {
   const schema = options.schema ?? "ordertruth";
   if (schema !== "ordertruth" && (process.env.NODE_ENV !== "test" || !/^qual_[a-f0-9]{20}$/.test(schema))) throw new Error("Invalid application database schema");
   const pool = createPostgresPool(config.databaseUrl);
   pool.options.options += ` -c search_path=${schema},pg_catalog`;
-  try { await migratePostgres(pool,schema); } catch (error) { await pool.end(); throw error; }
+  try {
+    if(options.migration === "check") {
+      const version=(await pool.query(`SELECT max(version) AS version FROM ${schema}.ordertruth_postgres_migrations`)).rows[0]?.version;
+      if(version!==9) throw new Error("V9 schema required; migration needs explicit release authorization");
+    } else await migratePostgres(pool,schema);
+  } catch (error) { await pool.end(); throw error; }
   const auth = createSessionAuth(pool,config.origin,config.authSecret);
   const checkoutStore = new PostgresCheckoutStore(pool,schema);
   const paypal = new PayPalClient(config.paypal);
   const checkout = new PostgresCheckoutService(paypal,checkoutStore);
   const app = Fastify({ logger: false,bodyLimit: 16_384,genReqId: () => randomUUID(),trustProxy: false });
+  installReleaseBarrier(app,options.maintenance ?? (()=>false),options.sourceSha);
   app.addHook("onClose",async () => { await pool.end(); });
   // Allowlist operational metadata. Never log raw URLs, IDs in paths, headers,
   // request/response bodies, auth payloads or exception messages.
