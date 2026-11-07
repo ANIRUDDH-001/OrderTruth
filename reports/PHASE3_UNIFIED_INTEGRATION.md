@@ -73,17 +73,41 @@ The supplied Vercel log is an **expected safety rejection** on Phase 1: builds s
 
 Independent read-only merge review: no important defects found; migration, payment/auth boundaries, frozen identities and dedicated-branch push safety retained. Reviewer did not independently rerun the reported suites.
 
-Hosted readiness remains **HOLD**: no Render/Vercel deployment, Neon inspection/migration, hosted source/schema cutover, quota validation or judge-access qualification occurred. V9 needs a separately approved maintenance/drain/backup/rollback plan. A V8 backend cannot simply be pointed at an already migrated V9 database.
+Hosted readiness remains **HOLD**: no deployment/promotion API was invoked, and no Neon inspection/migration, hosted source/schema cutover, quota validation or judge-access qualification occurred. Existing Git integration automatically attempted Vercel preview builds after push; packaging refused them. V9 needs a separately approved maintenance/drain/backup/rollback plan. A V8 backend cannot simply be pointed at an already migrated V9 database.
 
 Recommendation: unified is suitable as a reviewed development candidate with a read-only historical appendix, but **Phase 1 remains the lower-scope submission/release fallback** until hosted rehearsal qualifies the selected exact source. Do not postpone a viable Phase 1 hosted release for Docker, V3 runtime experiments or cosmetic Lab work. No claim of production readiness, fresh PayPal verification, natural webhook causality or AI superiority.
 
 Cost: initiated service spend ₹0; product PayPal/model calls 0; no billable resource or billing changes. Assistant inference billing is unmetered here.
 
-Next safe actions: inspect dedicated-branch CI; finish the separately requested Lab presentation and targeted browser checks; then owner chooses Phase 1 or unified for separately authorized hosted qualification. Preserve all original branches and evidence.
+Next safe actions: owner chooses Phase 1 or unified for separately authorized hosted qualification. Confirm the exact Neon target read-only, then approve a bounded V9 cutover and hosted merchant rehearsal separately. A usable interactive preview needs its own isolated API/database; do not bypass the existing refusal. Preserve all original branches and evidence. Docker reproduction and saved-file download verification may continue independently and must not delay a viable merchant release.
+
+## Lab case-study refinement
+
+Final qualified code SHA: **`ccd043171d590d9545989d34dc05ebc92fbae641`**. The subsequent report-only commit changes no implementation, tests, evidence or deployment configuration. Its exact publication SHA is supplied in the delivery message; a report cannot contain its own object hash.
+
+Only `web/judge/lab/view.ts`, `web/judge/lab/style.css` and `tests/lab-ui.test.ts` changed in this follow-up. The existing merchant journey was not edited. No new demo/runtime mode, dependency, font or external asset was added.
+
+VERIFIED: the default Lab view explains the business problem, recorded two-order/one-order comparison, shared guarded operation and evidence boundaries. A closed native **Technical Verification** disclosure contains every rung code, control matrix, JSON download, source identity and SHA-256. Supporting checks now use populated tables with check names, outcomes and evidence source; limitations and explanatory steps use explicitly styled text lists, with no empty items.
+
+Tests: the new disclosure/content regression failed before implementation, then **32 focused tests in four files passed**, root typecheck passed and frontend build passed. Existing publication negative controls still check fabricated/rehashed artifacts independently. This presentation-only change did not invalidate V2/V3 behavior tests; CI still runs both suites on the exact code SHA.
+
+Actual Codex built-in browser: desktop **1440px**, mobile **390px** and narrow **320px**. Default view hides technical hashes; keyboard Enter opens/closes the disclosure; nested check tables show meaningful populated rows. At 320px, document scroll width was305px, viewport320px, zero empty list items and all eight explicit artifact download links were present. Tables may scroll within their own container. Return navigation by keyboard reopened the existing genuine-observation merchant receipt; console warnings/errors were empty. Temporary viewport overrides were reset.
+
+Clean committed build displayed publishing SHA `ccd043171d590d9545989d34dc05ebc92fbae641` and **Clean publication build**, separately from historical source S. Screenshots: `.work/qualification/unified/case-study-final-desktop.png`, `case-study-mobile390.png`, `case-study-mobile320.png`, `case-study-technical-mobile.png`, `case-study-technical320.png`, `merchant-return-final.png`; machine-readable summary `browser-final.json`. These local paths are not portable public artifacts.
+
+VERIFIED: `/`, `/lab/`, `/lab/index.html`, `/owner/` and all six referenced packaged assets passed direct routing checks. All **eight** served `/lab/evidence/*` responses were HTTP200 and byte-identical to committed source files (`.work/runs/publication-http.json`). The seven historical manifest artifact hashes and all frozen identities remain unchanged. Saved-file completion through Codex's download API remains the explicit limitation above.
+
+Public artifact review: all eight JSON artifacts were inspected for credential/private-key/token/credential-URL patterns and independently reviewed for PII, private endpoints and misleading claims. No sensitive findings. URL-shaped content in historical test logs refers to public Vitest documentation. Original results were not deleted or rewritten. Historical synthetic execution remains recorded rather than independently attested; build verification establishes consistency, not fresh execution or PayPal contact.
+
+Independent review of the final presentation and public artifacts found no important defects. The reviewer did not independently exercise browser behavior. No additional product/release defect was discovered by the cosmetic pass.
 
 ## Publication checkpoint
 
-Commit/push and CI identities: pending the screened merge commit; to be updated after remote observation. The exact final publication SHA will also be supplied in the delivery message because a report cannot embed its own Git object hash.
+- Merge SHA: `4d35e1f66c8e7973ffb4203a3d7218f8cea11b43`; parents exactly V3 `c700db9b22e1db54fb75e917bb561dd50785c7eb` and Phase1 `35871bad936388ef1d8781178c6963e9feda917d`.
+- Merge CI: [42366069953](https://github.com/ANIRUDDH-001/OrderTruth/actions/runs/42366069953), **PASS** for offline/build (1,272 tests), V2 PG (56), V3 PG (113).
+- Final code SHA: `ccd043171d590d9545989d34dc05ebc92fbae641`, pushed to the dedicated branch. CI [42366481147](https://github.com/ANIRUDDH-001/OrderTruth/actions/runs/42366481147): **PASS**, all three jobs: offline/build (1,273 tests), V2 PostgreSQL (56), V3 PostgreSQL (113).
+- Vercel automatic preview `dpl_7oKqGm4yvm79WzeJhKhYJ1Ku99xw`: **expected ERROR/refused**. Read-only build-log inspection reproduced the exact `Preview API isolation is not qualified` packaging error on the final code push. This is separate from GitHub Actions success. No deployable write-capable preview was produced.
+- Remote main, Phase1 and handoff refs rechecked after publication: unchanged at the supplied SHAs. Original local checkouts and owner data preserved.
 
 UNIFIED SOURCE INTEGRATION: PASS (local scope and stated browser/Docker limitations)
 
