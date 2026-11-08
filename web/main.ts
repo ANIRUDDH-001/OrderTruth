@@ -31,9 +31,16 @@ const ownerAccess=document.querySelector<HTMLAnchorElement>('#owner-access')!;
 const ORDER_NAME='ordertruth.activePayPalOrder';
 let activeOrder:string|null=null,locked=false,busy=false,captureBusy=false,sdkReady=false;
 let acceptedOutcome:OwnerOutcome|null=null;
+let reauthenticationRequired=false;
 try{const saved=localStorage.getItem(ORDER_NAME);if(saved&&/^[A-Za-z0-9]{1,64}$/.test(saved))activeOrder=saved;}catch{}
 function rememberOrder(id:string){if(!/^[A-Za-z0-9]{1,64}$/.test(id))throw Error('Invalid Sandbox order identity');activeOrder=id;recheck.hidden=false;try{localStorage.setItem(ORDER_NAME,id);}catch{}}
 function announce(kind:string,title:string,detail:string){outcomeEl.dataset.kind=kind;heading.textContent=title;statusEl.textContent=detail;}
+function requireOwnerConfirmation(){
+ reauthenticationRequired=true;locked=true;button.hidden=true;newPurchase.hidden=true;retrySetup.hidden=true;
+ ownerAccess.href='/?view=overview&reauth=1';ownerAccess.textContent='Confirm owner access';ownerAccess.hidden=false;
+ announce('review','Confirm owner access','No payment action was accepted by this request. Confirm your owner sign-in, then reopen this saved checkout. Its order and checkout key are preserved; do not start another purchase.');
+}
+function needsOwnerConfirmation(error:unknown){return error instanceof ApiError&&error.code==='owner_reauthentication_required';}
 function showOutcome(raw:unknown){const outcome=ownerOutcome(raw);acceptedOutcome=outcome;announce(outcome.kind,outcome.heading,outcome.detail);locked=outcome.kind!=='approval';button.hidden=locked||!sdkReady;newPurchase.hidden=!outcome.canStartAnother;recheck.hidden=!activeOrder;return outcome;}
 
 function log(kind: "info" | "ok" | "error", msg: string) {
@@ -106,7 +113,8 @@ async function createOrder(): Promise<{ orderId: string }> {
     rememberOrder(o.orderId);announce('pending','Waiting for buyer approval','Approve this same reference checkout in the official PayPal Sandbox window.');return { orderId: o.orderId };
   } catch (e) {
     const code = e instanceof ApiError ? e.code : undefined;
-    if (code === "checkout_already_paid") {
+    if(needsOwnerConfirmation(e))requireOwnerConfirmation();
+    else if (code === "checkout_already_paid") {
       locked=true;button.hidden=true;
       announce('review','This checkout is already paid','Keep this checkout and recheck its recorded evidence. Do not start another payment to recover this one.');
     } else if (code === "checkout_closed") {
@@ -120,13 +128,14 @@ async function createOrder(): Promise<{ orderId: string }> {
 }
 
 async function main() {
-  const cfg = await api<{ clientId: string; environment: string; sdkUrl: string }>("/api/paypal/browser-config");
+  const cfg = await api<{ clientId: string; environment: string; sdkUrl: string;paymentActionsAllowed?:boolean }>("/api/paypal/browser-config");
   if (cfg.environment !== "sandbox" || !cfg.sdkUrl.startsWith("https://www.sandbox.paypal.com/")) throw new Error("refusing non-sandbox SDK configuration");
   if(activeOrder){
     recheck.hidden=false;
     const stored=showOutcome(await api<unknown>(`/api/orders/${encodeURIComponent(activeOrder)}`));
     if(stored.kind!=='approval')return;
   }
+  if(cfg.paymentActionsAllowed===false){requireOwnerConfirmation();return;}
   await loadSdk(cfg.sdkUrl);
   if (!window.paypal) throw new Error("PayPal SDK global missing after load");
   const sdk = await window.paypal.createInstance({ clientId: cfg.clientId, components: ["paypal-payments"], pageType: "checkout" });
@@ -153,16 +162,16 @@ async function main() {
         const code = e instanceof ApiError ? e.code : undefined;
         if (code && DO_NOT_PAY_AGAIN.has(code)) log("error", `The payment may have completed. Do NOT pay again; the outcome is confirmed by PayPal readback. (${(e as Error).message})`);
         else log("error", `capture request failed: ${(e as Error).message}. Do NOT retry blindly; run readback.`);
-        showOutcome({state:'uncertain'});
+        if(needsOwnerConfirmation(e))requireOwnerConfirmation();else showOutcome({state:'uncertain'});
       }finally{captureBusy=false;recheck.disabled=false;}
     },
     onCancel(d) {
       log("info", `buyer approval interrupted for ${d.orderId ?? "saved checkout"}`);
-      if(mayApplyPresentationEvent(acceptedOutcome,captureBusy)){locked=true;button.hidden=true;announce('review','Buyer approval interrupted','The saved checkout is retained. Recheck its evidence before paying again; cancellation does not establish rollback.');}
+      if(!reauthenticationRequired&&mayApplyPresentationEvent(acceptedOutcome,captureBusy)){locked=true;button.hidden=true;announce('review','Buyer approval interrupted','The saved checkout is retained. Recheck its evidence before paying again; cancellation does not establish rollback.');}
     },
     onError(e) {
       log("error", `SDK onError: ${String((e as Error)?.message ?? e)}`);
-      if(mayApplyPresentationEvent(acceptedOutcome,captureBusy)){showOutcome({state:'uncertain'});retrySetup.hidden=false;}
+      if(!reauthenticationRequired&&mayApplyPresentationEvent(acceptedOutcome,captureBusy)){showOutcome({state:'uncertain'});retrySetup.hidden=false;}
     },
   });
   sdkReady=true;button.removeAttribute("hidden");

@@ -8,8 +8,8 @@ The interactive prototype combines isolated merchant scenarios, evidence-grounde
 
 | Path | What it shows | Current boundary |
 |---|---|---|
-| **V2 judge experience** | A stored genuine PayPal Sandbox observation, controlled merchant fault, AI hypotheses/read-only diagnostic, exact approval and merchant-only recovery receipt | Not a fresh provider readback. AI can be cached/unavailable; prior evaluations did not demonstrate incremental AI value. Final hosted journey is NOT_TESTED in this documentation checkpoint. |
-| **V3 Integration Lab** at `/lab/` in the packaged build | Recorded synthetic concurrency defect, human-written reference fix, two matching accepted repetitions and nine intended-defect controls | Locally reproduced fixed P1/T1 lab. No applied AI migration patch, genuine PayPal transaction or arbitrary hostile-candidate qualification. Deployment of `/lab/` is NOT_TESTED here. |
+| **Merchant workspace** | Stored genuine PayPal Sandbox evidence, controlled duplicate or missing-order cases, AI hypotheses, diagnostics and exact approved duplicate correction with a verified receipt | Historical evidence is labelled. Missing-order detection waits five minutes and supports investigation only. AI can be fresh, cached or unavailable; superiority to rules is not established. |
+| **V3 Integration Lab** at `/lab/` | Recorded synthetic concurrency defect, human-written reference fix, two matching accepted repetitions and nine intended-defect controls | Fixed P1/T1 experimental contract, separate from the merchant workspace. No applied AI migration patch or general production prevention claim. |
 
 The Lab did not protect or repair the judge case's payment. Its hashes establish consistency with recorded files, not independent execution authenticity. Gate A's historical **candidate ran Node 22.18.0; the host controller ran Node 24.11.0**. W1 separately recorded supported-runtime validation on Node 22.
 
@@ -26,15 +26,15 @@ Read [claims and limitations](docs/V3_CLAIMS.md), [publication versus experiment
 
 ## Hosted application
 
-Recorded entry point: **https://order-truth.vercel.app** — *Start judge experience* uses an anonymous maintained session. Current hosted availability, the final end-to-end journey and deployment of the Lab have not been checked in W4 CP1. The configuration and measurements below are historical, not a fresh uptime or inference claim.
+Open **[OrderTruth](https://order-truth.vercel.app)** and choose **Inspect a payment outcome**. Judges need no email, password or PayPal account. The [execution ledger](docs/EXECUTION_LEDGER_PHASES_7_11.md) records qualified sources and deployments; [the submission package](docs/SUBMISSION_PACKAGE.md) contains the current product story and rehearsal.
 
 | Layer | Host | Notes |
 |---|---|---|
 | Frontend | Vercel (static build of `web/judge` and `web/owner`) | Rewrites `/api/*` to the API host, so the browser stays same-origin. |
-| API | Render, one Free web service (`pnpm hosted:start`) | API only (`SERVE_FRONTEND=false`). Free services sleep when idle: the first request after a sleep took **53 s** in a measurement on 2026-10-23; warm requests were under 1 s. |
+| API | Render, one owner-upgraded 0.5 CPU / 512 MB service | API only (`SERVE_FRONTEND=false`), coordinated releases; no additional workers or queues. |
 | Database | Neon PostgreSQL (Free) | Sessions, cases, approvals, AI inputs/results and receipts persist across restarts. |
 | Payments | PayPal **Sandbox** only | The API refuses any non-Sandbox base URL. |
-| AI | Google Gemini (`gemini-3.5-flash-lite`, free tier) | Bounded allowance; see limits below. |
+| AI | Groq GPT-OSS-120B; Gemini supported for private qualification | Approved free-only hosted allowance: 12 attempts per UTC day, three per session, one in flight, 65 seconds apart. No automatic retry or paid fallback. |
 
 Each judge gets an anonymous, server-side session and their own isolated merchant run. All runs point at one original, owner-captured PayPal Sandbox observation. Judges can introduce a controlled duplicate order, detect it, investigate with AI, run read-only diagnostics, approve the exact repair plan, execute it, and re-check or export the receipt. Judges cannot create, capture or refund payments.
 

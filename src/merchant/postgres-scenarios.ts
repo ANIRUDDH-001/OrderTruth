@@ -7,9 +7,10 @@ import { recordedCapture } from "./recorded-capture.ts";
 
 type Run = { id: string; user_id: string; payment_attempt_id: string; source_evidence_seq: number; provenance: string; label: string; created_at: string };
 type ScopedIntent = IntentRow & { organization_id: string };
+export type ScenarioKind='DUPLICATE'|'MISSING';
 export const validScenarioOperation = (key: string): boolean => /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(key);
 export class ScenarioCreationRejection extends Error {
-  constructor(readonly code: "SOURCE_UNAVAILABLE" | "SCENARIO_CAPACITY") { super(code === "SCENARIO_CAPACITY" ? "Scenario admission limit reached" : "Scenario requires a genuine Sandbox payment observation"); }
+  constructor(readonly code: "SOURCE_UNAVAILABLE" | "SCENARIO_CAPACITY" | 'OPERATION_KIND_MISMATCH') { super(code === 'OPERATION_KIND_MISMATCH'?'Operation identity differs from the existing case':code === "SCENARIO_CAPACITY" ? "Scenario admission limit reached" : "Scenario requires a genuine Sandbox payment observation"); }
 }
 export class PostgresScenarioStore {
   constructor(readonly pool: Pool, readonly schema = "ordertruth", private readonly admission = { global: 1000, perUser: 10, leaseMs: 3_600_000 }) {
@@ -30,24 +31,31 @@ export class PostgresScenarioStore {
     const i = (await client.query<ScopedIntent>("SELECT * FROM checkout_intents WHERE id=$1 FOR UPDATE", [a.intent_id])).rows[0]!;
     return { a, i };
   }
-  async create(user: string, attempt: string, operationId: string = randomUUID()): Promise<Run> { return this.createRun(user, attempt, false, operationId); }
-  async createQualification(user: string, attempt: string, operationId: string = randomUUID()): Promise<Run> {
+  async create(user: string, attempt: string, operationId: string = randomUUID(),kind:ScenarioKind='DUPLICATE'): Promise<Run> { return this.createRun(user, attempt, false, operationId,kind); }
+  async createQualification(user: string, attempt: string, operationId: string = randomUUID(),kind:ScenarioKind='DUPLICATE'): Promise<Run> {
     if (process.env.NODE_ENV !== "test") throw new Error("Synthetic scenarios are test-only");
-    return this.createRun(user, attempt, true, operationId);
+    return this.createRun(user, attempt, true, operationId,kind);
   }
-  async lookupOperation(user: string, operationId: string) {
+  async lookupOperation(user: string, operationId: string,expectedKind?:ScenarioKind) {
     if (!validScenarioOperation(operationId)) throw new Error("Invalid operation identity");
     const mapped = (await this.pool.query(`SELECT run_id FROM ${this.schema}.scenario_operations WHERE user_id=$1 AND operation_id=$2`, [user,operationId])).rows[0];
     // An absent row is deliberately UNKNOWN: another transaction may commit later.
-    return mapped ? this.get(user,mapped.run_id as string) : null;
+    const found=mapped?await this.get(user,mapped.run_id as string):null;
+    if(found&&expectedKind&&found.caseKind!==expectedKind)throw new ScenarioCreationRejection('OPERATION_KIND_MISMATCH');
+    return found;
   }
-  private async createRun(user: string, attempt: string, synthetic: boolean, operationId: string): Promise<Run> {
+  private async createRun(user: string, attempt: string, synthetic: boolean, operationId: string,kind:ScenarioKind): Promise<Run> {
     if (!validScenarioOperation(operationId)) throw new Error("Invalid operation identity");
+    if(!['DUPLICATE','MISSING'].includes(kind))throw Error('Invalid scenario kind');
     return this.tx(async client => {
       await client.query("SELECT pg_advisory_xact_lock(hashtextextended($1,0))", [JSON.stringify([this.schema,"scenario-operation",user,operationId])]);
       const existing = (await client.query<Run>(`SELECT r.* FROM scenario_operations o JOIN scenario_runs r ON r.id=o.run_id
         WHERE o.user_id=$1 AND o.operation_id=$2`, [user,operationId])).rows[0];
-      if (existing) return existing;
+      if (existing){
+        const count=(await client.query('SELECT count(*)::int n FROM scenario_run_orders WHERE run_id=$1',[existing.id])).rows[0].n;
+        if((count===0?'MISSING':'DUPLICATE')!==kind)throw new ScenarioCreationRejection('OPERATION_KIND_MISMATCH');
+        return existing;
+      }
       if (!attempt) throw new ScenarioCreationRejection("SOURCE_UNAVAILABLE");
       const { a, i } = await this.payment(client, attempt, true);
       const provenance = synthetic ? "SYNTHETIC_QUALIFICATION" : "PAYPAL_SANDBOX_GET";
@@ -65,7 +73,7 @@ export class PostgresScenarioStore {
       if (counts.total >= this.admission.global || counts.own >= this.admission.perUser) throw new ScenarioCreationRejection("SCENARIO_CAPACITY");
       const run: Run = { id: `run_${randomUUID()}`,user_id: user,payment_attempt_id: attempt,source_evidence_seq: source.seq,provenance,label: "CONTROLLED_MERCHANT_SCENARIO",created_at: new Date().toISOString() };
       await client.query("INSERT INTO scenario_runs VALUES($1,$2,$3,$4,$5,$6,$7)", Object.values(run));
-      await this.order(client, run, a, i, false);
+      if(kind==='DUPLICATE')await this.order(client, run, a, i, false);
       await client.query("INSERT INTO scenario_operations(user_id,operation_id,run_id) VALUES($1,$2,$3)", [user,operationId,run.id]);
       await client.query("INSERT INTO scenario_admissions(run_id,expires_at) VALUES($1,clock_timestamp()+$2*interval '1 millisecond')", [run.id,this.admission.leaseMs]);
       return run;
@@ -99,6 +107,7 @@ export class PostgresScenarioStore {
     return this.tx(async client => {
       const { run, a, i } = await this.owned(client,user,id);
       const count = (await client.query("SELECT count(*)::integer AS n FROM scenario_run_orders WHERE run_id=$1", [id])).rows[0].n;
+      if(count===0)throw Error('Missing-order inspection is read-only; not eligible for duplicate injection without a baseline order');
       if (count < 2) await this.order(client,run,a,i,true);
     });
   }
@@ -113,14 +122,18 @@ export class PostgresScenarioStore {
         EXISTS(SELECT 1 FROM repair_approvals a WHERE a.plan_id=p.id) AS approved,
         EXISTS(SELECT 1 FROM repair_executions e JOIN repair_outcomes o ON o.execution_id=e.id WHERE e.plan_id=p.id) AS has_receipt
         FROM repair_plans p JOIN scenario_run_plans r ON r.plan_id=p.id WHERE r.run_id=$1 ORDER BY p.created_at DESC,p.id DESC LIMIT 1`, [id])).rows[0] ?? null;
-      const latestCheck = (await client.query(`SELECT e.seq,e.result,e.active_order_count AS "activeOrderCount",e.evaluated_at AS "evaluatedAt",
+      const latestCheck = (await client.query(`SELECT e.seq,e.result,e.active_order_count AS "activeOrderCount",e.evaluated_at AS "evaluatedAt",e.facts_json::jsonb->'missingOrder' AS "missingOrder",
+        (SELECT x.incident_class FROM scenario_run_incidents r JOIN incidents x ON x.id=r.incident_id WHERE r.run_id=$1 AND x.opened_by_evaluation_seq<=e.seq ORDER BY x.opened_at DESC,x.id DESC LIMIT 1) AS "incidentClass",
         (SELECT x.id FROM scenario_run_incidents r JOIN incidents x ON x.id=r.incident_id
           WHERE r.run_id=$1 AND x.opened_by_evaluation_seq<=e.seq ORDER BY x.opened_at DESC,x.id DESC LIMIT 1) AS "incidentId"
         FROM invariant_evaluations e WHERE e.intent_id=$2 AND left(e.run_id,6)='check_'
           AND e.facts_json::jsonb->'repairFacts'->>'scenarioRunId'=$1 ORDER BY e.seq DESC LIMIT 1`, [id,i.id])).rows[0] ?? null;
       if (latestCheck && latestCheck.result !== "VIOLATED") latestCheck.incidentId = null;
+      const diagnostics=(await client.query("SELECT id,kind,facts_json,created_at FROM scenario_diagnostics WHERE run_id=$1 ORDER BY created_at,id",[id])).rows.map(row=>({
+        id:row.id as string,source:'MERCHANT_DIAGNOSTIC' as const,observedAt:row.created_at as string,facts:JSON.parse(row.facts_json) as Record<string,unknown>,
+      }));
       return { run, orders, organizationId: i.organization_id, intentId: i.id,
-        latestPlan,latestCheck,
+        latestPlan,latestCheck,diagnostics,caseKind:orders.length===0?'MISSING' as const:'DUPLICATE' as const,
         paymentReference: { attemptId: run.payment_attempt_id,evidenceSeq: run.source_evidence_seq,observedAt: source.created_at as string,provenance: run.provenance,
           recordedCapture:run.provenance==="PAYPAL_SANDBOX_GET" ? recordedCapture(source,source.paypal_order_id) : null,
           note: "Original payment observation; this run changes only controlled merchant state. No payment is cloned or modified." } };

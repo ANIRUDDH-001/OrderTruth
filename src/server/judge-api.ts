@@ -19,7 +19,7 @@ export function registerJudgeApi(app: FastifyInstance, options: {
   const id = z.string().regex(/^[a-zA-Z0-9_-]{1,100}$/);
   const empty = z.object({}).strict();
   const operation = z.string().refine(validScenarioOperation);
-  const creationBody = z.object({ operationId: operation }).strict();
+  const creationBody = z.object({ operationId: operation,caseKind:z.enum(['DUPLICATE','MISSING']).default('DUPLICATE') }).strict();
   const planBody = z.object({ planId: id }).strict();
   const approvalBody = z.object({ planId: id,planSha256: z.string().regex(/^[a-f0-9]{64}$/) }).strict();
   const investigationStore = new PostgresInvestigationStore(options.pool,options.schema);
@@ -68,18 +68,18 @@ export function registerJudgeApi(app: FastifyInstance, options: {
       const operationId = parsed.data.operationId;
       try {
         // Resolve committed operations before discovering/validating today's source.
-        const existing = await scenarios.lookupOperation(identity.userId,operationId);
+        const existing = await scenarios.lookupOperation(identity.userId,operationId,parsed.data.caseKind);
         if (existing) return { ...existing,creation: { operationId,outcome: "COMMITTED" } };
         const source = options.sourceAttemptId ?? (await options.pool.query(`SELECT a.id FROM ${options.schema}.payment_attempts a
           JOIN ${options.schema}.evidence e ON e.attempt_id=a.id WHERE a.state='captured' AND e.evidence_class='PAYPAL_API_READBACK'
           AND e.http_status=200 AND e.summary_json::jsonb->>'provenance'='PAYPAL_SANDBOX_GET' ORDER BY e.seq DESC LIMIT 1`)).rows[0]?.id as string | undefined;
         // Even no-source requests enter same-key serialization: a prior request
         // may have committed since the read above, in which case it wins.
-        const run = await scenarios.create(identity.userId,source ?? "",operationId);
+        const run = await scenarios.create(identity.userId,source ?? "",operationId,parsed.data.caseKind);
         return { ...await scenarios.get(identity.userId,run.id),creation: { operationId,outcome: "COMMITTED" } };
       } catch (error) {
-        if (error instanceof ScenarioCreationRejection) return reply.code(error.code === "SCENARIO_CAPACITY" ? 429 : 503).send({
-          error: error.code === "SCENARIO_CAPACITY" ? "Scenario capacity reached; existing receipts remain available" : "An owner-approved Sandbox observation is not available yet",
+        if (error instanceof ScenarioCreationRejection) return reply.code(error.code==='OPERATION_KIND_MISMATCH'?409:error.code === "SCENARIO_CAPACITY" ? 429 : 503).send({
+          error: error.code==='OPERATION_KIND_MISMATCH'?'This operation already belongs to a different case type':error.code === "SCENARIO_CAPACITY" ? "Scenario capacity reached; existing receipts remain available" : "An owner-approved Sandbox observation is not available yet",
           outcome: "REJECTED",code: error.code,
         });
         request.log.warn({ evt: "scenario_creation_unknown",requestId: request.id });

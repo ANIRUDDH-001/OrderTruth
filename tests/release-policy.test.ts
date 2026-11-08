@@ -6,6 +6,10 @@ it('enables a one-reservation Groq qualification only in NORMAL; HOLD and defaul
   expect(command).toContain('AI_PROVIDER=disabled AI_DAILY_LIMIT=0 AI_USER_DAILY_LIMIT=0');expect(command).not.toContain('AI_PROVIDER=groq');
  }
 });
+it('retains the separately approved bounded rollout only when explicitly selected',()=>{
+ expect(releaseStartCommand('normal','approved-rollout')).toContain('AI_DAILY_LIMIT=12 AI_USER_DAILY_LIMIT=3');
+ expect(releaseStartCommand('hold','approved-rollout')).toContain('AI_PROVIDER=disabled');
+});
 it("requires the latest attempt of every CI gate, not an old green result",()=>{
  const checks=['offline','postgres','v3-postgres'].map((name,id)=>({id:id+1,name,status:'completed',conclusion:'success',started_at:'2026-11-07T00:00:00Z'}));
  expect(()=>requireGreenChecks(checks)).not.toThrow();

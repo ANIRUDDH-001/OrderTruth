@@ -2,16 +2,19 @@ import type { InvestigationEvidence,DiagnosticKind } from "../../src/ai/investig
 import { RequestError,requestJson,slowNotice,REQUEST_BUDGET_MS } from "./request.ts";
 import { readCase,readSession,parseCreation,parsePendingCreation,parseOperation,detectedFromCase,validateHistory,parseDiagnostic,planExpired,aiAvailability,type PendingCreation,type Analysis,type Scenario,type Plan,type Receipt,type Session,type SessionStatus } from "./recovery.ts";
 import { describeHandlerTiming,type TimingRow } from "./diagnostics.ts";
+import {evidenceLabel,hasNewDiagnostics,parseCaseDiagnostics} from './investigation-labels.ts';
 import {initPwa} from './pwa.ts';
 
 const root = document.querySelector<HTMLElement>("#app")!;
 const state = { session: { authenticated: false } as Session,sessionStatus: "UNKNOWN" as SessionStatus,scenario: null as Scenario|null,analysis: null as Analysis|null,plan: null as Plan|null,receipt: null as Receipt|null,
-  approved: false,detected: false,needsRecheck: false,pendingMutationRun: null as string|null,unidentifiedCreation: null as string|null,creationOperation: null as PendingCreation|null,busy: "",error: "",notice: "",maintenance:false,historyNotice: "",role: "operations",ownerForm: false,diagnostics: [] as InvestigationEvidence[] };
+  approved: false,detected: false,needsRecheck: false,pendingMutationRun: null as string|null,unidentifiedCreation: null as string|null,creationOperation: null as PendingCreation|null,busy: "",error: "",notice: "",maintenance:false,historyNotice: "",diagnosticNotice:'',role: "operations",ownerForm: false,diagnostics: [] as InvestigationEvidence[] };
 const CREATION_MARKER = "ordertruth.judge.unidentifiedCreation";
 const MUTATION_MARKER = "ordertruth.judge.pendingMutation";
 const CREATION_LIMITATION = "Creation outcome remains uncertain. This UI cannot locate or reconcile that creation without a validated case ID. Existing case reads do not establish rollback; no POST was repeated.";
 let historyRevision = 0;
 let accountOpen = false;
+let ownerReauthentication=new URL(location.href).searchParams.get('reauth')==='1';
+if(ownerReauthentication)state.ownerForm=true;
 let planExpiryTimer: ReturnType<typeof setTimeout>|undefined;
 function el<K extends keyof HTMLElementTagNameMap>(tag: K,text = "",className = ""): HTMLElementTagNameMap[K] { const node = document.createElement(tag); node.textContent = text; node.className = className; return node; }
 function section(title: string,description: string) { const node = el("section","","panel"); node.append(el("h2",title),el("p",description,"muted")); return node; }
@@ -110,7 +113,7 @@ async function discoverSession() {
   }
   catch (error) { state.sessionStatus = "UNKNOWN"; clearCase(); throw error; }
 }
-function clearAdvisory() { historyRevision++; state.analysis = null; state.diagnostics = []; state.historyNotice = ""; }
+function clearAdvisory() { historyRevision++; state.analysis = null; state.diagnostics = []; state.historyNotice = ""; state.diagnosticNotice=''; }
 function clearCase() { clearAdvisory(); state.scenario = null; state.plan = null; state.receipt = null; state.approved = false; state.detected = false; }
 async function restoreCase(runId: string) {
   const restored = await readCase(api,runId).catch(error => { state.needsRecheck = true; throw error; });
@@ -118,6 +121,10 @@ async function restoreCase(runId: string) {
   const same = state.scenario?.run.id === runId;
   if (!same || JSON.stringify(state.scenario?.orders) !== JSON.stringify(restored.scenario.orders)) clearAdvisory();
   state.scenario = restored.scenario; state.plan = restored.plan; state.receipt = restored.receipt;
+  if(restored.scenario.diagnostics!==undefined){
+    try{state.diagnostics=parseCaseDiagnostics(restored.scenario.diagnostics);state.diagnosticNotice='';}
+    catch{state.diagnostics=[];state.diagnosticNotice='Current diagnostic details could not be validated. Case and receipt recovery remain available.';}
+  }
   state.approved = restored.plan?.approved ?? false; state.detected = detectedFromCase(restored.scenario);
   rememberRun(runId);
 }
@@ -151,7 +158,8 @@ function restoreHistory(runId: string) {
   void requestJson<Analysis|null>(`/api/scenarios/${encodeURIComponent(runId)}/investigation`,undefined,{ deadlineMs: REQUEST_BUDGET_MS.history }).then(analysis => {
     if (revision !== historyRevision || state.scenario?.run.id !== runId) return;
     validateHistory(analysis);
-    state.analysis = analysis; state.diagnostics = analysis?.evidence.filter(e => e.source === "MERCHANT_DIAGNOSTIC") ?? []; state.historyNotice = "";
+    state.analysis = analysis;
+    state.diagnostics=[...new Map([...(analysis?.evidence.filter(e=>e.source==='MERCHANT_DIAGNOSTIC')??[]),...state.diagnostics].map(e=>[e.id,e])).values()];state.historyNotice = "";
   }).catch(() => {
     if (revision === historyRevision && state.scenario?.run.id === runId) state.historyNotice = "Saved AI history is unavailable. Your case and receipt can still be rechecked without AI.";
   }).finally(() => { if (revision === historyRevision && state.scenario?.run.id === runId) refreshHistoryPanel(); });
@@ -189,7 +197,7 @@ async function sendCreation(operation: PendingCreation) {
   if (!state.session.authenticated || state.session.userId !== operation.userId || state.pendingMutationRun) throw new Error("Restore the original session and reconcile any pending case mutation first.");
   try {
     // The only intentional write while creation is uncertain: the same durable, owner-scoped idempotency key.
-    const scenario = parseCreation(await requestJson<unknown>("/api/scenarios",{ operationId: operation.operationId }),operation.operationId);
+    const scenario = parseCreation(await requestJson<unknown>("/api/scenarios",{ operationId: operation.operationId,...(operation.caseKind?{caseKind:operation.caseKind}:{}) }),operation.operationId);
     await restoreCase(scenario.run.id);saveCaseLocation(scenario.run.id);markCreation(null);state.needsRecheck = false;
   } catch (error) {
     state.needsRecheck = true;
@@ -207,7 +215,7 @@ function markMutation(runId: string|null) {
   state.pendingMutationRun = runId;
   try { if (runId) localStorage.setItem(MUTATION_MARKER,runId); else localStorage.removeItem(MUTATION_MARKER); } catch { /* Never clear the in-memory obligation because storage failed. */ }
 }
-async function createCase() {
+async function createCase(kind:'DUPLICATE'|'MISSING'='DUPLICATE') {
   // A click is never evidence that a previous sign-in failed. Discover first.
   await discoverSession();
   if (state.needsRecheck) throw new Error("Resume/Recheck Case before creating another case. The previous outcome has not been reconciled.");
@@ -215,7 +223,7 @@ async function createCase() {
     await api("/api/auth/sign-in/anonymous",{}); await discoverSession();
     if (!state.session.authenticated) throw new Error("Session could not be confirmed. Resume/Recheck Case before trying again.");
   }
-  const operation = { operationId: crypto.randomUUID(),userId: state.session.userId! };
+  const operation:PendingCreation = { operationId: crypto.randomUUID(),userId: state.session.userId!,...(kind==='MISSING'?{caseKind:kind}:{}) };
   persistCreation(operation);
   await sendCreation(operation);
 }
@@ -261,7 +269,7 @@ function render() {
   intro.append(el("p","Payment integrity, beyond the payment.","kicker"),el("h1",state.scenario ? state.receipt?.verifiedCurrent && !state.needsRecheck ? "Correction made. Outcome verified." : "One payment. Follow every order." : "A successful payment doesn’t guarantee the merchant order is correct."),
     el("p",state.scenario ? "Inspect the recorded evidence, compare the merchant outcome, and make a correction you can verify." : "OrderTruth connects payment evidence to the merchant outcome. Find a discrepancy, understand it, and verify an exact, human-approved correction.","lead"));
   main.append(intro);
-  if (state.ownerForm && !state.session.owner) main.append(ownerForm());
+  if (state.ownerForm && (!state.session.owner||ownerReauthentication)) main.append(ownerForm());
   const progress = el("p",state.busy ? `${state.busy}…` : "","notice"); progress.id = "request-status"; progress.hidden = !state.busy; progress.setAttribute("role","status"); progress.setAttribute("aria-live","polite"); progress.setAttribute("aria-atomic","true"); root.append(progress);
   if (state.error) { const error = el("p",state.error,"error"); error.id = "action-error"; error.tabIndex = -1; error.setAttribute("role","alert"); main.append(error); }
   else if (state.notice && !state.busy) { const notice = el("p",state.notice,"notice"); notice.setAttribute("role","status"); main.append(notice); }
@@ -275,7 +283,9 @@ function render() {
       main.append(connection);
     } else {
     connection.append(el("strong",state.busy ? "Confirming your session" : state.sessionStatus === "UNKNOWN" ? "Connection needs attention" : state.needsRecheck ? "Recover the previous request first" : state.session.owner ? "Ready to investigate as the owner" : "Ready to investigate as a guest"),el("p",state.busy ? "You can read the workflow while we connect. This can take up to 90 seconds if the server is waking from idle." : state.sessionStatus === "UNKNOWN" ? "The server could not confirm your session. Recheck the connection to try a read-only request. No payment or repair will be submitted." : state.needsRecheck ? "Recheck the saved operation before starting another case. A timeout or incomplete response does not establish rollback." : state.session.owner ? "You are signed in as the owner. Inspect a recorded outcome, or open protected Sandbox checkout from your account menu. This does not create a payment." : "No registration or owner password is needed. Begin with a stored PayPal Sandbox observation and your own controlled merchant case. This does not charge a buyer.","muted"));
-    toolbar.append(start,button("Resume/Recheck Case",resumeCase,!state.needsRecheck)); connection.append(toolbar); main.append(connection);
+    toolbar.append(start,button("Resume/Recheck Case",resumeCase,!state.needsRecheck)); connection.append(toolbar);
+    const other=el('details');other.append(el('summary','Explore another integrity case'),el('p','Inspect a controlled reference case with no merchant order. It uses the stored payment observation, respects a five-minute merchant grace, and does not create or capture a payment.','muted'));
+    const missingStart=button('Inspect a missing-order case',()=>createCase('MISSING'),true);missingStart.disabled||=start.disabled;other.append(missingStart);connection.append(other);main.append(connection);
     }
   } else {
     toolbar.append(button("Resume/Recheck Case",resumeCase,true));
@@ -324,13 +334,13 @@ function render() {
 }
 function caseView() {
   const currentVerified = state.receipt?.verifiedCurrent === true && !state.needsRecheck;
-  const scenario = state.scenario!; const container = el("div");
+  const scenario = state.scenario!; const missing=scenario.caseKind==='MISSING';const container = el("div");
   const provenance = el("aside","","provenance");
   provenance.append(el("strong",scenario.paymentReference.provenance === "PAYPAL_SANDBOX_GET" ? "Original PayPal Sandbox observation" : "Synthetic qualification observation"),
     el("span",`Observed ${dateTime(scenario.paymentReference.observedAt)} · Evidence E${scenario.paymentReference.evidenceSeq}`),el("p",scenario.paymentReference.note)); container.append(provenance);
   const flow = el("ol","","flow");
-  const stages: Array<[string,boolean]> = [["Payment",true],["Detect",!!scenario.latestCheck],["Investigate (optional)",!!state.analysis],["Resolve",state.receipt?.receipt.outcome === "SUCCEEDED"],["Verify",!!state.receipt?.verifiedCurrent && !state.needsRecheck]];
-  const current = state.receipt?.verifiedCurrent && !state.needsRecheck ? -1 : state.receipt ? 4 : state.plan || state.detected ? 3 : 1;
+  const stages: Array<[string,boolean]> = missing?[["Payment",true],["Detect",state.detected],["Investigate (optional)",!!state.analysis]]:[["Payment",true],["Detect",!!scenario.latestCheck],["Investigate (optional)",!!state.analysis],["Resolve",state.receipt?.receipt.outcome === "SUCCEEDED"],["Verify",!!state.receipt?.verifiedCurrent && !state.needsRecheck]];
+  const current = missing?(state.detected?2:1):state.receipt?.verifiedCurrent && !state.needsRecheck ? -1 : state.receipt ? 4 : state.plan || state.detected ? 3 : 1;
   stages.forEach(([label,done],i) => { const item = el("li","",done ? "done" : current === i ? "current" : ""); item.append(el("strong",label),el("span",done ? "Complete" : i === 2 ? "Optional" : i === current ? "Current step" : "Upcoming")); if (current === i) item.setAttribute("aria-current","step"); flow.append(item); }); container.append(flow);
   const grid = el("div","","case-grid");
   const merchant = section("Does the merchant outcome match?","A stored payment observation and the merchant orders linked to it are different sources of evidence."); merchant.className += " merchant-panel";
@@ -340,26 +350,31 @@ function caseView() {
   const capture=scenario.paymentReference.recordedCapture;
   payment.append(el("span","Payment evidence","muted"),el("strong","1 recorded observation"),el("p",scenario.paymentReference.provenance === "PAYPAL_SANDBOX_GET" ? "PayPal Sandbox GET readback" : "Synthetic qualification input"),
     el("p",capture ? `Recorded capture: ${capture.status} · ${capture.currency} ${capture.value}. Historical provider observation; no fresh PayPal call.` : "Capture amount and status are unavailable in this observation.","muted"));
-  orders.append(el("span","Controlled merchant outcome","muted"),el("strong",`${active.length} active ${active.length === 1 ? "order" : "orders"}`),el("p",active.length > 1 ? "One observation is linked to multiple active orders." : active.length === 1 ? "One active order remains linked to the observation." : "No active merchant orders are present in this response. Recheck the case before proceeding.")); comparison.append(payment,orders); merchant.append(comparison);
-  const verdict = el("p",currentVerified ? "Current merchant state verified: one active order." : state.detected && active.length > 1 ? "Deterministic finding: duplicate active merchant orders." : "Check the merchant outcome first. Deterministic checks establish whether a duplicate is actionable.",state.detected ? "result-label" : "scope-note"); merchant.append(verdict);
+  orders.append(el("span","Controlled merchant outcome","muted"),el("strong",`${active.length} active ${active.length === 1 ? "order" : "orders"}`),el("p",active.length > 1 ? "One observation is linked to multiple active orders." : active.length === 1 ? "One active order remains linked to the observation." : missing?"This controlled case deliberately omits the reference merchant order. A finding requires the waiting period and matching payment evidence.":"No active merchant orders are present in this response. Recheck the case before proceeding.")); comparison.append(payment,orders); merchant.append(comparison);
+  const verdict = el("p",missing?state.detected?'Deterministic finding: no reference merchant order after the recorded grace period. This does not establish a payment failure.':'Controlled missing-order inspection: no reference merchant order is created in this case. Check the condition; a missing-order finding requires the grace period to expire.':currentVerified ? "Current merchant state verified: one active order." : state.detected && active.length > 1 ? "Deterministic finding: duplicate active merchant orders." : "Check the merchant outcome first. Deterministic checks establish whether a duplicate is actionable.",state.detected ? "result-label" : "scope-note"); merchant.append(verdict);
+  if(missing&&scenario.latestCheck?.missingOrder?.dueAt)merchant.append(el('p',`Merchant grace deadline: ${dateTime(scenario.latestCheck.missingOrder.dueAt)}. Rechecking the saved case is read-only; use the condition check after this deadline to record a new assessment.`,'muted'));
   const orderList = el("div","","order-list");
   scenario.orders.forEach((order,index) => { const row = el("div","","order-row"); const description = el("div"); description.append(el("strong",`Merchant order ${index+1}`),el("span",`${formatMoney(order.amount_minor,order.currency)} · Merchant amount`,"muted")); row.append(description,el("span",order.effective_status === "placed" ? "Active" : "Voided duplicate",order.effective_status === "placed" ? "badge" : "badge neutral")); orderList.append(row); }); merchant.append(orderList);
   merchant.append(json("Case identity and full order records",{ caseId: scenario.run.id,orders: scenario.orders }));
   const actions = el("div","","actions");
   if (scenario.orders.length === 1 && !state.plan) { merchant.append(el("p","Controlled fault injection: introduce one additional merchant order linked to the same observation. This is a deliberate local write, not a new payment or natural webhook delivery.","scope-note")); actions.append(button("Introduce duplicate",() => mutateCase("duplicate"),false,true)); }
-  if (!state.receipt?.verifiedCurrent && (active.length > 1 || state.detected)) actions.append(button("Detect anomaly",async () => {
+  if (!state.receipt?.verifiedCurrent && (missing||active.length > 1 || state.detected)) actions.append(button(missing?'Check missing-order condition':"Detect anomaly",async () => {
     markMutation(scenario.run.id);
     const checked = await api<{ result?: unknown }>(path("check"),{});
     if (!checked || !["VIOLATED","HOLDS","NOT_ELIGIBLE","OUT_OF_SCOPE"].includes(String(checked.result))) { state.needsRecheck = true; throw new Error("Invalid check response. Recheck the persisted case; the check was not replayed."); }
     await restoreCase(scenario.run.id); // Only the persisted explicit check controls progression.
     markMutation(null); state.needsRecheck = false;
-    if (!state.detected) state.notice = "The current order state does not establish an actionable duplicate. Recheck the evidence before planning a correction.";
+    if (!state.detected) state.notice = missing?'No actionable missing-order finding is established yet. Review the grace deadline and the latest payment evidence.':"The current order state does not establish an actionable duplicate. Recheck the evidence before planning a correction.";
   },state.detected,true));
   else if (currentVerified) actions.append(el("p","This case is recovered. You can recheck the receipt or continue with another isolated case below.","muted"));
   merchant.append(actions); grid.append(merchant);
   if (!state.receipt) grid.append(investigationView());
 
   const recovery = section("Review the correction","An exact plan keeps one merchant order and locally voids the duplicates. Approval and execution are separate decisions."); recovery.className += " recovery-panel";
+  if(missing){
+    recovery.replaceChildren(el('h2','Merchant follow-up'),el('p','This missing-order case supports investigation only. Duplicate-order repair cannot create a missing order, fulfill a purchase, capture or refund a payment.','scope-note'),el('p','Inspect committed merchant writes and recorded handler timing. Absence of a committed row does not prove that no write was attempted. Any fulfillment correction requires its own reviewed merchant workflow.'));
+    grid.append(recovery);container.append(grid);return container;
+  }
   recovery.id = "recovery-panel";
   const reviewHeading = recovery.querySelector("h2")!; reviewHeading.id = "review-heading"; reviewHeading.tabIndex = -1;
   const completed = state.receipt?.verifiedCurrent === true && state.receipt.receipt.outcome === "SUCCEEDED";
@@ -399,8 +414,10 @@ function investigationView() {
   investigation.id = "investigation-panel";
   const heading = investigation.querySelector("h2")!; heading.id = "investigation-heading"; heading.tabIndex = -1;
   const notice = el("p",state.historyNotice,"muted"); notice.id = "saved-history-status"; notice.setAttribute("role","status"); investigation.append(notice);
-  investigation.append(el("p",state.receipt ? "Review the receipt for the current merchant outcome. Any saved advisory below describes its historical evidence snapshot." : state.detected ? "Confirmed finding: multiple active merchant orders reference the same recorded payment observation. This establishes a merchant discrepancy, not its cause." : "Check the merchant outcome first. Optional investigation becomes available after an actionable discrepancy is confirmed.","baseline"));
-  const ai = button("Investigate with AI",async () => {
+  if(state.diagnosticNotice)investigation.append(el('p',state.diagnosticNotice,'scope-note'));
+  investigation.append(el("p",state.receipt ? "Review the receipt for the current merchant outcome. Any saved advisory below describes its historical evidence snapshot." : state.detected ? state.scenario?.caseKind==='MISSING'?'Confirmed finding: no reference merchant order exists after grace. Investigate merchant writes; this does not establish the cause or authorize fulfillment.':"Confirmed finding: multiple active merchant orders reference the same recorded payment observation. This establishes a merchant discrepancy, not its cause." : "Check the merchant outcome first. Optional investigation becomes available after an actionable discrepancy is confirmed.","baseline"));
+  const newerEvidence=!!state.analysis?.investigation&&hasNewDiagnostics(state.analysis.evidence,state.diagnostics);
+  const ai = button(newerEvidence?'Reassess with new evidence':"Investigate with AI",async () => {
     historyRevision++; state.historyNotice = "";
     const analysis = await api<unknown>(path("investigate"),{});
     try { validateHistory(analysis); if (!analysis) throw new Error("AI response returned invalid data"); }
@@ -409,13 +426,16 @@ function investigationView() {
   },true,true); ai.disabled ||= !state.detected; if (!state.receipt) investigation.append(ai);
   const analysis = state.analysis;
   if (analysis) {
+    if(newerEvidence)investigation.append(el('p','New diagnostic evidence is available. The saved AI advice predates it; reassess to include the new findings. Rechecking alone does not run AI.','scope-note'));
     investigation.append(el("p",analysis.status === "FRESH" ? "Fresh AI inference" : analysis.status === "CACHED" ? "Cached AI result — no new model execution" : "AI unavailable — rules-based guidance","result-label"));
     investigation.append(el("p",analysis.baseline.summary,"baseline"));
     if (analysis.generatedAt) investigation.append(el("p",`${analysis.model ?? "Model"} · Generated ${dateTime(analysis.generatedAt)}`,"muted"));
     if (analysis.snapshotSha256) investigation.append(json("Analysis snapshot identity",{ sha256: analysis.snapshotSha256 }));
     if (analysis.investigation) {
       investigation.append(el("p",analysis.investigation.summary));
-      for (const hypothesis of analysis.investigation.hypotheses) { const article = el("article","","hypothesis"); article.append(el("strong",`Hypothesis · ${hypothesis.confidence.toLowerCase()} confidence`),el("p",hypothesis.explanation),el("p",`Evidence: ${hypothesis.evidenceIds.join(", ")}`,"evidence-ids")); investigation.append(article); }
+      for (const hypothesis of analysis.investigation.hypotheses) { const article = el("article","","hypothesis");
+        const citations=state.role==='engineering'?hypothesis.evidenceIds:[...new Set(hypothesis.evidenceIds.map(id=>evidenceLabel(id,analysis.evidence)))];
+        article.append(el("strong",`Hypothesis · ${hypothesis.confidence.toLowerCase()} confidence`),el("p",hypothesis.explanation),el("p",`Evidence: ${citations.join(", ")}`,"evidence-ids")); investigation.append(article); }
       investigation.append(el("p",analysis.investigation.diagnosticReason));
     } else investigation.append(el("p",aiAvailability(analysis.reason,analysis.retryAt),"scope-note"));
     const next = analysis.investigation?.nextDiagnostic ?? analysis.baseline.nextDiagnostic;
@@ -423,13 +443,13 @@ function investigationView() {
     investigation.append(json("Evidence snapshot used for this investigation",analysis.evidence));
     investigation.append(el("p","This analysis describes its recorded evidence snapshot. Rechecking the case does not rerun AI or turn a hypothesis into a fact.","muted"));
   }
-  if (!analysis && state.detected && !state.receipt) investigation.append(button("Run idempotency-key comparison",() => diagnostic("IDEMPOTENCY_KEYS"),true,true));
+  if (!analysis && state.detected && !state.receipt) {const kind=state.scenario?.caseKind==='MISSING'?'MERCHANT_WRITE_OUTCOMES':'IDEMPOTENCY_KEYS';investigation.append(button(`Run ${diagnosticName(kind)}`,() => diagnostic(kind),true,true));}
   for (const evidence of state.diagnostics) {
     const facts = evidence.facts;
     if (facts.diagnostic === "HANDLER_TIMING") investigation.append(timingView(evidence));
     else investigation.append(el("p",facts.diagnostic === "IDEMPOTENCY_KEYS" ? `${String(facts.distinctKeys)} distinct merchant write keys observed. Separate keys can allow duplicate writes.`
       : `${String(facts.committedWrites)} committed controlled merchant writes observed.`));
-    investigation.append(json(`${String(facts.diagnostic)} · ${evidence.id}`,evidence));
+    investigation.append(json(state.role==='engineering'?`${String(facts.diagnostic)} · ${evidence.id}`:`${evidenceLabel(evidence.id,[evidence])} · technical evidence`,evidence));
   }
   if (state.role === "engineering") {
     const advanced = el("details"); advanced.append(el("summary","Advanced merchant diagnostics"),el("p","These inspect controlled merchant writes and persist diagnostic evidence; they do not call PayPal.","muted"));
@@ -451,14 +471,14 @@ function refreshHistoryPanel() {
 function timingView(evidence: InvestigationEvidence) {
   const timing = describeHandlerTiming(evidence.facts,state.scenario?.run.label === "CONTROLLED_MERCHANT_SCENARIO");
   const view = el("div","","timing");
-  view.append(el("strong","Handler timing check"),el("p",`Evidence ${evidence.id} · recorded ${new Date(evidence.observedAt).toLocaleString()}`,"muted"));
+  view.append(el("strong","Handler timing check"),el("p",`${state.role==='engineering'?`Evidence ${evidence.id} · `:''}Recorded ${new Date(evidence.observedAt).toLocaleString()}`,"muted"));
   if (timing.rows.length) {
     // One column per write keeps the table inside the narrow investigation panel.
     const wrap = el("div","","table-scroll"),table = el("table"),thead = el("thead"),head = el("tr"),body = el("tbody");
     head.append(el("td"));
     timing.rows.forEach((_,index) => { const th = el("th",`Write ${index+1}`); th.setAttribute("scope","col"); head.append(th); });
     const fields: Array<[string,(row: TimingRow) => HTMLTableCellElement]> = [
-      ["Order",row => cell(row.orderId)],["Written by",row => cell(row.handler)],
+      ["Order",row => cell(state.role==='engineering'?row.orderId:state.scenario?.orders.some(o=>o.id===row.orderId)?orderName(row.orderId):'Unmatched merchant order')],["Written by",row => cell(row.handler)],
       ["Started",row => cell(clock(row.startedAt),row.startedAt)],["Finished",row => cell(clock(row.finishedAt),row.finishedAt)],["Took",row => cell(`${row.durationMs} ms`)]];
     for (const [label,value] of fields) {
       const tr = el("tr"),th = el("th",label); th.setAttribute("scope","row");
@@ -477,7 +497,8 @@ function clock(iso: string) { return new Date(iso).toLocaleTimeString(undefined,
 function diagnosticName(kind: DiagnosticKind) { return ({ HANDLER_TIMING: "handler timing check",IDEMPOTENCY_KEYS: "idempotency-key comparison",MERCHANT_WRITE_OUTCOMES: "merchant write-outcome check" })[kind]; }
 function ownerForm() {
   const sectionNode = section("Owner access","Owner sign-in enables genuine Sandbox checkout. Judges need no payment permissions.");
-  if (state.session.owner) { const link = el("a","Open owner Sandbox checkout","button"); link.href = "/owner/"; sectionNode.append(link); return sectionNode; }
+  if (state.session.owner&&!ownerReauthentication) { const link = el("a","Open owner Sandbox checkout","button"); link.href = "/owner/"; sectionNode.append(link); return sectionNode; }
+  if(ownerReauthentication)sectionNode.append(el('p','Confirm your password to renew protected payment access. Your saved checkout remains available.','scope-note'));
   const form = el("form"); const email = el("input"); email.type = "email"; email.autocomplete = "username"; email.required = true; email.id = "owner-email";
   const password = el("input"); password.type = "password"; password.autocomplete = "current-password"; password.required = true; password.id = "owner-password";
   const emailLabel = el("label","Owner account"); emailLabel.htmlFor = email.id; const passwordLabel = el("label","Password"); passwordLabel.htmlFor = password.id;
@@ -485,7 +506,7 @@ function ownerForm() {
   form.append(emailLabel,email,passwordLabel,password,submit);
   form.addEventListener("submit",event => { event.preventDefault(); const credentials = { email: email.value,password: password.value }; password.value = "";
     if (state.busy) return;
-    void run("Signing in",async () => { await discoverSession(); await api("/api/auth/sign-in/email",credentials); await discoverSession(); clearCase(); }); });
+    void run("Signing in",async () => { await discoverSession(); await api("/api/auth/sign-in/email",credentials); await discoverSession(); clearCase();if(ownerReauthentication&&state.session.owner){ownerReauthentication=false;history.replaceState({},'', '/?view=overview');state.notice='Owner access confirmed. Reopen your saved Sandbox checkout.';} }); });
   sectionNode.append(form); return sectionNode;
 }
 async function boot() {

@@ -1,9 +1,9 @@
 import type { Investigation,InvestigationEvidence,DiagnosticKind } from "../../src/ai/investigation.ts";
 /** Essential case reads never depend on optional investigation history or write APIs. */
 export type Plan = { id: string; plan_sha256: string; keep_order_id: string; void_order_ids_json: string; expires_at: string };
-export type Scenario = { run: { id: string; label: string }; orders: Array<{ id: string; effective_status: string; amount_minor: number; currency: string }>;
+export type Scenario = { run: { id: string; label: string };caseKind?:'DUPLICATE'|'MISSING'; orders: Array<{ id: string; effective_status: string; amount_minor: number; currency: string }>;diagnostics?:unknown;
   paymentReference: { attemptId: string; evidenceSeq: number; observedAt: string; provenance: string; note: string;recordedCapture?:{status:"COMPLETED";currency:string;value:string}|null };latestPlan?: Plan & { approved: boolean; has_receipt: boolean };
-  latestCheck?: { seq: number; result: string; activeOrderCount: number; evaluatedAt: string; incidentId: string|null }|null };
+  latestCheck?: { seq: number; result: string; activeOrderCount: number; evaluatedAt: string; incidentId: string|null;incidentClass?:string|null;missingOrder?:{dueAt:string|null;confirmedAt:string|null}|null }|null };
 export type Receipt = { receipt: { execution_id: string; outcome: string; completed_at: string; provider_before_sha256: string; provider_after_sha256: string }; verifiedCurrent: boolean; current: { activeOrders: number; matchingKeeper: number; providerUnchanged: boolean } };
 export type ReadApi = <T>(path: string) => Promise<T>;
 export type Session = { authenticated: boolean; userId?: string; owner?: boolean };
@@ -29,9 +29,9 @@ export function parseDiagnostic(value: unknown,expected: DiagnosticKind): Invest
 }
 export function planExpired(plan: Plan,now = Date.now()) { return !instant(plan.expires_at) || Date.parse(plan.expires_at) <= now; }
 export const validOperationId = (id: unknown): id is string => typeof id === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(id);
-export type PendingCreation = { operationId: string; userId: string };
+export type PendingCreation = { operationId: string; userId: string;caseKind?:'DUPLICATE'|'MISSING' };
 export function parsePendingCreation(value: string): PendingCreation|null {
-  try { const p: unknown = JSON.parse(value); return object(p) && validOperationId(p.operationId) && text(p.userId,200) ? { operationId: p.operationId,userId: p.userId } : null; } catch { return null; }
+  try { const p: unknown = JSON.parse(value); return object(p) && validOperationId(p.operationId) && text(p.userId,200) && (p.caseKind===undefined||['DUPLICATE','MISSING'].includes(String(p.caseKind))) ? { operationId: p.operationId,userId: p.userId,...(p.caseKind?{caseKind:p.caseKind as 'DUPLICATE'|'MISSING'}:{}) } : null; } catch { return null; }
 }
 export function parseCreation(value: unknown,operationId: string): Scenario {
   if (!object(value) || !object(value.creation) || value.creation.operationId !== operationId || value.creation.outcome !== "COMMITTED") throw new Error("Case creation returned invalid data. Recheck this operation before continuing.");
@@ -45,7 +45,7 @@ export function parseOperation(value: unknown,operationId: string): Scenario|nul
 }
 export function detectedFromCase(scenario: Scenario) {
   const check = scenario.latestCheck;
-  return !!check && check.result === "VIOLATED" && !!check.incidentId && check.activeOrderCount > 1
+  return !!check && check.result === "VIOLATED" && !!check.incidentId && (check.activeOrderCount > 1||(scenario.caseKind==='MISSING'&&check.activeOrderCount===0&&check.incidentClass==='MISSING_MERCHANT_ORDER'))
     && check.activeOrderCount === scenario.orders.filter(o => o.effective_status === "placed").length;
 }
 export function aiAvailability(reason?: string|null,retryAt?: string|null) {
@@ -104,7 +104,9 @@ export function parseScenario(value: unknown,expectedRunId?: string): Scenario {
     || ![scenario.paymentReference.observedAt,scenario.paymentReference.provenance,scenario.paymentReference.note].every(v => typeof v === "string")
     || !instant(scenario.paymentReference.observedAt) || !["PAYPAL_SANDBOX_GET","SYNTHETIC_QUALIFICATION"].includes(scenario.paymentReference.provenance)) throw invalid();
   const plan = scenario.latestPlan ?? null;
+  if(scenario.caseKind!==undefined&&(!['DUPLICATE','MISSING'].includes(scenario.caseKind)||(scenario.caseKind==='MISSING'&&scenario.orders.length!==0)))throw invalid();
   const capture=scenario.paymentReference.recordedCapture;
+  if(scenario.latestCheck?.missingOrder && (!object(scenario.latestCheck.missingOrder)||![scenario.latestCheck.missingOrder.dueAt,scenario.latestCheck.missingOrder.confirmedAt].every(v=>v===null||instant(v))))throw invalid();
   if(capture!==undefined && capture!==null && (scenario.paymentReference.provenance!=="PAYPAL_SANDBOX_GET" || !object(capture)
     || capture.status!=="COMPLETED" || typeof capture.currency!=="string" || !/^[A-Z]{3}$/.test(capture.currency)
     || typeof capture.value!=="string" || !/^\d{1,12}\.\d{2}$/.test(capture.value))) throw invalid();

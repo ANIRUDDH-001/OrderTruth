@@ -45,6 +45,8 @@ it("isolates controlled merchant runs while referencing one immutable payment ob
   expect(diagnostic.source).toBe("MERCHANT_DIAGNOSTIC");
   expect(diagnostic.facts.distinctKeys).toBe(2);
   expect((await investigations.evidence("synthetic_judge_a",a.id)).some(e => e.id === diagnostic.id)).toBe(true);
+  expect((await scenarios.get("synthetic_judge_a",a.id)).diagnostics).toEqual([diagnostic]);
+  expect((await scenarios.get("synthetic_judge_b",b.id)).diagnostics).toEqual([]);
   await expect(investigations.diagnostic("synthetic_judge_b",a.id,"HANDLER_TIMING")).rejects.toThrow(/not found/i);
   let modelCalls = 0;
   const ai = new PostgresInvestigationService(pool,schema,{ model: "synthetic-model",dailyLimit: 1,userDailyLimit: 3,minIntervalMs: 0,

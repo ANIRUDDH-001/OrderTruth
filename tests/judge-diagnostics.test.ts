@@ -103,7 +103,7 @@ const analysis = (next: string) => ({ status: "FRESH",freshModelExecution: true,
   investigation: { summary: "Two orders reference one payment.",nextDiagnostic: next,diagnosticReason: "Check the recorded writes.",
     hypotheses: [{ explanation: "A race between handlers or client retries may explain the second order.",evidenceIds: ["E5"],confidence: "MEDIUM",status: "HYPOTHESIS" }] } });
 const find = (node: JudgeNode,match: (n: JudgeNode) => boolean): JudgeNode[] => [...(match(node) ? [node] : []),...node.children.flatMap(c => find(c,match))];
-async function runDiagnostic(evidence: unknown,next = "HANDLER_TIMING") {
+async function runDiagnostic(evidence: unknown,next = "HANDLER_TIMING",role='engineering') {
   let checked = false;
   const ui = await mountJudge(call => {
     if (call.path === "/api/session") return session;
@@ -115,10 +115,18 @@ async function runDiagnostic(evidence: unknown,next = "HANDLER_TIMING") {
   },"run_owned");
   await ui.click("Detect anomaly");await ui.click("Investigate with AI");
   await ui.click(next === "HANDLER_TIMING" ? "Run handler timing check" : "Run idempotency-key comparison");
+  if(role==='engineering')await ui.click('Engineering view');
   return ui;
 }
 
 describe("judge timing diagnostic view",() => {
+  it('uses human labels for operations without assigning unmatched records to a real merchant order',async()=>{
+    const ui=await runDiagnostic(live,'HANDLER_TIMING','operations');
+    const table=find(ui.doc.root,n=>n.tag==='table')[0]!;
+    const row=find(table,n=>n.tag==='tbody').flatMap(b=>find(b,n=>n.tag==='tr'))[0]!;
+    expect(find(row,n=>n.tag==='td').map(n=>n.textContent)).toEqual(['Unmatched merchant order','Unmatched merchant order']);
+    expect(find(ui.doc.root,n=>n.tag==='summary').map(n=>n.textContent)).toContain('Handler timing check · technical evidence');
+  });
   it("shows the recorded intervals as a table with the generated summary, disclosure, note and raw evidence",async () => {
     const ui = await runDiagnostic(live);
     const [table] = find(ui.doc.root,n => n.tag === "table");

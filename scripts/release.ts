@@ -13,6 +13,9 @@ import {waitForReleaseReadiness} from './release-readiness.ts';
  * Only this operator should advance main. No database migrations, backups or product writes.
  */
 const args=process.argv.slice(2),sha=args[0];
+if(args.includes('--qualify-groq')&&args.includes('--approved-groq-rollout'))throw Error('Select one approved AI release mode');
+const aiMode=args.includes('--approved-groq-rollout')?'approved-rollout' as const:args.includes('--qualify-groq');
+let failureStage='preflight';
 const option=(name:string)=>args[args.indexOf(name)+1];
 if(!sha||!/^[a-f0-9]{40}$/.test(sha))throw new Error('Full qualified SHA required');
 const envFile=args.includes('--database-env')?option('--database-env'):'.env';
@@ -40,7 +43,8 @@ async function deploy(source:string){
  throw new Error('Render deployment timeout');
 }
 async function setMode(mode:'hold'|'normal',source:string){
- await rjson(['services','update',service,'--auto-deploy=false','--health-check-path','/api/health','--start-command',releaseStartCommand(mode,args.includes('--qualify-groq')),'--confirm']);
+ failureStage=`configure-${mode}`;
+ await rjson(['services','update',service,'--auto-deploy=false','--health-check-path','/api/health','--start-command',releaseStartCommand(mode,aiMode),'--confirm']);
  return deploy(source);
 }
 async function drain(source:string){
@@ -53,12 +57,15 @@ async function drain(source:string){
  throw new Error('Old instance retirement unverified');
 }
 async function finish(holdDeployment:string,normalDeployment:string,resumed=false){
+ failureStage='final-readiness';
  await waitForReleaseReadiness([direct,origin],sha!);
+ failureStage='final-source-identity';
  if(await main()!==sha||(await live()).id!==normalDeployment)throw new Error('Release superseded');
+ failureStage='final-public-assets';
  const frontend=await verifyPublicRelease(origin,sha!);mkdirSync('.work/releases',{recursive:true});
  const record={at:new Date().toISOString(),sourceSha:sha,holdDeployment,normalDeployment,frontend,
   ...(resumed?{preservationChecks:['original closed target-HOLD fingerprint gate passed before the first NORMAL attempt; see original cutover log','resume same-source HOLD fingerprints stable'],originalCutoverLog:'.work/runs/phase7/release-cutover.log'}:{paymentEvidenceAndReceiptsPreserved:true}),
-  migration:false,providerCalls:0,modelCalls:0,aiMode:args.includes('--qualify-groq')?'groq-one-reservation-qualification':'disabled',resumedFromVerifiedHold:resumed};
+  migration:false,providerCalls:0,modelCalls:0,aiMode:aiMode==='approved-rollout'?'groq-approved-12-daily-3-session':aiMode?'groq-one-reservation-qualification':'disabled',resumedFromVerifiedHold:resumed};
  writeFileSync(`.work/releases/${sha}-${record.at.replace(/[:.]/g,'-')}.json`,JSON.stringify(record,null,2),{flag:'wx'});
  console.log(JSON.stringify({stage:'PASS',...record}));
 }
@@ -101,7 +108,8 @@ try{
  await waitGreen();if(await main()!==sha)throw new Error('Main advanced before NORMAL');
  const active=await setMode('normal',sha);
  await finish(held.id,active.id);
-}catch{
+}catch(error){
+ console.error(JSON.stringify({stage:'FAIL',failedStage:failureStage,errorClass:error instanceof Error?error.name:'unknown',causeDetail:'withheld; inspect sanitized gate evidence'}));
  if(started&&fallback){recovering=true;try{await drain(fallback);console.error('Release failed; compatible V9 HOLD independently verified.');}catch{console.error('Release failed; HOLD could not be fully verified. Immediate operator inspection required.');}}
  else console.error('Release preflight failed; no deployment attempted.');
  process.exitCode=1;

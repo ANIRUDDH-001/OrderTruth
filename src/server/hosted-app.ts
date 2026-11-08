@@ -77,9 +77,13 @@ export async function buildHostedApp(config: ReturnType<typeof loadPostgresConfi
       const identity = await sessionIdentity(auth,request,config.ownerIds);
       if (!identity?.owner) return reply.code(403).send({ error: "Owner sign-in required; judges cannot perform payment actions" });
       if (request.method === "POST" && (request.routeOptions.url === "/api/orders" || request.routeOptions.url?.endsWith("/capture"))
-        && (Date.now()-identity.authenticatedAtMs > 900_000 || identity.authenticatedAtMs > Date.now())) return reply.code(403).send({ error: "Owner reauthentication required before payment actions" });
+        && (Date.now()-identity.authenticatedAtMs > 900_000 || identity.authenticatedAtMs > Date.now())) return reply.code(403).send({ error: "owner_reauthentication_required",message:"Confirm owner access before payment actions" });
     });
-    owner.get("/api/paypal/browser-config",async () => ({ environment: "sandbox",clientId: config.paypal.clientId,sdkUrl: SANDBOX_SDK_URL }));
+    owner.get("/api/paypal/browser-config",async request => {
+      const identity=await sessionIdentity(auth,request,config.ownerIds);
+      const age=identity?Date.now()-identity.authenticatedAtMs:Infinity;
+      return { environment: "sandbox",clientId: config.paypal.clientId,sdkUrl: SANDBOX_SDK_URL,paymentActionsAllowed:age>=0&&age<=900_000 };
+    });
     owner.post("/api/orders",async (request,reply) => {
       const key = request.headers["x-checkout-key"];
       if (typeof key !== "string" || !/^[A-Za-z0-9_-]{16,128}$/.test(key)) return reply.code(400).send({ error: "invalid_checkout_key" });

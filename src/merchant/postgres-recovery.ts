@@ -7,6 +7,7 @@ import { CONTRACT_ID, INCIDENT_CLASS, evaluateContract, readbackFact, type Payme
 import { canonical, sha256 } from "../domain/canonical.ts";
 import { withTransaction } from "../db/postgres.ts";
 import { postgresWebhookProof } from "../db/postgres-webhook-proof.ts";
+import {assessMissingOrder,DEFAULT_MISSING_ORDER_GRACE_MS,MISSING_INCIDENT_CLASS} from './missing-order.ts';
 
 type Evidence = { seq: number; evidence_class: string; operation: string; http_status: number | null; created_at: string; summary_json: string };
 type EffectiveOrder = MerchantOrderRow & { effective_status: string };
@@ -21,8 +22,9 @@ const printable = (value: string): string => {
  * Authorization is supplied by the HTTP/session boundary, never by an organization header.
  * Webhook-linked cases require consistent persisted verification/evidence/audit proof. */
 export class PostgresRecoveryService {
-  constructor(readonly pool: Pool, readonly schema = "ordertruth", private readonly scope?: { runId: string; userId: string }) {
+  constructor(readonly pool: Pool, readonly schema = "ordertruth", private readonly scope?: { runId: string; userId: string },private readonly options={now:()=>Date.now(),missingOrderGraceMs:DEFAULT_MISSING_ORDER_GRACE_MS}) {
     if (schema !== "ordertruth" && !/^qual_[a-f0-9]{20}$/.test(schema)) throw new Error("Invalid OrderTruth schema");
+    if(!Number.isSafeInteger(options.missingOrderGraceMs)||options.missingOrderGraceMs<0)throw Error('Invalid missing-order grace');
   }
   private transaction<T>(org: string, action: (client: PoolClient) => Promise<T>): Promise<T> {
     if (!/^org_[a-z0-9_]{1,40}$/.test(org)) throw new Error("Invalid organization scope");
@@ -80,11 +82,29 @@ export class PostgresRecoveryService {
       attemptId: attempt.id, attemptState: attempt.state, paypalOrderId: attempt.paypal_order_id, captureId: attempt.capture_id,
       captureStatus: attempt.capture_status, capturedMinor: attempt.captured_minor, capturedCurrency: attempt.captured_currency,
       readbacks: readbacks.map(readbackFact) };
-    const evaluation = evaluateContract(payment, orders.map(o => ({ id: o.id, status: o.status, effectiveStatus: o.effective_status,
+    let evaluation = evaluateContract(payment, orders.map(o => ({ id: o.id, status: o.status, effectiveStatus: o.effective_status,
       attemptId: o.attempt_id, paypalOrderId: o.paypal_order_id, captureId: o.capture_id, sku: o.sku, currency: o.currency, amountMinor: o.amount_minor })));
+    let missingOrder:ReturnType<typeof assessMissingOrder>['timing']|null=null;
+    const missingCase=orders.length===0;
+    if(missingCase){
+      const now=this.options.now();if(!Number.isFinite(now))throw Error('Invalid observation clock');
+      const assessment=assessMissingOrder({...payment,readbacks:evidence.filter(e=>e.evidence_class==='PAYPAL_API_READBACK').map(readbackFact),
+        readbackFailures:evidence.filter(e=>e.evidence_class==='PAYPAL_API_RESPONSE'&&['readback','readback_error'].includes(e.operation)).map(e=>({seq:e.seq,createdAt:e.created_at}))},evaluation,now,this.options.missingOrderGraceMs);
+      missingOrder=assessment.timing;evaluation=assessment.evaluation;
+      // A newly controlled case has its own merchant grace. Never rewrite the
+      // original provider observation's timestamp to manufacture that interval.
+      if(this.scope&&missingOrder.dueAt){
+        const born=(await client.query('SELECT created_at FROM scenario_runs WHERE id=$1',[this.scope.runId])).rows[0].created_at;
+        const bornMs=Date.parse(born);if(!Number.isFinite(bornMs)||bornMs>now)throw Error('Invalid controlled observation clock');
+        const due=Math.max(Date.parse(missingOrder.dueAt),bornMs+this.options.missingOrderGraceMs);
+        if(!Number.isFinite(due))throw Error('Invalid controlled grace');
+        missingOrder={...missingOrder,dueAt:new Date(due).toISOString()};
+        if(evaluation.eligible&&now<due)evaluation={...evaluation,result:'OUT_OF_SCOPE',reasons:[`Waiting for the controlled merchant order grace deadline ${missingOrder.dueAt}`]};
+      }
+    }
     const providerHash = sha256(canonical({ intent, attempt, evidence, ...(webhook ? { webhook } : {}) }));
     const factsJson = canonical({ contract: CONTRACT_ID, intent, attempt, providerHash, orders, voids, incident, resolution, scenarioRunId: this.scope?.runId ?? null });
-    return { intent, attempt, evidence, orders, resolution, evaluation, providerHash, factsJson };
+    return { intent, attempt, evidence, orders, resolution, evaluation, providerHash, factsJson,missingOrder,missingCase };
   }
   private eligible(s: Awaited<ReturnType<PostgresRecoveryService["snapshot"]>>) {
     const active = s.orders.filter(o => o.effective_status === "placed");
@@ -96,23 +116,25 @@ export class PostgresRecoveryService {
   private async evaluation(client: PoolClient, org: string, s: Awaited<ReturnType<PostgresRecoveryService["snapshot"]>>, run: string): Promise<number> {
     const result = await client.query(`INSERT INTO invariant_evaluations(organization_id,contract,intent_id,result,active_order_count,reasons_json,facts_json,run_id,evaluated_at)
       VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING seq`, [org, CONTRACT_ID, s.intent.id, s.evaluation.result, s.evaluation.activeOrderCount,
-      canonical(s.evaluation.reasons), canonical({ matchingOrderIds: s.evaluation.matchingOrderIds, confirmingReadbackSeqs: s.evaluation.confirmingReadbackSeqs, repairFacts: JSON.parse(s.factsJson) }), run, new Date().toISOString()]);
+      canonical(s.evaluation.reasons), canonical({ matchingOrderIds: s.evaluation.matchingOrderIds, confirmingReadbackSeqs: s.evaluation.confirmingReadbackSeqs, repairFacts: JSON.parse(s.factsJson),...(s.missingOrder?{missingOrder:s.missingOrder}:{}) }), run, new Date(this.options.now()).toISOString()]);
     return result.rows[0].seq as number;
   }
-  async check(org: string, intent: string): Promise<{ incidentId: string | null; result: string }> {
+  async check(org: string, intent: string): Promise<{ incidentId: string | null; result: string;condition:string;recoverySupported:boolean }> {
     return this.transaction(org, async client => {
       await this.lock(client, org, intent);
       const s = await this.snapshot(client, org, intent);
       const seq = await this.evaluation(client, org, s, `check_${randomUUID()}`);
-      if (s.evaluation.result !== "VIOLATED") return { incidentId: null, result: s.evaluation.result };
+      const incidentClass=s.missingCase?MISSING_INCIDENT_CLASS:INCIDENT_CLASS;
+      const outcome={result:s.evaluation.result,condition:incidentClass,recoverySupported:!s.missingCase};
+      if (s.evaluation.result !== "VIOLATED") return { incidentId: null, ...outcome };
       const active = (await client.query<IncidentRow>(`SELECT x.* FROM incidents x LEFT JOIN incident_resolutions r ON r.incident_id=x.id LEFT JOIN scenario_run_incidents s ON s.incident_id=x.id
-        WHERE x.organization_id=$1 AND x.intent_id=$2 AND x.incident_class=$3 AND r.incident_id IS NULL AND s.run_id IS NOT DISTINCT FROM $4::text ORDER BY x.opened_at DESC LIMIT 1`, [org, intent, INCIDENT_CLASS,this.scope?.runId ?? null])).rows[0];
-      if (active) return { incidentId: active.id, result: s.evaluation.result };
+        WHERE x.organization_id=$1 AND x.intent_id=$2 AND x.incident_class=$3 AND r.incident_id IS NULL AND s.run_id IS NOT DISTINCT FROM $4::text ORDER BY x.opened_at DESC LIMIT 1`, [org, intent, incidentClass,this.scope?.runId ?? null])).rows[0];
+      if (active) return { incidentId: active.id, ...outcome };
       const id = `inc_${randomUUID()}`;
       await client.query(`INSERT INTO incidents(id,organization_id,contract,dedup_key,severity,state,intent_id,attempt_id,paypal_order_id,capture_id,title,opened_by_evaluation_seq,reproduction_json,opened_at,incident_class)
         VALUES($1,$2,$3,$4,'high','open',$5,$6,$7,$8,$9,$10,$11,$12,$13)`, [id, org, CONTRACT_ID, `${org}|${CONTRACT_ID}|${intent}|${id}`, intent,
-        s.attempt.id, s.attempt.paypal_order_id, s.attempt.capture_id, `${s.evaluation.activeOrderCount} merchant orders for one recorded capture`, seq,
-        canonical({ cause: "UNKNOWN", note: "Merchant anomaly; provider observations retain their explicit provenance" }), new Date().toISOString(), INCIDENT_CLASS]);
+        s.attempt.id, s.attempt.paypal_order_id, s.attempt.capture_id, s.missingCase?'Missing reference merchant order after grace':`${s.evaluation.activeOrderCount} merchant orders for one recorded capture`, seq,
+        canonical({ cause: "UNKNOWN", note: "Merchant anomaly; provider observations retain their explicit provenance" }), new Date(this.options.now()).toISOString(), incidentClass]);
       if (this.scope) await client.query("INSERT INTO scenario_run_incidents(incident_id,run_id) VALUES($1,$2)", [id,this.scope.runId]);
       for (const e of s.evidence.filter(e => s.evaluation.confirmingReadbackSeqs.includes(e.seq))) {
         await client.query("INSERT INTO incident_evidence(incident_id,evidence_class,ref_type,ref_id,source_at,summary_json,linked_at) VALUES($1,'PAYPAL_API_READBACK','evidence',$2,$3,$4,$5)",
@@ -122,12 +144,13 @@ export class PostgresRecoveryService {
         await client.query("INSERT INTO incident_evidence(incident_id,evidence_class,ref_type,ref_id,source_at,summary_json,linked_at) VALUES($1,'MERCHANT_DB_OBSERVED','merchant_order',$2,$3,$4,$5)",
           [id, o.id, o.created_at, canonical({ snapshot: o }), new Date().toISOString()]);
       }
-      return { incidentId: id, result: s.evaluation.result };
+      return { incidentId: id, ...outcome };
     });
   }
   async plan(org: string, incidentId: string, actor: string): Promise<RepairPlan> {
     return this.transaction(org, async client => {
       const incident = await this.incident(client, org, incidentId);
+      if(incident.incident_class!==INCIDENT_CLASS)throw Error('Missing-order inspection is read-only; not eligible for duplicate repair');
       const s = await this.snapshot(client, org, incident.intent_id, incident);
       const active = this.eligible(s);
       if (incident.attempt_id !== s.attempt.id || incident.capture_id !== s.attempt.capture_id || incident.paypal_order_id !== s.attempt.paypal_order_id) throw new Error("Incident payment identity differs");

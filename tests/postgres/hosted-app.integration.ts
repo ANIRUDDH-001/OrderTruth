@@ -42,7 +42,9 @@ it("requires recent owner sign-in before financial actions",async () => {
   config.ownerIds.add(session.userId);
   expect((await app.inject({ url: "/api/paypal/browser-config",headers: { cookie } })).statusCode).toBe(200);
   await admin.query(`UPDATE ${schema}.ot_auth_session SET "createdAt"=now()-interval '30 minutes' WHERE "userId"=$1`, [session.userId]);
-  expect((await app.inject({ method: "POST",url: "/api/orders",headers: { origin,cookie,"x-checkout-key": "synthetic-checkout-key" },payload: {} })).statusCode).toBe(403);
+  expect((await app.inject({ url:'/api/paypal/browser-config',headers:{cookie} })).json().paymentActionsAllowed).toBe(false);
+  const denied=await app.inject({ method: "POST",url: "/api/orders",headers: { origin,cookie,"x-checkout-key": "synthetic-checkout-key" },payload: {} });
+  expect(denied.statusCode).toBe(403);expect(denied.json().error).toBe('owner_reauthentication_required');
   expect(network).not.toHaveBeenCalled();
 });
 it("fails readiness closed on a schema-version mismatch without exposing configuration",async () => {
