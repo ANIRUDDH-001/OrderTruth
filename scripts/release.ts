@@ -4,7 +4,7 @@ import {existsSync,mkdirSync,writeFileSync} from 'node:fs';
 import {basename,resolve} from 'node:path';
 import {setTimeout as delay} from 'node:timers/promises';
 import {verifyPublicRelease} from './public-release.ts';
-import {requireGreenChecks,requireReviewedDatabaseChanges} from './release-policy.ts';
+import {requireGreenChecks,requireReviewedDatabaseChanges,requireReleaseServiceConfiguration} from './release-policy.ts';
 import {inspectReleaseDatabase} from './release-database.ts';
 
 /** V9 code-only release. Uses existing local gh/Render logins; never creates credentials.
@@ -57,7 +57,7 @@ try{
  if(await run('git',['status','--porcelain','--untracked-files=no']))throw new Error('Tracked worktree must be clean');
  await green();await run('git',['merge-base','--is-ancestor',(await main())!,sha]);
  const services=await rjson(['services']);const config=services.find((s:{service:{id:string}})=>s.service.id===service)?.service;
- if(config?.ownerId!==workspace||config.serviceDetails?.plan!=='free'||config.serviceDetails?.numInstances!==1||config.autoDeploy!=='no'||/ORDERTRUTH_MIGRATION\s*=|apply-v9/.test(config.serviceDetails?.envSpecificDetails?.startCommand??''))throw new Error('Unsafe service configuration');
+ requireReleaseServiceConfiguration(config);
  const health=await read(direct+'/api/health');if(health.schemaVersion!==9)throw new Error('Only existing V9 supported');
  fallback=(await live()).commit.id;
  const dbChanges=await run('git',['diff','--name-only',fallback!,sha,'--','src/db']);

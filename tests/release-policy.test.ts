@@ -1,5 +1,5 @@
 import {expect,it} from "vitest";
-import {requireGreenChecks,requireV9Drain,requireReviewedDatabaseChanges} from "../scripts/release-policy.ts";
+import {requireGreenChecks,requireV9Drain,requireReviewedDatabaseChanges,requireReleaseServiceConfiguration} from "../scripts/release-policy.ts";
 it("requires the latest attempt of every CI gate, not an old green result",()=>{
  const checks=['offline','postgres','v3-postgres'].map((name,id)=>({id:id+1,name,status:'completed',conclusion:'success',started_at:'2026-11-07T00:00:00Z'}));
  expect(()=>requireGreenChecks(checks)).not.toThrow();
@@ -20,4 +20,13 @@ it("refuses non-V9 schemas, pending captures, webhook obligations or transaction
  const safe={versions:[1,2,3,4,5,6,7,8,9],pendingCaptures:0,pendingWebhooks:0,activeTransactions:0};
  expect(()=>requireV9Drain(safe)).not.toThrow();
  for(const changed of [{versions:[1,2,3,4,5,6,7,8]},{pendingCaptures:1},{pendingWebhooks:1},{activeTransactions:1}])expect(()=>requireV9Drain({...safe,...changed})).toThrow();
+});
+it("accepts only the owner-confirmed existing compute plans while preserving service safety",()=>{
+ const safe={id:'srv-dbccdgjl550s73d37ao0',ownerId:'tea-d6qpqrpaae7s739l8qu0',autoDeploy:'no',serviceDetails:{plan:'0.5c-512mb',numInstances:1,envSpecificDetails:{startCommand:'ORDERTRUTH_RELEASE_MODE=normal AI_PROVIDER=disabled pnpm hosted:start'}}};
+ expect(()=>requireReleaseServiceConfiguration(safe)).not.toThrow();
+ expect(()=>requireReleaseServiceConfiguration({...safe,serviceDetails:{...safe.serviceDetails,plan:'free'}})).not.toThrow();
+ for(const changed of [{...safe,id:'other'},{...safe,ownerId:'other'},{...safe,autoDeploy:'yes'},{...safe,serviceDetails:{...safe.serviceDetails,plan:'unknown'}},{...safe,serviceDetails:{...safe.serviceDetails,numInstances:2}},{...safe,serviceDetails:{...safe.serviceDetails,envSpecificDetails:{startCommand:'ORDERTRUTH_MIGRATION=apply-v9 pnpm hosted:start'}}}]){
+  expect(()=>requireReleaseServiceConfiguration(changed)).toThrow(/Unsafe service/);
+ }
+ expect(()=>requireReleaseServiceConfiguration(undefined)).toThrow();
 });

@@ -17,3 +17,9 @@ export function requireReviewedDatabaseChanges(changes:Array<{path:string;before
   }
  }
 }
+/** Observe the existing owner-managed plan; never provisions or upgrades it. */
+export function requireReleaseServiceConfiguration(config:{id?:string;ownerId?:string;autoDeploy?:string;serviceDetails?:{plan?:string;numInstances?:number;envSpecificDetails?:{startCommand?:string}}}|undefined){
+ if(config?.id!=='srv-dbccdgjl550s73d37ao0'||config.ownerId!=='tea-d6qpqrpaae7s739l8qu0'
+  ||!['free','0.5c-512mb'].includes(config.serviceDetails?.plan??'')||config.serviceDetails?.numInstances!==1||config.autoDeploy!=='no'
+  ||/ORDERTRUTH_MIGRATION\s*=|apply-v9/.test(config.serviceDetails?.envSpecificDetails?.startCommand??''))throw new Error('Unsafe service configuration');
+}
