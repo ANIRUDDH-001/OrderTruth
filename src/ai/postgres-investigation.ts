@@ -25,6 +25,11 @@ export class PostgresInvestigationStore {
     return run;
   }
   async evidence(user: string,id: string): Promise<InvestigationEvidence[]> {
+    return this.withEvidence(user,id,async evidence=>evidence);
+  }
+  /** Keep the existing payment→intent→run locks through a result's publication,
+   * so merchant repair/diagnostics cannot change the checked snapshot midway. */
+  async withEvidence<T>(user:string,id:string,action:(evidence:InvestigationEvidence[],client:PoolClient)=>Promise<T>):Promise<T>{
     return this.tx(async client => {
       const run = await this.owned(client,user,id);
       const source = (await client.query("SELECT summary_json,created_at FROM evidence WHERE seq=$1", [run.source_evidence_seq])).rows[0];
@@ -34,13 +39,14 @@ export class PostgresInvestigationStore {
         FROM scenario_run_orders s JOIN merchant_orders m ON m.id=s.order_id LEFT JOIN merchant_order_voids v ON v.order_id=m.id WHERE s.run_id=$1 ORDER BY m.created_at,m.id`, [id])).rows;
       const rows = (await client.query("SELECT * FROM scenario_diagnostics WHERE run_id=$1 ORDER BY created_at,id", [id])).rows;
       const recordedAt = orders.reduce((latest: string,row) => [latest,row.created_at as string,(row.voided_at as string | null) ?? latest].sort().at(-1)!,run.created_at);
-      return [
+      const evidence:InvestigationEvidence[] = [
         { id: `E${run.source_evidence_seq}`,source: run.provenance === "PAYPAL_SANDBOX_GET" ? "PAYPAL_SANDBOX_OBSERVATION" : "SYNTHETIC_PAYMENT_OBSERVATION",observedAt: source.created_at as string,
           facts: { orderStatus: summary.status,purchaseUnits: summary.purchase_units?.map(u => ({ amount: u.amount,captures: u.captures?.map(c => ({ status: c.status,amount: c.amount })) })) } },
         { id: `M_${run.id}`,source: "CONTROLLED_MERCHANT_STATE",observedAt: recordedAt,
           facts: { activeOrders: orders.filter(o => o.effective_status === "placed").length,orders: orders.map(o => ({ id: o.id,status: o.effective_status,amountMinor: o.amount_minor,currency: o.currency })),providerMutation: false } },
         ...rows.map(row => ({ id: row.id as string,source: "MERCHANT_DIAGNOSTIC" as const,observedAt: row.created_at as string,facts: JSON.parse(row.facts_json) as Record<string,unknown> })),
       ];
+      return action(evidence,client);
     });
   }
   async diagnostic(user: string,id: string,kind: DiagnosticKind): Promise<InvestigationEvidence> {

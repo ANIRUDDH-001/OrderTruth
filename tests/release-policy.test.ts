@@ -1,5 +1,11 @@
 import {expect,it} from "vitest";
-import {requireGreenChecks,requireV9Drain,requireReviewedDatabaseChanges,requireReleaseServiceConfiguration} from "../scripts/release-policy.ts";
+import {requireGreenChecks,requireV9Drain,requireReviewedDatabaseChanges,requireReleaseServiceConfiguration,releaseStartCommand} from "../scripts/release-policy.ts";
+it('enables a one-reservation Groq qualification only in NORMAL; HOLD and default stay disabled',()=>{
+ expect(releaseStartCommand('normal',true)).toContain('AI_PROVIDER=groq AI_MODEL=openai/gpt-oss-120b AI_DAILY_LIMIT=1 AI_USER_DAILY_LIMIT=1');
+ for(const command of [releaseStartCommand('hold',true),releaseStartCommand('hold'),releaseStartCommand('normal')]){
+  expect(command).toContain('AI_PROVIDER=disabled AI_DAILY_LIMIT=0 AI_USER_DAILY_LIMIT=0');expect(command).not.toContain('AI_PROVIDER=groq');
+ }
+});
 it("requires the latest attempt of every CI gate, not an old green result",()=>{
  const checks=['offline','postgres','v3-postgres'].map((name,id)=>({id:id+1,name,status:'completed',conclusion:'success',started_at:'2026-11-07T00:00:00Z'}));
  expect(()=>requireGreenChecks(checks)).not.toThrow();

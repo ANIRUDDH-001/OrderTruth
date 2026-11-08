@@ -3,8 +3,12 @@ import type { Pool,PoolClient } from "pg";
 import { canonical,sha256 } from "../domain/canonical.ts";
 import { withTransaction } from "../db/postgres.ts";
 import { PostgresInvestigationStore } from "./postgres-investigation.ts";
-import { deterministicInvestigator,validateInvestigation,type InvestigationCall,type InvestigationEvidence } from "./investigation.ts";
-import { EGRESS_POLICY,prepareEvidenceEgress } from "./evidence-egress.ts";
+import { deterministicInvestigator,type InvestigationCall,type InvestigationEvidence } from "./investigation.ts";
+import { MERCHANT_EGRESS_POLICY,prepareMerchantEvidenceEgress } from "./evidence-egress.ts";
+import { GROUNDED_POLICY,validateGroundedProjection } from "./grounded-investigation.ts";
+import { COMPARISON_POLICY } from "./comparison-investigation.ts";
+
+const snapshotIdentity=(model:string,evidence:readonly InvestigationEvidence[])=>sha256(canonical({policy:`investigator-v3:${MERCHANT_EGRESS_POLICY}:${GROUNDED_POLICY}:${COMPARISON_POLICY}`,model,evidence}));
 
 type Settings = { model: string; dailyLimit: number; userDailyLimit: number; minIntervalMs: number;
   infer(evidence: readonly InvestigationEvidence[]): Promise<InvestigationCall> };
@@ -32,7 +36,8 @@ export class PostgresInvestigationService {
       WHERE run_id=$1 AND user_id=$2 AND status='FRESH' AND evidence_json IS NOT NULL ORDER BY completed_at DESC,id DESC LIMIT 1`, [run,user])).rows[0]);
     if (!row) return null;
     const evidence = JSON.parse(row.evidence_json) as InvestigationEvidence[];
-    const parsed = validateInvestigation(JSON.parse(row.result_json),evidence);
+    if(row.snapshot_sha256!==snapshotIdentity(row.model as string,evidence))return null;
+    const parsed = validateGroundedProjection(JSON.parse(row.result_json),evidence);
     if (!parsed.ok) return null;
     return { status: "CACHED" as const,freshModelExecution: false,historical: true,reason: null,retryAt: null,
       evidence,baseline: deterministicInvestigator(evidence),snapshotSha256: row.snapshot_sha256 as string,
@@ -42,10 +47,10 @@ export class PostgresInvestigationService {
   async investigate(user: string,run: string) {
     const evidence = await this.evidenceStore.evidence(user,run);
     const baseline = deterministicInvestigator(evidence);
-    const snapshotSha256 = sha256(canonical({ policy: `investigator-v2:${EGRESS_POLICY}`,model: this.settings.model,evidence }));
+    const snapshotSha256 = snapshotIdentity(this.settings.model,evidence);
     const unavailable = (reason: string,retryAt: string | null = null) => ({ status: "UNAVAILABLE" as const,freshModelExecution: false,reason,retryAt,baseline,evidence,snapshotSha256 });
     // Privacy rejection is not an inference reservation or a provider attempt.
-    try { prepareEvidenceEgress(evidence); } catch { return unavailable("AI_EGRESS_REJECTED"); }
+    try { prepareMerchantEvidenceEgress(evidence); } catch { return unavailable("AI_EGRESS_REJECTED"); }
     const now = Date.now(); const day = new Date(now).toISOString().slice(0,10);
     const reservation = await this.tx(async client => {
       await client.query("SELECT pg_advisory_xact_lock(hashtextextended($1,0))", [`${this.schema}:ai-reservation`]);
@@ -81,7 +86,7 @@ export class PostgresInvestigationService {
     });
     if ("cached" in reservation && reservation.cached) {
       const cached = reservation.cached;
-      const parsed = validateInvestigation(JSON.parse(cached.result_json),evidence);
+      const parsed = validateGroundedProjection(JSON.parse(cached.result_json),evidence);
       if (!parsed.ok) return unavailable("CACHED_RESULT_INVALID");
       return { status: "CACHED" as const,freshModelExecution: false,reason: null,retryAt: null,baseline,evidence,snapshotSha256,
         investigation: parsed.result,model: cached.model as string,generatedAt: cached.completed_at as string,usage: JSON.parse(cached.usage_json) as InvestigationCall["usage"] };
@@ -91,13 +96,20 @@ export class PostgresInvestigationService {
     let result: InvestigationCall;
     try { result = await this.settings.infer(evidence); }
     catch { result = { ok: false,result: null,error: "PROVIDER_FAILURE",usage: { promptTokens: null,outputTokens: null,totalTokens: null },httpStatus: null,latencyMs: 0 }; }
-    const validated = result.ok ? validateInvestigation(result.result,evidence) : null;
+    const validated = result.ok ? validateGroundedProjection(result.result,evidence) : null;
     const ok = validated?.ok === true;
+    const failure = result.error ?? (validated && !validated.ok ? validated.error : "INVALID_MODEL_RESULT");
     const completedAt = new Date().toISOString();
-    const stored = await this.tx(async client => (await client.query(`UPDATE ai_investigations SET status=$1,completed_at=$2,result_json=$3,usage_json=$4,error_kind=$5
-      WHERE id=$6 AND status='RESERVED'`, [ok ? "FRESH" : "UNAVAILABLE",completedAt,ok ? JSON.stringify(validated.result) : null,JSON.stringify(result.usage),ok ? null : result.error ?? "INVALID_MODEL_RESULT",reservation.id])).rowCount === 1);
-    if (!stored) return unavailable("RESERVATION_INTERRUPTED");
-    if (!ok) return unavailable(result.error ?? "INVALID_MODEL_RESULT");
+    const completion = await this.evidenceStore.withEvidence(user,run,async (current,client)=>{
+      const stale=snapshotIdentity(this.settings.model,current)!==snapshotSha256;
+      const publish=ok&&!stale;
+      const stored=(await client.query(`UPDATE ai_investigations SET status=$1,completed_at=$2,result_json=$3,usage_json=$4,error_kind=$5
+        WHERE id=$6 AND status='RESERVED'`,[publish?"FRESH":"UNAVAILABLE",completedAt,publish?JSON.stringify(validated.result):null,JSON.stringify(result.usage),stale?"STALE_EVIDENCE":ok?null:failure,reservation.id])).rowCount===1;
+      return {stored,stale};
+    });
+    if (!completion.stored) return unavailable("RESERVATION_INTERRUPTED");
+    if (completion.stale) return unavailable("STALE_EVIDENCE");
+    if (!ok) return unavailable(failure);
     return { status: "FRESH" as const,freshModelExecution: true,reason: null,retryAt: null,baseline,evidence,snapshotSha256,
       investigation: validated.result,model: this.settings.model,generatedAt: completedAt,usage: result.usage };
   }

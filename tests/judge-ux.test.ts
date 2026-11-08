@@ -14,6 +14,8 @@ describe("judge keyboard and completed-case UX",() => {
     vi.resetModules();
     const owner = await mountJudge(call => call.path === "/api/session" ? { ...session,owner: true } : null);
     expect(owner.doc.root.textContent).toContain("Owner Sandbox checkout");
+    expect(owner.doc.root.textContent).toContain("Ready to investigate as the owner");
+    expect(owner.doc.root.textContent).not.toContain("Ready to investigate as a guest");
     expect(owner.doc.root.querySelectorAll("button").some(b => b.textContent === "Owner access")).toBe(false);
     expect(owner.doc.root.textContent).toContain("Technical evidence and experiments");
   });

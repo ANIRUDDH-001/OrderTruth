@@ -3,6 +3,7 @@ import { z } from "zod";
 import type { InvestigationEvidence } from "./investigation.ts";
 
 export const EGRESS_POLICY = "causal-relations-v1";
+export const MERCHANT_EGRESS_POLICY = "merchant-relations-v1";
 const id = z.string().min(1).max(160);
 const count = z.number().int().min(0).max(1000);
 const time = z.iso.datetime();
@@ -28,15 +29,29 @@ const inputSchema = z.array(z.union([payment,merchant,diagnostic])).min(1).max(2
  * References are random per call; no weak hashes or stable transaction IDs leave.
  * This minimizes disclosure; relationships can still be identifying, not anonymous. */
 export function prepareEvidenceEgress(input: readonly InvestigationEvidence[]) {
+  const data=validatePrivateInput(input);
+  if (data.some(e => e.source === "PAYPAL_SANDBOX_OBSERVATION")) throw new Error("AI_EGRESS_REJECTED");
+  return projectEvidence(data,EGRESS_POLICY);
+}
+
+/** Payment observations are validated privately, then omitted in their entirety.
+ * Only controlled merchant counts, allowlisted handler relations and ephemeral
+ * references leave. This is minimized reference-merchant data, not anonymity. */
+export function prepareMerchantEvidenceEgress(input: readonly InvestigationEvidence[]) {
+  const data=validatePrivateInput(input).filter(e=>e.source==='CONTROLLED_MERCHANT_STATE'||e.source==='MERCHANT_DIAGNOSTIC');
+  if(!data.some(e=>e.source==='CONTROLLED_MERCHANT_STATE'))throw new Error('AI_EGRESS_REJECTED');
+  return projectEvidence(data,MERCHANT_EGRESS_POLICY);
+}
+function validatePrivateInput(input:readonly InvestigationEvidence[]){
   const parsed = inputSchema.safeParse(input);
   if (!parsed.success || new Set(input.map(e => e.id)).size !== input.length) throw new Error("AI_EGRESS_REJECTED");
-  // Account-specific data controls are not yet qualified. Even reduced Sandbox
-  // relationships are financial evidence, not proven anonymous demo data.
-  if (parsed.data.some(e => e.source === "PAYPAL_SANDBOX_OBSERVATION")) throw new Error("AI_EGRESS_REJECTED");
+  return parsed.data;
+}
+function projectEvidence(data:z.infer<typeof inputSchema>,policy:string){
   const references = new Map<string,string>();
   const opaque = (privateId: string) => { let ref = references.get(privateId); if (!ref) { ref = `ref_${randomUUID()}`; references.set(privateId,ref); } return ref; };
   const citationMap = new Map<string,string>();
-  const evidence = parsed.data.map(e => {
+  const evidence = data.map(e => {
     const ref = `e_${randomUUID()}`; citationMap.set(ref,e.id);
     let facts: unknown;
     if (e.source === "CONTROLLED_MERCHANT_STATE") facts = { activeOrders: e.facts.activeOrders,providerMutation: false,
@@ -58,7 +73,7 @@ export function prepareEvidenceEgress(input: readonly InvestigationEvidence[]) {
       captureStatuses: e.facts.purchaseUnits?.flatMap(u => u.captures?.map(c => c.status) ?? []) ?? [] };
     return { id: ref,source: e.source,facts };
   });
-  const payload = JSON.stringify({ policy: EGRESS_POLICY,evidence });
+  const payload = JSON.stringify({ policy,evidence });
   if (Buffer.byteLength(payload,"utf8") > 16000) throw new Error("AI_EGRESS_REJECTED");
   return { payload,citationMap };
 }

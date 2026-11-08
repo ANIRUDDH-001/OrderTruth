@@ -1,5 +1,5 @@
 import { randomBytes, randomUUID } from "node:crypto";
-import { afterAll, beforeAll, expect, it } from "vitest";
+import { afterAll, beforeAll, beforeEach, expect, it } from "vitest";
 import Fastify from "fastify";
 import { createPostgresPool } from "../../src/db/postgres.ts";
 import { migratePostgres } from "../../src/db/postgres-migrate.ts";
@@ -27,6 +27,9 @@ beforeAll(async () => {
   registerJudgeApi(app, { pool,schema,auth,origin,sourceAttemptId: null }); await app.ready();
 });
 afterAll(async () => { await app.close(); await pool.query(`DROP SCHEMA ${schema} CASCADE`); await pool.end(); });
+// Each test owns this disposable schema. Keep the global admission window
+// isolated between tests; restart/concurrency assertions remain within a test.
+beforeEach(async () => { await pool.query(`DELETE FROM ${schema}.ot_auth_rate_limit`); });
 async function guest(ip: string) {
   const response = await app.inject({ method: "POST", url: "/api/auth/sign-in/anonymous", headers: { origin, "content-type": "application/json" }, payload: {}, remoteAddress: ip });
   expect({status:response.statusCode,authFailure}).toEqual({status:200,authFailure:null});
@@ -43,6 +46,7 @@ it("creates independent database-backed guest sessions and ignores forged identi
   expect(first.userId).not.toBe(second.userId);
   expect(first.token).toBeUndefined(); expect(first.session).toBeUndefined();
   const session = (await pool.query(`SELECT id FROM ${schema}.ot_auth_session WHERE "userId"=$1`, [first.userId])).rows[0];
+  expect((await pool.query(`SELECT "ipAddress" FROM ${schema}.ot_auth_session WHERE id=$1`,[session.id])).rows[0].ipAddress).toBe("192.0.2.1");
   await pool.query(`UPDATE ${schema}.ot_auth_session SET "expiresAt"=now()-interval '1 second' WHERE id=$1`, [session.id]);
   expect((await app.inject({ url: "/api/session", headers: { cookie: a } })).json().authenticated).toBe(false);
   expect((await app.inject({ url: "/api/session", headers: { cookie: b } })).json().authenticated).toBe(true);
@@ -52,20 +56,42 @@ it("denies missing/foreign origins and disables public account registration", as
   expect((await app.inject({ method: "POST", url: "/api/auth/sign-up/email", headers: { origin }, payload: {} })).statusCode).toBe(404);
   expect((await app.inject({ url: "/api/session", headers: { cookie: "better-auth.session_token=forged" } })).json().authenticated).toBe(false);
 });
-it("retains sessions and sign-in rate limits across a fresh authentication instance", async () => {
+it("admits independent guests behind one proxy, bounds new identities globally across restart, and reuses existing guests", async () => {
   const cookie = await guest("192.0.2.40");
   const restarted = Fastify({ logger: false });
   registerSessionApi(restarted, createSessionAuth(pool, origin, secret), origin);
   try {
     expect((await restarted.inject({ url: "/api/session", headers: { cookie } })).json().authenticated).toBe(true);
-    // New cookies/forged IP headers cannot reset the database-backed IP bucket.
-    for (let i = 0; i < 4; i++) expect((await restarted.inject({ method: "POST", url: "/api/auth/sign-in/anonymous", headers: { origin,
+    // Thirty new guests may enter even behind one proxy. A different peer or
+    // forged forwarding headers cannot reset the durable GLOBAL budget.
+    for (let i = 0; i < 29; i++) expect((await restarted.inject({ method: "POST", url: "/api/auth/sign-in/anonymous", headers: { origin,
       "x-ordertruth-client-ip": `192.0.2.${100+i}`,"x-forwarded-for": `192.0.2.${100+i}`,forwarded: `for=192.0.2.${100+i}`,
     }, payload: {}, remoteAddress: "192.0.2.40" })).statusCode).toBe(200);
-    expect((await app.inject({ method: "POST", url: "/api/auth/sign-in/anonymous", headers: { origin }, payload: {}, remoteAddress: "192.0.2.40" })).statusCode).toBe(429);
+    const before = (await pool.query(`SELECT count(*)::int AS n FROM ${schema}.ot_auth_user`)).rows[0].n;
+    const denied = await app.inject({ method: "POST", url: "/api/auth/sign-in/anonymous", headers: { origin,"x-ordertruth-client-ip": "203.0.113.9" }, payload: {}, remoteAddress: "192.0.2.99" });
+    expect(denied.statusCode).toBe(429);expect(denied.headers["x-retry-after"]).toBeDefined();
+    expect((await pool.query(`SELECT count(*)::int AS n FROM ${schema}.ot_auth_user`)).rows[0].n).toBe(before);
+    const reused = await restarted.inject({ method: "POST",url: "/api/auth/sign-in/anonymous",headers: { origin,cookie },payload: {} });
+    expect(reused.statusCode).toBe(200);expect(reused.json()).toEqual({ok:true});expect(reused.cookies).toHaveLength(0);
+    expect((await pool.query(`SELECT count(*)::int AS n FROM ${schema}.ot_auth_user`)).rows[0].n).toBe(before);
     expect((await restarted.inject({ method: "POST", url: "/api/auth/sign-out", headers: { origin, cookie }, payload: {}, remoteAddress: "192.0.2.41" })).statusCode).toBe(200);
     expect((await app.inject({ url: "/api/session", headers: { cookie } })).json().authenticated).toBe(false);
+    await pool.query(`UPDATE ${schema}.ot_auth_rate_limit SET "lastRequest"=floor(extract(epoch FROM statement_timestamp())*1000)::bigint-61000 WHERE "key"='ordertruth:guest-admission:v1'`);
+    expect((await restarted.inject({method:"POST",url:"/api/auth/sign-in/anonymous",headers:{origin},remoteAddress:"192.0.2.98",payload:{}})).statusCode).toBe(200);
+    expect((await pool.query(`SELECT "count" FROM ${schema}.ot_auth_rate_limit WHERE "key"='ordertruth:guest-admission:v1'`)).rows[0].count).toBe(1);
   } finally { await restarted.close(); }
+});
+it("preserves the owner email sign-in limit and ignores forged peer headers",async () => {
+  for (let i=0;i<5;i++) expect((await app.inject({ method:"POST",url:"/api/auth/sign-in/email",headers:{origin,"x-ordertruth-client-ip":`203.0.113.${i+1}`,"x-forwarded-for":`203.0.113.${i+1}`},remoteAddress:"192.0.2.77",payload:{email:"missing-owner@example.test",password:"synthetic-wrong-password"} })).statusCode).toBe(401);
+  expect((await app.inject({method:"POST",url:"/api/auth/sign-in/email",headers:{origin},remoteAddress:"192.0.2.77",payload:{email:"missing-owner@example.test",password:"synthetic-wrong-password"}})).statusCode).toBe(429);
+});
+it("enforces the global new-guest bound under concurrent requests across authentication instances",async()=>{
+  const restarted=Fastify({logger:false});registerSessionApi(restarted,createSessionAuth(pool,origin,secret),origin);
+  try {
+    const responses=await Promise.all(Array.from({length:36},(_,i)=>(i%2?app:restarted).inject({method:"POST",url:"/api/auth/sign-in/anonymous",headers:{origin,"x-forwarded-for":`203.0.113.${i+1}`},remoteAddress:`192.0.2.${i+100}`,payload:{}})));
+    expect(responses.filter(r=>r.statusCode===200)).toHaveLength(30);
+    expect(responses.filter(r=>r.statusCode===429)).toHaveLength(6);
+  }finally{await restarted.close();}
 });
 it("runs detection, explicit browser approval and verified repair through real guest sessions", async () => {
   const cookie = await guest("192.0.2.61"); const foreign = await guest("192.0.2.62");

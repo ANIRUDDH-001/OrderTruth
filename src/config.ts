@@ -35,7 +35,7 @@ const EnvSchema = z.object({
     .toLowerCase()
     .optional()
     .transform((v) => (v ? v : "disabled"))
-    .pipe(z.enum(["disabled", "gemini"])),
+    .pipe(z.enum(["disabled", "gemini", "groq"])),
   AI_MODEL: optionalString,
   AI_API_KEY: optionalString,
   GEMINI_API_KEY: optionalString,
@@ -66,7 +66,7 @@ export type AppConfig = {
     timeoutMs: number;
   };
   ai: {
-    provider: "disabled" | "gemini";
+    provider: "disabled" | "gemini" | "groq";
     model: string | undefined;
     apiKey: string | undefined;
     baseUrl: string | undefined;
@@ -135,6 +135,9 @@ function validateEnvironment(env: Record<string, string | undefined>) {
   if (e.AI_PROVIDER === "gemini" && !e.GEMINI_API_KEY && !e.AI_API_KEY) {
     throw new ConfigError("AI_PROVIDER=gemini requires GEMINI_API_KEY (legacy AI_API_KEY is also accepted)", ["AI_API_KEY"]);
   }
+  if (e.AI_PROVIDER === "groq" && !e.GROQ_API_KEY) {
+    throw new ConfigError("AI_PROVIDER=groq requires GROQ_API_KEY; the legacy alias is Gemini-only", ["GROQ_API_KEY"]);
+  }
 
   return e;
 }
@@ -167,7 +170,7 @@ function sharedConfig(e: z.infer<typeof EnvSchema>): Omit<AppConfig,"databasePat
       maxFutureSkewMs: 300_000,
     },
     webhookIngress: { ratePerMinute: e.WEBHOOK_RATE_PER_MIN, rateBurst: e.WEBHOOK_RATE_BURST, maxStoredUnverified: e.WEBHOOK_MAX_STORED_UNVERIFIED },
-    ai: { provider: e.AI_PROVIDER, model: e.AI_MODEL, apiKey: e.GEMINI_API_KEY ?? e.AI_API_KEY, baseUrl: e.AI_BASE_URL },
+    ai: { provider: e.AI_PROVIDER, model: e.AI_MODEL, apiKey: e.AI_PROVIDER === "groq" ? e.GROQ_API_KEY : e.GEMINI_API_KEY ?? e.AI_API_KEY, baseUrl: e.AI_BASE_URL },
     port: e.PORT,
     logLevel: e.LOG_LEVEL,
     secrets: [e.PAYPAL_CLIENT_SECRET, e.AI_API_KEY, e.GEMINI_API_KEY, e.GROQ_API_KEY, e.PAYPAL_WEBHOOK_ID].filter((s): s is string => !!s),

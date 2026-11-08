@@ -26,12 +26,13 @@ it("rejects nested unknown fields and duplicate private evidence identities",() 
   expect(() => prepareEvidenceEgress([evidence[0]!,evidence[0]!])).toThrow("AI_EGRESS_REJECTED");
   expect(() => prepareEvidenceEgress([{ ...evidence[0]!,source: "PAYPAL_SANDBOX_OBSERVATION" }])).toThrow("AI_EGRESS_REJECTED");
 });
-it("only accepts citations issued in this exact request and restores their private references locally",async () => {
+it("only accepts offered comparisons and attaches private merchant citations locally",async () => {
   const run = (invented: boolean) => callPrivateInvestigator({ apiKey: "synthetic",model: "synthetic-model",evidence,fetchImpl: async (_url,init) => {
     const body = JSON.parse(String(init?.body)); const input = JSON.parse(body.contents[0].parts[0].text);
-    const output = { summary: "Controlled merchant discrepancy.",hypotheses: [{ explanation: "Independent write keys may permit repeated merchant writes.",evidenceIds: [invented ? "E_PRIVATE" : input.evidence[0].id],confidence: "LOW",status: "HYPOTHESIS" }],nextDiagnostic: "IDEMPOTENCY_KEYS",diagnosticReason: "Distinguish independent keys from a shared key." };
+    expect(input.comparisonChoices).toHaveLength(15);
+    const output = { comparison: invented ? "P" : "E" };
     return new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: JSON.stringify(output) }] } }] }));
   } });
-  expect((await run(false)).result?.hypotheses[0]?.evidenceIds).toEqual(["E_PRIVATE"]);
-  expect((await run(true)).error).toBe("INVENTED_EVIDENCE");
+  expect((await run(false)).result?.hypotheses[0]?.evidenceIds).toEqual(["M_PRIVATE"]);
+  expect((await run(true)).error).toBe("INVALID_SCHEMA");
 });

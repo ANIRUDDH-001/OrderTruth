@@ -20,11 +20,23 @@ export function registerSessionApi(app: FastifyInstance, auth: SessionAuth, orig
   for (const path of ["sign-in/anonymous", "sign-in/email", "sign-out"]) app.post(`/api/auth/${path}`, { bodyLimit: 16_384 }, async (request, reply) => {
     reply.header("cache-control", "no-store");
     if (request.headers.origin !== origin) return reply.code(403).send({ error: "Same-origin request required" });
-    const headers = fromNodeHeaders(request.headers);
-    // Overwrite rather than trusting this client-supplied header. Better Auth
-    // persists its rate-limit counters in PostgreSQL across restarts.
-    headers.set("x-ordertruth-client-ip", request.ip);
     try {
+      // Retrying entry with a valid guest cookie must not allocate a new user or
+      // fail because unrelated guests consumed the new-identity budget. Owners
+      // still follow the ordinary anonymous-entry path; never silently retain
+      // owner authority when a caller asks to enter as a guest.
+      if (path === "sign-in/anonymous" && request.headers.cookie) {
+        const current = await sessionIdentity(auth,request,ownerIds);
+        if (current?.anonymous) return { ok: true };
+      }
+      if (path === "sign-in/anonymous" && !await auth.reserveGuestAdmission()) {
+        reply.header("retry-after","60").header("x-retry-after","60");
+        return reply.code(429).send({ error: "Guest admission capacity reached; retry after 60 seconds. Existing sessions remain available." });
+      }
+      const headers = fromNodeHeaders(request.headers);
+      // Overwrite all client input. Preserve actual socket-peer attribution;
+      // email sign-in keeps its existing peer-IP bucket and strict limit.
+      headers.set("x-ordertruth-client-ip", request.ip);
       const response = await auth.handler(new Request(`${origin}/api/auth/${path}`, {
         method: "POST", headers, body: JSON.stringify(request.body ?? {}),
       }));

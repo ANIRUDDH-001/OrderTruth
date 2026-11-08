@@ -16,6 +16,7 @@ it('keeps the unhosted integration candidate out of automatic Vercel deployments
   expect(config.git?.deploymentEnabled).toEqual({
     'integration/ordertruth-unified': false,
     'phase6/adversarial-qualification': false,
+    'phase7/ai-integration': false,
   });
   expect(config.git?.deploymentEnabled?.main).toBeUndefined();
   expect(config.buildCommand).toBe('pnpm build:frontend');

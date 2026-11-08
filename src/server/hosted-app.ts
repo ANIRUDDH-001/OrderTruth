@@ -16,6 +16,7 @@ import { registerSessionApi,sessionIdentity } from "./session-api.ts";
 import { registerJudgeApi } from "./judge-api.ts";
 import { PostgresInvestigationService } from "../ai/postgres-investigation-service.ts";
 import { callPrivateInvestigator } from "../ai/private-investigator.ts";
+import { callGroqInvestigator } from "../ai/groq-investigator.ts";
 import { PostgresWebhookInbox } from "../webhooks/postgres-inbox.ts";
 import { WebhookIntake } from "../webhooks/intake.ts";
 import { PayPalPostbackVerifier } from "../webhooks/verifier.ts";
@@ -60,9 +61,9 @@ export async function buildHostedApp(config: ReturnType<typeof loadPostgresConfi
     return reply.code(status && status >= 400 && status < 500 ? status : 503).send({ error: "Request unavailable; committed evidence is preserved",requestId: request.id });
   });
   registerSessionApi(app,auth,config.origin,config.ownerIds);
-  const investigator = config.ai.provider === "gemini" && config.ai.apiKey && config.ai.model ? new PostgresInvestigationService(pool,schema,{
-    model: config.ai.model,dailyLimit: Math.min(config.aiDailyLimit,12),userDailyLimit: Math.min(config.aiUserDailyLimit,3),minIntervalMs: 60_000,
-    infer: evidence => callPrivateInvestigator({ apiKey: config.ai.apiKey!,model: config.ai.model!,evidence }),
+  const investigator = config.ai.provider !== "disabled" && config.ai.apiKey && config.ai.model ? new PostgresInvestigationService(pool,schema,{
+    model: `${config.ai.provider}:${config.ai.model}`,dailyLimit: Math.min(config.aiDailyLimit,12),userDailyLimit: Math.min(config.aiUserDailyLimit,3),minIntervalMs: 65_000,
+    infer: evidence => (config.ai.provider === "groq" ? callGroqInvestigator : callPrivateInvestigator)({ apiKey: config.ai.apiKey!,model: config.ai.model!,evidence }),
   }) : undefined;
   registerJudgeApi(app,{ pool,schema,auth,origin: config.origin,sourceAttemptId: config.sourceAttemptId,...(investigator ? { investigator } : {}) });
   app.get("/api/health",async () => ({ ok: true,environment: "sandbox",persistence: "postgresql",schemaVersion: 9 }));

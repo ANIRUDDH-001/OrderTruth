@@ -4,7 +4,7 @@ import {existsSync,mkdirSync,writeFileSync} from 'node:fs';
 import {basename,resolve} from 'node:path';
 import {setTimeout as delay} from 'node:timers/promises';
 import {verifyPublicRelease} from './public-release.ts';
-import {requireGreenChecks,requireReviewedDatabaseChanges,requireReleaseServiceConfiguration} from './release-policy.ts';
+import {requireGreenChecks,requireReviewedDatabaseChanges,requireReleaseServiceConfiguration,releaseStartCommand} from './release-policy.ts';
 import {inspectReleaseDatabase} from './release-database.ts';
 import {waitForReleaseReadiness} from './release-readiness.ts';
 
@@ -40,7 +40,7 @@ async function deploy(source:string){
  throw new Error('Render deployment timeout');
 }
 async function setMode(mode:'hold'|'normal',source:string){
- await rjson(['services','update',service,'--auto-deploy=false','--health-check-path','/api/health','--start-command',`env -u ORDERTRUTH_MIGRATION -u ORDERTRUTH_BARRIER_FILE ORDERTRUTH_RELEASE_MODE=${mode} AI_PROVIDER=disabled AI_DAILY_LIMIT=0 AI_USER_DAILY_LIMIT=0 pnpm hosted:start`,'--confirm']);
+ await rjson(['services','update',service,'--auto-deploy=false','--health-check-path','/api/health','--start-command',releaseStartCommand(mode,args.includes('--qualify-groq')),'--confirm']);
  return deploy(source);
 }
 async function drain(source:string){
@@ -58,7 +58,7 @@ async function finish(holdDeployment:string,normalDeployment:string,resumed=fals
  const frontend=await verifyPublicRelease(origin,sha!);mkdirSync('.work/releases',{recursive:true});
  const record={at:new Date().toISOString(),sourceSha:sha,holdDeployment,normalDeployment,frontend,
   ...(resumed?{preservationChecks:['original closed target-HOLD fingerprint gate passed before the first NORMAL attempt; see original cutover log','resume same-source HOLD fingerprints stable'],originalCutoverLog:'.work/runs/phase7/release-cutover.log'}:{paymentEvidenceAndReceiptsPreserved:true}),
-  migration:false,providerCalls:0,modelCalls:0,resumedFromVerifiedHold:resumed};
+  migration:false,providerCalls:0,modelCalls:0,aiMode:args.includes('--qualify-groq')?'groq-one-reservation-qualification':'disabled',resumedFromVerifiedHold:resumed};
  writeFileSync(`.work/releases/${sha}-${record.at.replace(/[:.]/g,'-')}.json`,JSON.stringify(record,null,2),{flag:'wx'});
  console.log(JSON.stringify({stage:'PASS',...record}));
 }

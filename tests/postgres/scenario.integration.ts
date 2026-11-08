@@ -8,6 +8,7 @@ import { PostgresRecoveryService } from "../../src/merchant/postgres-recovery.ts
 import { PostgresInvestigationStore } from "../../src/ai/postgres-investigation.ts";
 import { PostgresInvestigationService } from "../../src/ai/postgres-investigation-service.ts";
 import { prepareEvidenceEgress } from "../../src/ai/evidence-egress.ts";
+import { prepareGroundedContext,validateGroundedPlan } from "../../src/ai/grounded-investigation.ts";
 
 import { env } from "./local-db.ts";
 const pool = createPostgresPool(env.DATABASE_URL!);
@@ -49,7 +50,10 @@ it("isolates controlled merchant runs while referencing one immutable payment ob
   const ai = new PostgresInvestigationService(pool,schema,{ model: "synthetic-model",dailyLimit: 1,userDailyLimit: 3,minIntervalMs: 0,
     infer: async evidence => {
       modelCalls++; await new Promise(resolve => setTimeout(resolve,25));
-      return { ok: true,result: { summary: "Synthetic model result.",hypotheses: [{ explanation: "The merchant write identities may differ.",status: "HYPOTHESIS",confidence: "LOW",evidenceIds: evidence.slice(0,2).map(e => e.id) }],nextDiagnostic: "HANDLER_TIMING",diagnosticReason: "Compare recorded merchant handler intervals." },error: null,usage: { promptTokens: 10,outputTokens: 20,totalTokens: 30 },latencyMs: 25,httpStatus: 200 };
+      const context=prepareGroundedContext(evidence),refs=[context.facts[0]!.id];
+      const checked=validateGroundedPlan({hypotheses:[{mechanism:"KEY_SCOPE_MISMATCH",evidenceFactIds:refs},{mechanism:"OVERLAPPING_HANDLERS",evidenceFactIds:refs}],nextDiagnostic:"HANDLER_TIMING",compareMechanisms:["KEY_SCOPE_MISMATCH","OVERLAPPING_HANDLERS"]},context);
+      if(!checked.ok)throw new Error("Synthetic grounded provider fixture failed validation");
+      return { ok: true,result: checked.investigation,error: null,usage: { promptTokens: 10,outputTokens: 20,totalTokens: 30 },latencyMs: 25,httpStatus: 200 };
     } });
   const results = await Promise.all(Array.from({ length: 5 },() => ai.investigate("synthetic_judge_a",a.id)));
   expect(modelCalls).toBe(1); expect(results.filter(r => r.status === "FRESH")).toHaveLength(1);
@@ -82,6 +86,45 @@ it("isolates controlled merchant runs while referencing one immutable payment ob
   expect(history?.freshModelExecution).toBe(false);
   expect(modelCalls).toBe(1);
   expect((await scenarios.get("synthetic_judge_b", b.id)).orders.filter(o => o.effective_status === "placed")).toHaveLength(1);
+});
+it("rejects citation-valid financial prose and does not relabel legacy historical results",async()=>{
+ const f=await payment(),run=await scenarios.createQualification("synthetic_judge_a",f.attempt.id);
+ const evidence=await new PostgresInvestigationStore(pool,schema).evidence("synthetic_judge_a",run.id);
+ const unsafe={summary:"The payment was captured; refund it now.",hypotheses:[{explanation:"Refund the payment.",status:"HYPOTHESIS" as const,confidence:"LOW" as const,evidenceIds:[evidence[0]!.id]}],nextDiagnostic:"IDEMPOTENCY_KEYS" as const,diagnosticReason:"Compare keys."};
+ const ai=new PostgresInvestigationService(pool,schema,{model:"synthetic-unsafe",dailyLimit:20,userDailyLimit:10,minIntervalMs:0,
+  infer:async()=>({ok:true,result:unsafe,error:null,usage:{promptTokens:1,outputTokens:1,totalTokens:2},latencyMs:1,httpStatus:200})});
+ const refused=await ai.investigate("synthetic_judge_a",run.id);
+ expect(refused.status).toBe("UNAVAILABLE");expect(refused.reason).toBe("UNSAFE_GROUNDED_RESULT");
+ const id=`synthetic_legacy_${randomBytes(8).toString("hex")}`,now=new Date().toISOString();
+ // Seed the historical-version fixture through the same immutable reservation
+ // transition. Never modify terminal rows or disable integrity triggers.
+ await pool.query(`INSERT INTO ${schema}.ai_investigations(id,run_id,user_id,snapshot_sha256,status,model,requested_at,evidence_json) VALUES($1,$2,$3,$4,'RESERVED',$5,$6,$7)`,[id,run.id,"synthetic_judge_a","legacy-policy-snapshot","synthetic-legacy",now,JSON.stringify(evidence)]);
+ await pool.query(`UPDATE ${schema}.ai_investigations SET status='FRESH',completed_at=$1,result_json=$2,usage_json='{}' WHERE id=$3`,[now,JSON.stringify(unsafe),id]);
+ expect(await ai.history("synthetic_judge_a",run.id)).toBeNull();
+ expect((await pool.query(`SELECT result_json FROM ${schema}.ai_investigations WHERE id=$1`,[id])).rows[0].result_json).toBe(JSON.stringify(unsafe));
+});
+it("retains usage but refuses to publish an inference superseded by a concurrent diagnostic",async()=>{
+ const f=await payment(),run=await scenarios.createQualification("synthetic_judge_a",f.attempt.id);
+ await scenarios.injectDuplicate("synthetic_judge_a",run.id);
+ const store=new PostgresInvestigationStore(pool,schema);
+ let release!:()=>void,started!:()=>void;
+ const waiting=new Promise<void>(resolve=>{release=resolve;}),entered=new Promise<void>(resolve=>{started=resolve;});
+ const ai=new PostgresInvestigationService(pool,schema,{model:"synthetic-stale",dailyLimit:20,userDailyLimit:10,minIntervalMs:0,
+  infer:async evidence=>{
+   const context=prepareGroundedContext(evidence),refs=[context.facts[0]!.id];
+   const checked=validateGroundedPlan({hypotheses:[{mechanism:"KEY_SCOPE_MISMATCH",evidenceFactIds:refs},{mechanism:"OVERLAPPING_HANDLERS",evidenceFactIds:refs}],nextDiagnostic:"HANDLER_TIMING",compareMechanisms:["KEY_SCOPE_MISMATCH","OVERLAPPING_HANDLERS"]},context);
+   if(!checked.ok)throw new Error("Synthetic grounded provider fixture failed validation");
+   started();await waiting;
+   return {ok:true,result:checked.investigation,error:null,usage:{promptTokens:2,outputTokens:1,totalTokens:3},latencyMs:1,httpStatus:200};
+  }});
+ const pending=ai.investigate("synthetic_judge_a",run.id);
+ try{await entered;await store.diagnostic("synthetic_judge_a",run.id,"IDEMPOTENCY_KEYS");}finally{release();}
+ const result=await pending;
+ expect(result.status).toBe("UNAVAILABLE");expect(result.reason).toBe("STALE_EVIDENCE");
+ expect("investigation" in result).toBe(false);expect(await ai.history("synthetic_judge_a",run.id)).toBeNull();
+ const rows=(await pool.query(`SELECT status,error_kind,usage_json,result_json FROM ${schema}.ai_investigations WHERE run_id=$1`,[run.id])).rows;
+ expect(rows).toHaveLength(1);expect(rows[0].status).toBe("UNAVAILABLE");expect(rows[0].error_kind).toBe("STALE_EVIDENCE");
+ expect(JSON.parse(rows[0].usage_json).totalTokens).toBe(3);expect(rows[0].result_json).toBeNull();
 });
 it("projects real database evidence through the gateway and persists provider cooldown across service instances",async () => {
   const f = await payment(); const run = await scenarios.createQualification("synthetic_judge_a",f.attempt.id);

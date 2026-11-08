@@ -5,6 +5,12 @@ export function requireGreenChecks(checks:Array<{id:number;name:string;status:st
   if(latest.conclusion!=='success')throw new Error(`Failed CI gate: ${name}`);
  }
 }
+/** Qualification opens only one durable daily reservation. HOLD/rollback
+ * always disables inference, independently of private environment values. */
+export function releaseStartCommand(mode:'hold'|'normal',qualifyGroq=false){
+ const ai=mode==='normal'&&qualifyGroq?'AI_PROVIDER=groq AI_MODEL=openai/gpt-oss-120b AI_DAILY_LIMIT=1 AI_USER_DAILY_LIMIT=1':'AI_PROVIDER=disabled AI_DAILY_LIMIT=0 AI_USER_DAILY_LIMIT=0';
+ return `env -u ORDERTRUTH_MIGRATION -u ORDERTRUTH_BARRIER_FILE ORDERTRUTH_RELEASE_MODE=${mode} ${ai} pnpm hosted:start`;
+}
 export function requireV9Drain(state:{versions:number[];pendingCaptures:number;pendingWebhooks:number;activeTransactions:number}){
  if(JSON.stringify(state.versions)!==JSON.stringify([1,2,3,4,5,6,7,8,9])||state.pendingCaptures||state.pendingWebhooks||state.activeTransactions)throw new Error('V9 schema or financial writer-drain gate failed');
 }
