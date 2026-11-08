@@ -20,6 +20,19 @@ const status = (ui: Awaited<ReturnType<typeof mountJudge>>) => ui.doc.querySelec
 const writes = (calls: UiCall[]) => calls.filter(c => c.method !== "GET");
 
 describe("slow-request notice on the judge page",() => {
+  it("announces crossed milestones when the wall clock drifts past exact timer boundaries",async () => {
+    const slow = gate(c => c.path === "/api/session"); slow.hold();
+    const ui = await mountJudge(async call => { await slow.wait(call); return session; },undefined,undefined,{ settle: false });
+    await vi.advanceTimersByTimeAsync(1000);
+    vi.setSystemTime(Date.now()+17);
+    await vi.advanceTimersByTimeAsync(2000);
+    expect(status(ui)?.textContent).toContain("Still working");
+    vi.setSystemTime(Date.now()+30_111);
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(status(ui)?.textContent).toContain("server may be waking");
+    slow.release(); await ui.idle();
+    expect(writes(ui.calls)).toEqual([]);
+  });
   it("shows the read-only notice during a slow first load, without rebuilding, moving focus or sending a write",async () => {
     const slow = gate(c => c.path === "/api/session"); slow.hold();
     const ui = await mountJudge(async call => {

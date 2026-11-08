@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { afterAll, beforeAll, expect, it } from "vitest";
+import { afterAll, beforeAll, expect, it,vi } from "vitest";
 import { createPostgresPool } from "../../src/db/postgres.ts";
 import { migratePostgres } from "../../src/db/postgres-migrate.ts";
 import { PostgresCheckoutStore } from "../../src/db/postgres-checkout.ts";
@@ -7,6 +7,7 @@ import { PostgresScenarioStore } from "../../src/merchant/postgres-scenarios.ts"
 import { PostgresRecoveryService } from "../../src/merchant/postgres-recovery.ts";
 import { PostgresInvestigationStore } from "../../src/ai/postgres-investigation.ts";
 import { PostgresInvestigationService } from "../../src/ai/postgres-investigation-service.ts";
+import { prepareEvidenceEgress } from "../../src/ai/evidence-egress.ts";
 
 import { env } from "./local-db.ts";
 const pool = createPostgresPool(env.DATABASE_URL!);
@@ -81,4 +82,24 @@ it("isolates controlled merchant runs while referencing one immutable payment ob
   expect(history?.freshModelExecution).toBe(false);
   expect(modelCalls).toBe(1);
   expect((await scenarios.get("synthetic_judge_b", b.id)).orders.filter(o => o.effective_status === "placed")).toHaveLength(1);
+});
+it("projects real database evidence through the gateway and persists provider cooldown across service instances",async () => {
+  const f = await payment(); const run = await scenarios.createQualification("synthetic_judge_a",f.attempt.id);
+  await scenarios.injectDuplicate("synthetic_judge_a",run.id);
+  const store = new PostgresInvestigationStore(pool,schema);
+  for (const kind of ["HANDLER_TIMING","IDEMPOTENCY_KEYS","MERCHANT_WRITE_OUTCOMES"] as const) await store.diagnostic("synthetic_judge_a",run.id,kind);
+  const evidence = await store.evidence("synthetic_judge_a",run.id);
+  const payload = prepareEvidenceEgress(evidence).payload;
+  expect(payload).not.toContain(run.id); expect(payload).not.toContain("keySha256"); expect(payload).toContain("relation");
+  let calls = 0;
+  const settings = { model: "synthetic-circuit",dailyLimit: 20,userDailyLimit: 10,minIntervalMs: 0,
+    infer: async () => { calls++; return { ok: false,result: null,error: "QUOTA_OR_RATE_LIMIT",usage: { promptTokens: null,outputTokens: null,totalTokens: null },httpStatus: 429,latencyMs: 1 }; } };
+  expect((await new PostgresInvestigationService(pool,schema,settings).investigate("synthetic_judge_a",run.id)).reason).toBe("QUOTA_OR_RATE_LIMIT");
+  const blocked = await new PostgresInvestigationService(pool,schema,settings).investigate("synthetic_judge_a",run.id);
+  expect(blocked.reason).toBe("PROVIDER_CIRCUIT_OPEN"); expect(calls).toBe(1);
+  const count = (await pool.query(`SELECT count(*)::int AS n FROM ${schema}.ai_investigations WHERE model=$1`,[settings.model])).rows[0].n;
+  expect(count).toBe(1);
+  const clock = vi.spyOn(Date,"now").mockReturnValue(Date.now()+65_000);
+  try { await new PostgresInvestigationService(pool,schema,settings).investigate("synthetic_judge_a",run.id); expect(calls).toBe(2); }
+  finally { clock.mockRestore(); }
 });

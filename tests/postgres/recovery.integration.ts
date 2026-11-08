@@ -9,7 +9,9 @@ import { registerPostgresRecoveryApi } from "../../src/merchant/postgres-api.ts"
 import { PostgresWebhookInbox } from "../../src/webhooks/postgres-inbox.ts";
 import { captureEvent } from "../helpers/webhook-fixtures.ts";
 import { EventSchema,summarizeEvent } from "../../src/webhooks/event.ts";
-import { PayPalError } from "../../src/paypal/client.ts";
+import { PayPalClient,PayPalError } from "../../src/paypal/client.ts";
+import { PostgresCheckoutService } from "../../src/postgres-checkout-service.ts";
+import { SANDBOX_API_BASE } from "../../src/config.ts";
 
 import { env } from "./local-db.ts";
 const pool = createPostgresPool(env.DATABASE_URL!);
@@ -43,10 +45,10 @@ async function post(path: string, body: unknown, actor = "owner") {
   return fetch(`${base}/api/recovery/${path}`, { method: "POST", headers: { "content-type": "application/json", "x-qualification-actor": actor }, body: JSON.stringify(body) });
 }
 
-async function fixture() {
+async function fixture(options: { plainOrderId?: boolean } = {}) {
   const suffix = randomBytes(8).toString("hex");
   const { intent, attempt } = await checkout.createCheckout(`qualification-recovery-${suffix}`);
-  const order = `SYNTHETIC_${suffix.toUpperCase()}`;
+  const order = `SYNTHETIC${options.plainOrderId ? "" : "_"}${suffix.toUpperCase()}`;
   const capture = `SYNTHETIC_CAPTURE_${suffix.toUpperCase()}`;
   await checkout.attachOrder(attempt.id, order);
   await checkout.recordReadback(attempt.id, { id: order, status: "COMPLETED", intent: "CAPTURE", purchase_units: [{
@@ -61,6 +63,23 @@ async function fixture() {
   await insert(`mo_${suffix}_1`); await insert(`mo_${suffix}_2`);
   return { intent, attempt, insert, suffix };
 }
+it.each(["disconnect","invalid-json","nonobject","malformed-object","malformed-error"])("blocks repair after a fresh GET %s instead of trusting the older capture",async mode => {
+  const f = await fixture({ plainOrderId: true });
+  const incident = await recovery.check("org_reference",f.intent.id);
+  let calls = 0;
+  const provider = new PayPalClient({ env: "sandbox",apiBase: SANDBOX_API_BASE,clientId: "synthetic",clientSecret: "synthetic",webhookId: undefined,timeoutMs: 1000 },async () => {
+    if (++calls === 1) return new Response(JSON.stringify({ access_token: "synthetic",expires_in: 300 }));
+    if (mode === "malformed-error") return new Response(JSON.stringify({ name: "INTERNAL_SERVER_ERROR",details: {} }),{ status: 503 });
+    return mode === "disconnect" ? new Response(new ReadableStream({ start(c) { c.error(new TypeError("synthetic disconnect")); } }),{ status: 200 })
+      : new Response(mode === "invalid-json" ? "{broken" : mode === "malformed-object" ? JSON.stringify({ id: `SYNTHETIC${f.suffix.toUpperCase()}`,status: "COMPLETED",purchase_units: "invalid" }) : "null",{ status: 200 });
+  });
+  const service = new PostgresCheckoutService(provider,checkout,"SYNTHETIC_QUALIFICATION");
+  await expect(service.readback(`SYNTHETIC${f.suffix.toUpperCase()}`)).rejects.toBeInstanceOf(PayPalError);
+  const failed = (await pool.query(`SELECT operation FROM ${schema}.evidence WHERE attempt_id=$1 ORDER BY seq DESC LIMIT 1`,[f.attempt.id])).rows[0];
+  expect(failed.operation).toBe("readback_error");
+  await expect(recovery.plan("org_reference",incident.incidentId!,"qualification-actor")).rejects.toThrow(/eligible/);
+  expect(calls).toBe(2);
+});
 async function verifiedWebhook(f: Awaited<ReturnType<typeof fixture>>) {
   const attempt = (await pool.query(`SELECT * FROM ${schema}.payment_attempts WHERE id=$1`, [f.attempt.id])).rows[0];
   const inbox = new PostgresWebhookInbox(pool,schema,"SYNTHETIC_QUALIFICATION");

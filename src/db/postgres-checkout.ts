@@ -115,7 +115,11 @@ export class PostgresCheckoutStore {
           [JSON.stringify(["Conflicting provider observation; accepted capture identity retained. Investigation required."]), at, attemptId]);
       } else {
         const approvedWithoutCapture = verdict.state === "uncertain" && raw.status === "APPROVED" && !raw.purchase_units?.[0]?.payments?.captures?.length;
-        const next = approvedWithoutCapture ? (attempt.state === "awaiting_buyer_approval" ? "approved" : attempt.state) : verdict.state;
+        // A correlated order awaiting buyer approval is not an uncertain capture.
+        // Never move an already claimed/uncertain attempt back to approval.
+        const awaitingApproval = verdict.state === "uncertain" && ["CREATED","PAYER_ACTION_REQUIRED"].includes(raw.status ?? "")
+          && !raw.purchase_units?.[0]?.payments?.captures?.length && attempt.state === "awaiting_buyer_approval";
+        const next = awaitingApproval ? attempt.state : approvedWithoutCapture ? (attempt.state === "awaiting_buyer_approval" ? "approved" : attempt.state) : verdict.state;
         if (canTransition(attempt.state, next)) {
           await client.query("UPDATE payment_attempts SET state=$1,provider_order_status=$2,capture_id=$3,capture_status=$4,captured_minor=$5,captured_currency=$6,payee_merchant_masked=$7,verdict_reasons=$8,updated_at=$9 WHERE id=$10",
             [next, verdict.orderStatus, verdict.captureId ?? attempt.capture_id, verdict.captureStatus ?? attempt.capture_status,

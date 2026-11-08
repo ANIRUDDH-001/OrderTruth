@@ -1,3 +1,7 @@
 # esbuild (used by tsx/vite) runs a postinstall that only validates its platform binary.
 allowBuilds:
   esbuild: true
+
+# Better Auth pins the vulnerable patch; keep all Zod consumers on the fix.
+overrides:
+  'zod@4.6.5': 4.6.6

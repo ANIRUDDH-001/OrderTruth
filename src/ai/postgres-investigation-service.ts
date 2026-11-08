@@ -4,6 +4,7 @@ import { canonical,sha256 } from "../domain/canonical.ts";
 import { withTransaction } from "../db/postgres.ts";
 import { PostgresInvestigationStore } from "./postgres-investigation.ts";
 import { deterministicInvestigator,validateInvestigation,type InvestigationCall,type InvestigationEvidence } from "./investigation.ts";
+import { EGRESS_POLICY,prepareEvidenceEgress } from "./evidence-egress.ts";
 
 type Settings = { model: string; dailyLimit: number; userDailyLimit: number; minIntervalMs: number;
   infer(evidence: readonly InvestigationEvidence[]): Promise<InvestigationCall> };
@@ -41,8 +42,10 @@ export class PostgresInvestigationService {
   async investigate(user: string,run: string) {
     const evidence = await this.evidenceStore.evidence(user,run);
     const baseline = deterministicInvestigator(evidence);
-    const snapshotSha256 = sha256(canonical({ policy: "investigator-v2",model: this.settings.model,evidence }));
+    const snapshotSha256 = sha256(canonical({ policy: `investigator-v2:${EGRESS_POLICY}`,model: this.settings.model,evidence }));
     const unavailable = (reason: string,retryAt: string | null = null) => ({ status: "UNAVAILABLE" as const,freshModelExecution: false,reason,retryAt,baseline,evidence,snapshotSha256 });
+    // Privacy rejection is not an inference reservation or a provider attempt.
+    try { prepareEvidenceEgress(evidence); } catch { return unavailable("AI_EGRESS_REJECTED"); }
     const now = Date.now(); const day = new Date(now).toISOString().slice(0,10);
     const reservation = await this.tx(async client => {
       await client.query("SELECT pg_advisory_xact_lock(hashtextextended($1,0))", [`${this.schema}:ai-reservation`]);
@@ -55,6 +58,16 @@ export class PostgresInvestigationService {
       const cached = (await client.query(`SELECT * FROM ai_investigations WHERE run_id=$1 AND user_id=$2 AND snapshot_sha256=$3
         AND model=$4 AND status='FRESH' ORDER BY completed_at DESC LIMIT 1`, [run,user,snapshotSha256,this.settings.model])).rows[0];
       if (cached) return { cached };
+      // Durable, model-scoped circuit: failed calls keep their reservations.
+      // One global RESERVED row below also arbitrates the recovery probe.
+      const recent = (await client.query(`SELECT status,error_kind,completed_at FROM ai_investigations
+        WHERE model=$1 AND completed_at IS NOT NULL ORDER BY completed_at DESC,id DESC LIMIT 3`,[this.settings.model])).rows;
+      const last = recent[0];
+      const failures = new Set(["NETWORK","TIMEOUT","PROVIDER_UNAVAILABLE","PROVIDER_FAILURE"]);
+      const cooling = last?.error_kind === "QUOTA_OR_RATE_LIMIT" ? 60_000
+        : recent.length === 3 && recent.every(r => r.status === "UNAVAILABLE" && failures.has(r.error_kind)) ? 30_000 : 0;
+      const reopenAt = last ? Date.parse(last.completed_at)+cooling : 0;
+      if (cooling && now < reopenAt) return { reason: "PROVIDER_CIRCUIT_OPEN",retryAt: new Date(reopenAt).toISOString() };
       if (this.settings.dailyLimit === 0 || this.settings.userDailyLimit === 0) return { reason: "BUDGET_DISABLED" };
       if (budget.reservations >= this.settings.dailyLimit) return { reason: "APP_DAILY_BUDGET",retryAt: new Date(Date.parse(`${day}T00:00:00.000Z`)+86_400_000).toISOString() };
       const own = (await client.query("SELECT count(*)::integer AS n FROM ai_investigations WHERE user_id=$1 AND requested_at>=$2 AND requested_at<$3", [user,`${day}T00:00:00.000Z`,new Date(Date.parse(`${day}T00:00:00.000Z`)+86_400_000).toISOString()])).rows[0].n;

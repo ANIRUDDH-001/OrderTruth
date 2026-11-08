@@ -175,3 +175,5 @@ h1{font-size:34px}
 .brand::before{display:none}.brand{display:inline-flex;align-items:center;gap:12px}.brand img{width:30px;height:30px;flex:none;order:-1}
 .install-app-button{position:fixed;right:20px;bottom:20px;z-index:5;box-shadow:0 3px 16px #102d351f}.install-app-status{position:fixed;right:20px;bottom:78px;max-width:340px;padding:16px;background:#fff;border:1px solid #8aaba8;border-radius:8px;z-index:5}.install-app-button[hidden],.install-app-status[hidden]{display:none}
 @media(display-mode:standalone){.install-app-button{display:none}}
+
+.account-menu{position:relative;max-width:26rem}.account-menu summary{cursor:pointer;font-weight:650;padding:.65rem}.account-menu[open]{padding:.5rem;border:1px solid var(--border,#bcc9ca);border-radius:.5rem}.account-menu .session-label{display:block;margin:.5rem}.account-menu a{display:block;margin:.75rem}.account-menu button{margin:.35rem}footer details{margin-top:1rem}

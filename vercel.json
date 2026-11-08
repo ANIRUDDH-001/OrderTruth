@@ -5,7 +5,8 @@
   "outputDirectory": "dist/judge",
   "git": {
     "deploymentEnabled": {
-      "integration/ordertruth-unified": false
+      "integration/ordertruth-unified": false,
+      "phase6/adversarial-qualification": false
     }
   },
   "rewrites": [

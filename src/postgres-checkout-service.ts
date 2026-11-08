@@ -4,6 +4,20 @@ import { CheckoutError } from "./checkout-service.ts";
 import { PostgresCheckoutStore, type ObservationProvenance } from "./db/postgres-checkout.ts";
 import { GATE0_PRODUCT, type OrderReadback } from "./domain/checkout.ts";
 import { toProviderValue } from "./domain/money.ts";
+import { z } from "zod";
+
+// Validate fields used by verification and evidence summaries. Additional PayPal
+// fields are permitted here but never included in the reduced evidence summary.
+const amountSchema = z.object({ currency_code: z.string().optional(),value: z.string().optional() }).passthrough();
+const readbackSchema = z.object({ id: z.string(),status: z.string(),intent: z.string().optional(),
+  links: z.array(z.object({ rel: z.string().optional() }).passthrough()).optional(),
+  purchase_units: z.array(z.object({ reference_id: z.string().optional(),custom_id: z.string().optional(),amount: amountSchema.optional(),
+    payee: z.object({ merchant_id: z.string().optional() }).passthrough().optional(),
+    payments: z.object({ captures: z.array(z.object({ id: z.string().optional(),status: z.string().optional(),final_capture: z.boolean().optional(),amount: amountSchema.optional(),
+      status_details: z.object({ reason: z.string().optional() }).passthrough().optional(),
+    }).passthrough()).optional() }).passthrough().optional(),
+  }).passthrough()).optional(),
+}).passthrough();
 
 type CheckoutProvider = Pick<PayPalClient, "createOrder" | "getOrder" | "captureOrder">;
 const orderId = (id: string) => {
@@ -47,12 +61,16 @@ export class PostgresCheckoutService {
   async readbackIf(id: string, correlationId: string, accept: (raw: OrderReadback) => string | null) {
     const { intent, attempt } = await this.store.byOrder(orderId(id));
     let response;
-    try { response = await this.provider.getOrder(id, { correlationId: intent.correlation_id }); }
+    try {
+      response = await this.provider.getOrder(id, { correlationId: intent.correlation_id });
+      if (response.httpStatus !== 200 || !readbackSchema.safeParse(response.body).success) throw new PayPalError("network","Provider readback structure unavailable",{
+        httpStatus: response.httpStatus,debugId: response.debugId,issues: [],durationMs: response.durationMs,
+      });
+    }
     catch (error) {
       if (error instanceof PayPalError) await this.store.recordProviderResult(attempt.id, "readback", error, this.provenance);
       throw error;
     }
-    if (!response.body || typeof response.body !== "object") throw new CheckoutError("provider_mismatch", "Provider readback was not an order", 502);
     const raw = response.body as OrderReadback;
     const reason = accept(raw);
     const result = await this.store.recordReadback(attempt.id, raw, this.provenance, response, correlationId === "manual" ? undefined : { refusal: reason });

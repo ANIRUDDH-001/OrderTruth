@@ -61,7 +61,7 @@ function extractIssues(body: unknown): string[] {
   const out: string[] = [];
   if (typeof b.name === "string") out.push(b.name);
   if (typeof b.error === "string") out.push(b.error);
-  for (const d of b.details ?? []) if (typeof d?.issue === "string") out.push(d.issue);
+  for (const d of Array.isArray(b.details) ? b.details.slice(0,10) : []) if (typeof d?.issue === "string") out.push(d.issue);
   return out.slice(0, 10);
 }
 
@@ -130,7 +130,15 @@ export class PayPalClient {
     }
     const durationMs = Math.round(performance.now() - started);
     const debugId = res.headers.get("paypal-debug-id");
-    const text = await res.text();
+    let text: string;
+    try { text = await res.text(); }
+    catch (err) {
+      const name = (err as Error)?.name;
+      const kind = name === "TimeoutError" || name === "AbortError" ? "timeout" : "network";
+      throw new PayPalError(kind, "Provider response body unavailable", {
+        httpStatus: res.status,debugId,issues: [],durationMs: Math.round(performance.now()-started),
+      });
+    }
     let body: unknown = null;
     try {
       body = text ? JSON.parse(text) : null;
@@ -145,6 +153,11 @@ export class PayPalClient {
         debugId,
         issues,
         durationMs,
+      });
+    }
+    if (!body || typeof body !== "object" || Array.isArray(body)) {
+      throw new PayPalError("network", "Provider response was not a JSON object", {
+        httpStatus: res.status,debugId,issues: [],durationMs: Math.round(performance.now()-started),
       });
     }
     return { body: body as T, httpStatus: res.status, debugId, durationMs, requestId: opts.requestId ?? null, correlationId: opts.meta.correlationId };

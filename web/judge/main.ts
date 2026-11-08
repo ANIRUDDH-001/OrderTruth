@@ -11,6 +11,7 @@ const CREATION_MARKER = "ordertruth.judge.unidentifiedCreation";
 const MUTATION_MARKER = "ordertruth.judge.pendingMutation";
 const CREATION_LIMITATION = "Creation outcome remains uncertain. This UI cannot locate or reconcile that creation without a validated case ID. Existing case reads do not establish rollback; no POST was repeated.";
 let historyRevision = 0;
+let accountOpen = false;
 let planExpiryTimer: ReturnType<typeof setTimeout>|undefined;
 function el<K extends keyof HTMLElementTagNameMap>(tag: K,text = "",className = ""): HTMLElementTagNameMap[K] { const node = document.createElement(tag); node.textContent = text; node.className = className; return node; }
 function section(title: string,description: string) { const node = el("section","","panel"); node.append(el("h2",title),el("p",description,"muted")); return node; }
@@ -44,10 +45,13 @@ async function run(label: string,action: () => Promise<void>|void) {
   for (const control of root.querySelectorAll("button")) control.setAttribute("aria-disabled","true");
   const progress = root.querySelector<HTMLElement>("#request-status"); if (progress) { progress.hidden = false; progress.textContent = `${label}…`; }
   const kind = READ_ONLY_ACTIONS.has(label) ? "read" : "write";
-  const started = Date.now(); const timer = setInterval(() => {
+  const started = Date.now(); let nextAnnouncement = 2000; const timer = setInterval(() => {
     // Announce bounded milestones, rather than speaking every elapsed second.
     const elapsed = Date.now()-started;
-    if (elapsed === 2000 || elapsed % 15000 === 0) { const status = root.querySelector<HTMLElement>("#request-status"); if (status) status.textContent = `${label}… ${slowNotice(elapsed,kind)}`.trim(); }
+    if (elapsed >= nextAnnouncement) {
+      nextAnnouncement = (Math.floor(elapsed/15000)+1)*15000;
+      const status = root.querySelector<HTMLElement>("#request-status"); if (status) status.textContent = `${label}… ${slowNotice(elapsed,kind)}`.trim();
+    }
   },1000);
   try { await action(); } catch (error) {
     if(error instanceof RequestError && error.kind==='MAINTENANCE')state.notice=error.message;
@@ -230,10 +234,16 @@ function render() {
   const header = el("header"); const brand = el("a","OrderTruth","brand"); brand.href = "/?view=overview"; brand.setAttribute("aria-label","OrderTruth overview");
   const mark=el('img');mark.src='/brand/mark.svg';mark.alt='';mark.width=30;mark.height=30;brand.append(mark);
   const identity = el("span",state.maintenance ? "Service update in progress" : state.sessionStatus === "AUTHENTICATED" ? (state.session.owner ? "Owner session" : "Private workspace") : state.sessionStatus === "SIGNED_OUT" ? "Sandbox workspace" : state.busy ? "Connecting to workspace" : "Session unconfirmed","session-label");
-  const ownerToggle = button(state.ownerForm ? "Close owner sign-in" : "Owner access",() => { state.ownerForm = !state.ownerForm; },true);
+  const ownerToggle = button(state.ownerForm ? "Close owner sign-in" : "Owner access",() => { state.ownerForm = !state.ownerForm; accountOpen = true; },true);
   ownerToggle.id = "owner-toggle"; ownerToggle.setAttribute("aria-expanded",String(state.ownerForm));
   const labLink = el("a","Integration Lab"); labLink.href = "/lab/";
-  header.append(brand,identity,labLink,ownerToggle); root.append(header);
+  const account = el("details","","account-menu");
+  account.open = accountOpen; account.addEventListener("toggle",() => { accountOpen = account.open; });
+  account.append(el("summary",state.sessionStatus === "AUTHENTICATED" && state.session.owner ? "Owner account" : "Guest workspace"),identity);
+  if (state.sessionStatus === "AUTHENTICATED" && state.session.owner) {
+    const checkout = el("a","Owner Sandbox checkout"); checkout.href = "/owner/"; account.append(checkout);
+  } else account.append(el("p","Judges can investigate as guests. Owner sign-in is only for protected Sandbox payment access.","muted"),ownerToggle);
+  header.append(brand,account); root.append(header);
   if(state.sessionStatus === "AUTHENTICATED") {
     const signOut=button("Sign out",async()=>{
       if(state.pendingMutationRun || state.unidentifiedCreation || state.creationOperation) throw new Error("Reconcile the pending operation before signing out.");
@@ -243,7 +253,7 @@ function render() {
       state.notice="Signed out. Existing cases and receipts remain stored under their original session.";
     },true,true);
     signOut.disabled ||= !!state.pendingMutationRun || !!state.unidentifiedCreation || !!state.creationOperation;
-    header.append(signOut);
+    account.append(signOut);
   }
   const main = el("main"); main.id = "workspace"; main.tabIndex = -1;
   main.setAttribute("aria-busy",String(!!state.busy));
@@ -251,7 +261,7 @@ function render() {
   intro.append(el("p","Payment integrity, beyond the payment.","kicker"),el("h1",state.scenario ? state.receipt?.verifiedCurrent && !state.needsRecheck ? "Correction made. Outcome verified." : "One payment. Follow every order." : "A successful payment doesn’t guarantee the merchant order is correct."),
     el("p",state.scenario ? "Inspect the recorded evidence, compare the merchant outcome, and make a correction you can verify." : "OrderTruth connects payment evidence to the merchant outcome. Find a discrepancy, understand it, and verify an exact, human-approved correction.","lead"));
   main.append(intro);
-  if (state.ownerForm) main.append(ownerForm());
+  if (state.ownerForm && !state.session.owner) main.append(ownerForm());
   const progress = el("p",state.busy ? `${state.busy}…` : "","notice"); progress.id = "request-status"; progress.hidden = !state.busy; progress.setAttribute("role","status"); progress.setAttribute("aria-live","polite"); progress.setAttribute("aria-atomic","true"); root.append(progress);
   if (state.error) { const error = el("p",state.error,"error"); error.id = "action-error"; error.tabIndex = -1; error.setAttribute("role","alert"); main.append(error); }
   else if (state.notice && !state.busy) { const notice = el("p",state.notice,"notice"); notice.setAttribute("role","status"); main.append(notice); }
@@ -264,7 +274,7 @@ function render() {
       connection.append(el('strong','We’re updating OrderTruth'),el('p','Saved cases and receipts are preserved. New actions are paused until the service is ready. Check availability to reconnect safely.','muted'),button('Check availability',resumeCase,true));
       main.append(connection);
     } else {
-    connection.append(el("strong",state.busy ? "Confirming your session" : state.sessionStatus === "UNKNOWN" ? "Connection needs attention" : state.needsRecheck ? "Recover the previous request first" : "Connection confirmed"),el("p",state.busy ? "You can read the workflow while we connect. This can take up to 90 seconds if the server is waking from idle." : state.sessionStatus === "UNKNOWN" ? "The server could not confirm your session. Recheck the connection to try a read-only request. No payment or repair will be submitted." : state.needsRecheck ? "Recheck the saved operation before starting another case. A timeout or incomplete response does not establish rollback." : "A private case needs an owner-approved stored PayPal Sandbox observation. Availability is checked when you begin. The case creates controlled merchant state; it does not charge a buyer.","muted"));
+    connection.append(el("strong",state.busy ? "Confirming your session" : state.sessionStatus === "UNKNOWN" ? "Connection needs attention" : state.needsRecheck ? "Recover the previous request first" : "Ready to investigate as a guest"),el("p",state.busy ? "You can read the workflow while we connect. This can take up to 90 seconds if the server is waking from idle." : state.sessionStatus === "UNKNOWN" ? "The server could not confirm your session. Recheck the connection to try a read-only request. No payment or repair will be submitted." : state.needsRecheck ? "Recheck the saved operation before starting another case. A timeout or incomplete response does not establish rollback." : "No registration or owner password is needed. Begin with a stored PayPal Sandbox observation and your own controlled merchant case. This does not charge a buyer.","muted"));
     toolbar.append(start,button("Resume/Recheck Case",resumeCase,!state.needsRecheck)); connection.append(toolbar); main.append(connection);
     }
   } else {
@@ -296,7 +306,8 @@ function render() {
     const list = el("ul"); for (const id of recent) { const item = el("li"),link = el("a",`Open case ${id}`); link.href = `/?run=${encodeURIComponent(id)}`; item.append(link); list.append(item); } navigation.append(list); main.append(navigation);
   }
   root.append(main);
-  const footer = el("footer","Independent OrderTruth prototype. PayPal Sandbox observations and controlled merchant state are labelled separately. Not affiliated with or endorsed by PayPal."); root.append(footer);
+  const footer = el("footer","Independent OrderTruth prototype. PayPal Sandbox observations and controlled merchant state are labelled separately. Not affiliated with or endorsed by PayPal.");
+  const technical = el("details"); technical.append(el("summary","Technical evidence and experiments"),el("p","Explore the experimental integration verifier. Its synthetic results are separate from this merchant case."),labLink); footer.append(technical); root.append(footer);
   const plan = state.plan;
   if (plan && !state.receipt && !planExpired(plan) && Date.parse(plan.expires_at)-Date.now() < 86400_000) {
     planExpiryTimer = setTimeout(() => {

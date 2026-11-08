@@ -42,3 +42,12 @@ Store **only durable, non-sensitive** decisions here. Detailed local agent scrat
 ### ADR-006 — Stage 1D append-only local repair journal (2026-10-19)
 Status: product-owner authorized local implementation; human demonstration still requires independent review and exact interactive approval.
 Use immutable plans/execution identities with append-only approvals, EXECUTING transitions, unique terminal outcomes, order voids, incident resolutions and audit. Keep the original merchant/order incident statuses unchanged; derive effective state from committed facts. Serialize SQLite writers with BEGIN IMMEDIATE. Roll correction back to a savepoint and commit a refusal in the outer transaction, removing the two-transaction audit-loss window. Before COMMIT a crash leaves no repair; after COMMIT retries return the durable outcome. No provider client is available to repair code. CLI declarations are not authenticated identity or RBAC. No exposure or production readiness is implied.
+## ADR-008 — Phase 6 privacy boundary and preserved evaluation contracts
+
+**Date:** 2026-11-08. **Status:** Implemented locally under the owner's Phase 6 authority; hosted release HOLD.
+
+Use a strict, model-independent causal-relations gateway before inference reservation and transport. Unknown nested fields fail closed. Transport receives per-request opaque references and interval relationships, without exact amounts, absolute times, stable merchant IDs or raw key fingerprints. Genuine Sandbox financial observations remain blocked until a separately qualified disclosure policy exists; current external pilot scope is synthetic only. Minimized relationships are not claimed anonymous.
+
+Keep the original `src/ai/investigation.ts` and frozen evaluator unchanged. The hosted path uses `private-investigator.ts`; the Groq adapter reuses this boundary and is not selected by hosted startup. Preserve the old V3 verifier manifest verbatim under `docs/evidence/phase6/`; regenerate the current manifest only for dependency-lock changes, then requalify. Old Lab reports retain their original hashes and synthetic provenance.
+
+Do not claim free-text output grounding from schema/citation validation. Live AI remains HOLD until an independent safety/value evaluation qualifies it. No automatic provider failover, payment tools, or deployment is introduced.

@@ -8,6 +8,15 @@ const plan = { id: "rp_fixture",plan_sha256: "fixture_hash",keep_order_id: "keep
 const receipt = (outcome: string,verifiedCurrent: boolean) => ({ receipt: { execution_id: "execution_fixture",outcome,completed_at: "2026-10-26T00:00:00Z",provider_before_sha256: "unchanged",provider_after_sha256: "unchanged" },verifiedCurrent,current: { activeOrders: 1,matchingKeeper: 1,providerUnchanged: true } });
 
 describe("judge keyboard and completed-case UX",() => {
+  it("explains guest entry and groups protected access without asking an authenticated owner to sign in again",async () => {
+    const guest = await mountJudge(call => call.path === "/api/session" ? session : null);
+    expect(guest.doc.root.textContent).toContain("No registration or owner password is needed");
+    vi.resetModules();
+    const owner = await mountJudge(call => call.path === "/api/session" ? { ...session,owner: true } : null);
+    expect(owner.doc.root.textContent).toContain("Owner Sandbox checkout");
+    expect(owner.doc.root.querySelectorAll("button").some(b => b.textContent === "Owner access")).toBe(false);
+    expect(owner.doc.root.textContent).toContain("Technical evidence and experiments");
+  });
   for (const [state,selector,background] of [
     ["normal",/input\{[^}]*border:1px solid (#[0-9a-f]{6})/,"#ffffff"],
     ["focus",/input:focus\{border-color:(#[0-9a-f]{6})/,"#ffffff"],

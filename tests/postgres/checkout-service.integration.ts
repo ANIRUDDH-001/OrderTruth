@@ -18,7 +18,7 @@ beforeAll(() => migratePostgres(pool, schema));
 afterAll(async () => { await pool.query(`DROP SCHEMA ${schema} CASCADE`); await pool.end(); });
 const call = <T>(body: T, status = 200): PayPalCall<T> => ({ body, httpStatus: status, debugId: "synthetic-debug", durationMs: 2, requestId: null, correlationId: "synthetic-correlation" });
 
-function fixture(options: { loseCaptureResponse?: boolean; failGetAfterCapture?: boolean } = {}) {
+function fixture(options: { loseCaptureResponse?: boolean; failGetAfterCapture?: boolean; preapprovalRead?: boolean } = {}) {
   const order = randomBytes(9).toString("hex").toUpperCase();
   const capture = randomBytes(9).toString("hex").toUpperCase();
   let intent = ""; let captured = false; let captureCalls = 0; let readCalls = 0;
@@ -32,7 +32,7 @@ function fixture(options: { loseCaptureResponse?: boolean; failGetAfterCapture?:
     async getOrder() {
       readCalls++;
       if (captured && options.failGetAfterCapture) throw new PayPalError("timeout", "Synthetic readback timeout", { httpStatus: null, debugId: null, issues: [], durationMs: 1 });
-      const raw: OrderReadback = { id: order, intent: "CAPTURE", status: captured ? "COMPLETED" : "APPROVED", purchase_units: [{ custom_id: intent, amount: { currency_code: "USD", value: "1.00" },
+      const raw: OrderReadback = { id: order, intent: "CAPTURE", status: captured ? "COMPLETED" : options.preapprovalRead && readCalls === 1 ? "CREATED" : "APPROVED", purchase_units: [{ custom_id: intent, amount: { currency_code: "USD", value: "1.00" },
         ...(captured ? { payments: { captures: [{ id: capture, status: "COMPLETED", amount: { currency_code: "USD", value: "1.00" } }] } } : {}) }] };
       return call(raw);
     },
@@ -48,6 +48,14 @@ function fixture(options: { loseCaptureResponse?: boolean; failGetAfterCapture?:
   return { service: new PostgresCheckoutService(provider, store, "SYNTHETIC_QUALIFICATION"), another: () => new PostgresCheckoutService(provider, store, "SYNTHETIC_QUALIFICATION"), order, requestIds,
     captures: () => captureCalls, reads: () => readCalls };
 }
+it("preserves an unapproved checkout across a CREATED readback, then captures once after approval", async () => {
+  const f = fixture({ preapprovalRead: true }); await f.service.create(`synthetic-checkout-${randomBytes(8).toString("hex")}`);
+  expect((await f.service.readback(f.order)).state).toBe("awaiting_buyer_approval");
+  expect(f.captures()).toBe(0);
+  expect((await f.service.capture(f.order)).state).toBe("captured");
+  expect((await f.service.capture(f.order)).state).toBe("captured");
+  expect(f.captures()).toBe(1);
+});
 it("uses server pricing and one durable capture claim across independent service instances", async () => {
   const f = fixture(); const key = `synthetic-checkout-${randomBytes(8).toString("hex")}`;
   const created = await f.service.create(key);
