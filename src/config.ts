@@ -38,6 +38,8 @@ const EnvSchema = z.object({
     .pipe(z.enum(["disabled", "gemini"])),
   AI_MODEL: optionalString,
   AI_API_KEY: optionalString,
+  GEMINI_API_KEY: optionalString,
+  GROQ_API_KEY: optionalString,
   AI_BASE_URL: optionalString,
   DATABASE_URL: z.string().trim().default("file:./.work/ordertruth.sqlite"),
   PORT: z.coerce.number().int().min(1).max(65535).default(3001),
@@ -127,8 +129,11 @@ function validateEnvironment(env: Record<string, string | undefined>) {
   if (e.PAYPAL_WEBHOOK_ID === "WEBHOOK_ID") {
     throw new ConfigError("PAYPAL_WEBHOOK_ID is the simulator placeholder, not a registered Sandbox webhook", ["PAYPAL_WEBHOOK_ID"]);
   }
-  if (e.AI_PROVIDER === "gemini" && !e.AI_API_KEY) {
-    throw new ConfigError("AI_PROVIDER=gemini requires AI_API_KEY", ["AI_API_KEY"]);
+  if (e.AI_PROVIDER === "gemini" && e.GEMINI_API_KEY && e.AI_API_KEY && e.GEMINI_API_KEY !== e.AI_API_KEY) {
+    throw new ConfigError("Selected provider has conflicting key aliases; use GEMINI_API_KEY and clear the legacy alias", ["GEMINI_API_KEY", "AI_API_KEY"]);
+  }
+  if (e.AI_PROVIDER === "gemini" && !e.GEMINI_API_KEY && !e.AI_API_KEY) {
+    throw new ConfigError("AI_PROVIDER=gemini requires GEMINI_API_KEY (legacy AI_API_KEY is also accepted)", ["AI_API_KEY"]);
   }
 
   return e;
@@ -162,10 +167,10 @@ function sharedConfig(e: z.infer<typeof EnvSchema>): Omit<AppConfig,"databasePat
       maxFutureSkewMs: 300_000,
     },
     webhookIngress: { ratePerMinute: e.WEBHOOK_RATE_PER_MIN, rateBurst: e.WEBHOOK_RATE_BURST, maxStoredUnverified: e.WEBHOOK_MAX_STORED_UNVERIFIED },
-    ai: { provider: e.AI_PROVIDER, model: e.AI_MODEL, apiKey: e.AI_API_KEY, baseUrl: e.AI_BASE_URL },
+    ai: { provider: e.AI_PROVIDER, model: e.AI_MODEL, apiKey: e.GEMINI_API_KEY ?? e.AI_API_KEY, baseUrl: e.AI_BASE_URL },
     port: e.PORT,
     logLevel: e.LOG_LEVEL,
-    secrets: [e.PAYPAL_CLIENT_SECRET, e.AI_API_KEY, e.PAYPAL_WEBHOOK_ID].filter((s): s is string => !!s),
+    secrets: [e.PAYPAL_CLIENT_SECRET, e.AI_API_KEY, e.GEMINI_API_KEY, e.GROQ_API_KEY, e.PAYPAL_WEBHOOK_ID].filter((s): s is string => !!s),
   };
 }
 

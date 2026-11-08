@@ -4,7 +4,7 @@ import {existsSync,mkdirSync,writeFileSync} from 'node:fs';
 import {basename,resolve} from 'node:path';
 import {setTimeout as delay} from 'node:timers/promises';
 import {verifyPublicRelease} from './public-release.ts';
-import {requireGreenChecks} from './release-policy.ts';
+import {requireGreenChecks,requireReviewedDatabaseChanges} from './release-policy.ts';
 import {inspectReleaseDatabase} from './release-database.ts';
 
 /** V9 code-only release. Uses existing local gh/Render logins; never creates credentials.
@@ -60,7 +60,10 @@ try{
  if(config?.ownerId!==workspace||config.serviceDetails?.plan!=='free'||config.serviceDetails?.numInstances!==1||config.autoDeploy!=='no'||/ORDERTRUTH_MIGRATION\s*=|apply-v9/.test(config.serviceDetails?.envSpecificDetails?.startCommand??''))throw new Error('Unsafe service configuration');
  const health=await read(direct+'/api/health');if(health.schemaVersion!==9)throw new Error('Only existing V9 supported');
  fallback=(await live()).commit.id;
- const dbChanges=await run('git',['diff','--name-only',fallback!,sha,'--','src/db']);if(dbChanges)throw new Error('Database-code changes require separately reviewed recovery/migration procedure');
+ const dbChanges=await run('git',['diff','--name-only',fallback!,sha,'--','src/db']);
+ const reviewedChanges=[];
+ for(const path of dbChanges.split(/\r?\n/).filter(Boolean))reviewedChanges.push({path,before:await run('git',['rev-parse',`${fallback}:${path}`]),after:await run('git',['rev-parse',`${sha}:${path}`])});
+ requireReviewedDatabaseChanges(reviewedChanges);
  console.log(JSON.stringify({stage:'plan',target:sha,current:fallback,main:await main(),schema:9,sequence:['HOLD/drain','private SQL gate','qualified main fast-forward','public frontend verification','exact backend HOLD','preservation gate','NORMAL','readiness/provenance']}));
  if(args.includes('--plan'))process.exit(0);
  started=true;await drain(fallback!);const before=await inspectReleaseDatabase(envFile);

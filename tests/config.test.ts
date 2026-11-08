@@ -56,6 +56,21 @@ describe("config", () => {
     expect(errOf({ ...good, AI_PROVIDER: "GEMINI" }).keys).toEqual(["AI_API_KEY"]);
     expect(loadConfig({ ...good, AI_PROVIDER: "GEMINI", AI_API_KEY: "k-123456" }).ai.provider).toBe("gemini");
   });
+  it("loads the dedicated Gemini key while retaining the legacy key alias", () => {
+    const c = loadConfig({ ...good, AI_PROVIDER: "gemini", GEMINI_API_KEY: "synthetic-gemini-key", GROQ_API_KEY: "synthetic-groq-key" });
+    expect(c.ai.apiKey).toBe("synthetic-gemini-key");
+    expect(c.secrets).toEqual(expect.arrayContaining(["synthetic-gemini-key", "synthetic-groq-key"]));
+  });
+  it("rejects conflicting selected-provider key aliases without exposing either value", () => {
+    const e = errOf({ ...good, AI_PROVIDER: "gemini", GEMINI_API_KEY: "synthetic-new-key", AI_API_KEY: "synthetic-old-key" });
+    expect(e.keys).toEqual(["GEMINI_API_KEY", "AI_API_KEY"]);
+    expect(e.message).not.toMatch(/synthetic-new-key|synthetic-old-key/);
+  });
+  it("key insertion alone never enables inference and registers all keys for redaction", () => {
+    const c = loadConfig({ ...good, GEMINI_API_KEY: "synthetic-gemini-key", GROQ_API_KEY: "synthetic-groq-key", AI_API_KEY: "synthetic-legacy-key" });
+    expect(c.ai.provider).toBe("disabled");
+    expect(c.secrets).toEqual(expect.arrayContaining(["synthetic-gemini-key", "synthetic-groq-key", "synthetic-legacy-key"]));
+  });
   it("never treats a PostgreSQL credential URL as a SQLite filename during migration", () => {
     const e = errOf({ ...good, DATABASE_URL: "postgresql://owner:private-password@db.example.test/ordertruth" });
     expect(e.keys).toEqual(["DATABASE_URL"]);

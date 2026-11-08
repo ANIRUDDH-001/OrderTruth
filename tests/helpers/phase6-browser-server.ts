@@ -3,6 +3,7 @@
 import { randomBytes } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { parseEnv } from "node:util";
+import { betterAuth } from "better-auth";
 import { createPostgresPool } from "../../src/db/postgres.ts";
 import { PostgresCheckoutStore } from "../../src/db/postgres-checkout.ts";
 import { PostgresScenarioStore } from "../../src/merchant/postgres-scenarios.ts";
@@ -23,6 +24,11 @@ globalThis.fetch = async () => { throw new Error("Outbound transport forbidden i
 const app = await buildHostedApp(config,{ schema,staticFiles: true });
 const pool = createPostgresPool(local.DATABASE_URL!); pool.options.options += ` -c search_path=${schema},pg_catalog`;
 const auth = createSessionAuth(pool,origin,config.authSecret);
+// Public synthetic fixture credentials, valid only in this disposable schema.
+// Registration is enabled on an unserved bootstrap instance, never HTTP.
+const bootstrap = betterAuth({ ...auth.options,emailAndPassword: { ...auth.options.emailAndPassword,enabled: true,disableSignUp: false } });
+const owner = await bootstrap.api.signUpEmail({ body: { email: "synthetic-owner@example.test",password: "synthetic-browser-only-password",name: "Synthetic qualification owner" } });
+config.ownerIds.add(owner.user.id);
 const checkout = new PostgresCheckoutStore(pool,schema);
 const { intent,attempt } = await checkout.createCheckout(`synthetic-browser-${randomBytes(8).toString("hex")}`);
 await checkout.attachOrder(attempt.id,"SYNTHETICBROWSERORDER");
