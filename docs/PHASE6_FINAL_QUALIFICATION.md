@@ -19,6 +19,8 @@ Authoritative runtime Node 22.18.0, pnpm 11.4.0, local PostgreSQL 18. Host defau
 
 Earlier failures retained: payment-path red reproductions; 17 evaluator compatibility failures before separating the new transport; manifest drift before historical preservation/current regeneration. Assertions, fixture labels and old reports were not softened or relabelled.
 
+Initial remote CI on `57065d7` passed both PostgreSQL jobs but failed the exact preview-configuration assertion: the Phase 6 deployment block was added after the local campaign. The strict expected map was extended to both authorized blocked branches, with an explicit check that main is unaffected. No assertion was removed or loosened; this is a configuration expectation change. `.work/runs/phase6/ci-failure.log` retains the failed run. Final exact-commit CI must pass before claiming remote qualification.
+
 ## Browser reproduction and cleanup
 
 With managed DB running and `pnpm build:frontend` complete, set NODE_ENV=test and run `pnpm exec tsx tests/helpers/phase6-browser-server.ts`. Open `http://127.0.0.1:3016/qualification/`. Helper binds loopback, refuses nonowned DB URLs, loads no root.env, forbids outbound fetch, creates a random schema and bounds runtime 20 minutes. Its qualification creation route is absent from hosted startup. This does not test the production genuine-source admission path.

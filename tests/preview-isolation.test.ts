@@ -13,7 +13,11 @@ it('keeps the unhosted integration candidate out of automatic Vercel deployments
   const config = JSON.parse(readFileSync(new URL('../vercel.json',import.meta.url),'utf8'));
   // Unspecified branches retain Vercel's documented default. In particular,
   // this must not disable main, broadly change hosting, or bypass manual checks.
-  expect(config.git?.deploymentEnabled).toEqual({ 'integration/ordertruth-unified': false });
+  expect(config.git?.deploymentEnabled).toEqual({
+    'integration/ordertruth-unified': false,
+    'phase6/adversarial-qualification': false,
+  });
+  expect(config.git?.deploymentEnabled?.main).toBeUndefined();
   expect(config.buildCommand).toBe('pnpm build:frontend');
   expect(() => assertDeploymentTarget({ VERCEL: '1',VERCEL_ENV: 'preview' })).toThrow(/Preview API isolation/);
   expect(() => assertDeploymentTarget({ VERCEL: '1',VERCEL_ENV: 'production' })).not.toThrow();
