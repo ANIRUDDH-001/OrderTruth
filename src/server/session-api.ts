@@ -1,6 +1,7 @@
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { fromNodeHeaders } from "better-auth/node";
 import type { createSessionAuth } from "./auth.ts";
+import { NETWORK_PROOF_HEADER, verifyNetwork } from "./network-attribution.ts";
 
 type SessionAuth = ReturnType<typeof createSessionAuth>;
 export async function sessionIdentity(auth: SessionAuth, request: FastifyRequest, ownerIds: ReadonlySet<string> = new Set()) {
@@ -11,7 +12,7 @@ export async function sessionIdentity(auth: SessionAuth, request: FastifyRequest
 }
 /** No identity headers, no public sign-up, no CORS wildcard. Proxy identity must
  * be configured explicitly on Fastify before trusting request.ip in deployment. */
-export function registerSessionApi(app: FastifyInstance, auth: SessionAuth, origin: string, ownerIds: ReadonlySet<string> = new Set()) {
+export function registerSessionApi(app: FastifyInstance, auth: SessionAuth, origin: string, ownerIds: ReadonlySet<string> = new Set(), ingressKey?: string) {
   app.get("/api/session", async (request, reply) => {
     reply.header("cache-control", "no-store");
     const identity = await sessionIdentity(auth, request, ownerIds);
@@ -29,9 +30,13 @@ export function registerSessionApi(app: FastifyInstance, auth: SessionAuth, orig
         const current = await sessionIdentity(auth,request,ownerIds);
         if (current?.anonymous) return { ok: true };
       }
-      if (path === "sign-in/anonymous" && !await auth.reserveGuestAdmission()) {
-        reply.header("retry-after","60").header("x-retry-after","60");
-        return reply.code(429).send({ code:'GUEST_ADMISSION_LIMIT',error: "Guest admission capacity reached; retry after 60 seconds. Existing sessions remain available." });
+      if (path === "sign-in/anonymous") {
+        const group = ingressKey ? verifyNetwork(ingressKey,request.headers[NETWORK_PROOF_HEADER],`/api/auth/${path}`) : null;
+        if (ingressKey && !group) return reply.code(503).send({ code:"GUEST_ATTRIBUTION_UNAVAILABLE",error:"Guest entry could not be verified. Open the public OrderTruth site and try again. Existing sessions remain available." });
+        if (!await auth.reserveGuestAdmission(group ?? undefined)) {
+          reply.header("retry-after","60").header("x-retry-after","60");
+          return reply.code(429).send({ code:'GUEST_ADMISSION_LIMIT',error: "Guest admission capacity reached; retry after 60 seconds. Existing sessions remain available." });
+        }
       }
       const headers = fromNodeHeaders(request.headers);
       // Overwrite all client input. Preserve actual socket-peer attribution;

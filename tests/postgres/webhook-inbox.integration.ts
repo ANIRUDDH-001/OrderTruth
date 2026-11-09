@@ -19,6 +19,24 @@ beforeAll(() => migratePostgres(pool, schema));
 afterAll(async () => { await pool.query(`DROP SCHEMA ${schema} CASCADE`); await pool.end(); });
 const summary = () => summarizeEvent(EventSchema.parse(captureEvent({ orderId: "SYNTHETICORDER1", captureId: "SYNTHETICCAPTURE1" })));
 const delivery = (id: string) => inbox.recordDelivery({ claimedEventId: id, claimedEventType: "PAYMENT.CAPTURE.COMPLETED", bodySha256: "a".repeat(64), bodyBytes: 100, correlationId: "synthetic-webhook", nowMs: Date.now() });
+it("bounds repeated invalid signed inputs without poisoning a legitimate delivery of the same claimed event", async () => {
+  let calls = 0;
+  const valid = JSON.stringify(captureEvent({ orderId: "SYNTHETICREPLAY1", captureId: "SYNTHETICREPLAYCAP1" }));
+  const forged = JSON.stringify({ ...JSON.parse(valid), summary: "Altered synthetic body" });
+  const headers = signedHeaders(valid);
+  const intake = new WebhookIntake(inbox, { verify: async ({rawBody}) => {
+    calls++;
+    await new Promise(resolve => setTimeout(resolve, 10));
+    return { status: rawBody === valid ? "SUCCESS" : "FAILURE", durationMs: 10, debugId: null };
+  } }, { webhookId: TEST_WEBHOOK_ID, maxTransmissionAgeMs: 300_000, maxFutureSkewMs: 30_000, maxConcurrentVerifications: 2, log: silentLogger() });
+  const flood = await Promise.all(Array.from({length: 8}, () => intake.receive(Buffer.from(forged),headers,"synthetic-replay")));
+  expect(flood.every(r => r.status === 400 && r.body.error === "signature_invalid")).toBe(true);
+  expect((await intake.receive(Buffer.from(forged),headers,"synthetic-retry")).status).toBe(400);
+  expect(calls).toBe(1);
+  expect(await inbox.getEvent(JSON.parse(valid).id)).toBeUndefined();
+  expect((await intake.receive(Buffer.from(valid),headers,"synthetic-legitimate")).body.result).toBe("accepted");
+  expect(calls).toBe(2);
+});
 it("keeps authenticated intake available at rejection saturation without growing rejected or duplicate storage", async () => {
   const schema = `qual_${randomBytes(10).toString("hex")}`;
   await migratePostgres(pool,schema);

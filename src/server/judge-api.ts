@@ -9,11 +9,12 @@ import { PostgresInvestigationStore } from "../ai/postgres-investigation.ts";
 import {readInvestigationHistory,type PostgresInvestigationService} from "../ai/postgres-investigation-service.ts";
 import { diagnosticKinds,deterministicInvestigator } from "../ai/investigation.ts";
 import { admitDemoAction } from "./demo-limits.ts";
+import { NETWORK_PROOF_HEADER, verifyNetwork } from "./network-attribution.ts";
 
 /** Public judge routes never receive a payment provider or a model that can
  * mutate money. Identity and run ownership come from persisted sessions. */
 export function registerJudgeApi(app: FastifyInstance, options: {
-  pool: Pool; schema: string; auth: ReturnType<typeof createSessionAuth>; origin: string; sourceAttemptId: string | null; investigator?: PostgresInvestigationService;
+  pool: Pool; schema: string; auth: ReturnType<typeof createSessionAuth>; origin: string; sourceAttemptId: string | null; investigator?: PostgresInvestigationService; ingressKey?: string | undefined;
 }) {
   const scenarios = new PostgresScenarioStore(options.pool,options.schema);
   const id = z.string().regex(/^[a-zA-Z0-9_-]{1,100}$/);
@@ -39,6 +40,9 @@ export function registerJudgeApi(app: FastifyInstance, options: {
       }
       const message = error instanceof Error ? error.message : "";
       if (/not found/i.test(message)) return reply.code(404).send({ error: "Scenario not found" });
+      if (_request.routeOptions.url?.endsWith("/approve") && /stale|eligible|expired/i.test(message)) return reply.code(409).send({
+        code: "PLAN_REVIEW_REQUIRED", error: "The saved plan can no longer be approved. Recheck the case, then review a new exact plan when the duplicate and payment evidence support it.",
+      });
       if (/hash|expired|stale|eligible|identity differs/i.test(message)) return reply.code(409).send({ error: "Case changed; recheck before approval" });
       if (/admission limit/i.test(message)) return reply.code(429).send({ error: "Scenario capacity reached; existing receipts remain available" });
       return reply.code(503).send({ error: "Scenario unavailable; committed evidence and receipts are preserved" });
@@ -127,7 +131,10 @@ export function registerJudgeApi(app: FastifyInstance, options: {
     routes.post<{ Params: { runId: string } }>("/api/scenarios/:runId/investigate", { bodyLimit: 4096 }, async (request,reply) => {
       const identity = await sessionIdentity(options.auth,request); if (!identity) return reply.code(401).send({ error: "Session required" });
       if (!id.safeParse(request.params.runId).success || !empty.safeParse(request.body).success) return reply.code(400).send({ error: "Invalid investigation" });
-      if (options.investigator) return options.investigator.investigate(identity.userId,request.params.runId);
+      if (options.investigator) {
+        const group = identity.anonymous && options.ingressKey ? verifyNetwork(options.ingressKey,request.headers[NETWORK_PROOF_HEADER],request.url.split("?",1)[0]!) : undefined;
+        return options.investigator.investigate(identity.userId,request.params.runId,group);
+      }
       const evidence = await investigationStore.evidence(identity.userId,request.params.runId);
       return { status: "UNAVAILABLE",freshModelExecution: false,reason: "AI_NOT_CONFIGURED",retryAt: null,evidence,baseline: deterministicInvestigator(evidence) };
     });

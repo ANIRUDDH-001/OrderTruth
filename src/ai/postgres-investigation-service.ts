@@ -50,7 +50,7 @@ export class PostgresInvestigationService {
   async history(user: string,run: string) {
     return readInvestigationHistory(this.pool,this.schema,user,run);
   }
-  async investigate(user: string,run: string) {
+  async investigate(user: string,run: string,network?: string | null) {
     const evidence = await this.evidenceStore.evidence(user,run);
     const baseline = deterministicInvestigator(evidence);
     const snapshotSha256 = snapshotIdentity(this.settings.model,evidence);
@@ -63,7 +63,8 @@ export class PostgresInvestigationService {
       await client.query("SELECT pg_advisory_xact_lock(hashtextextended($1,0))", [`${this.schema}:ai-reservation`]);
       // A locked day row arbitrates caches, quota, spacing and one in-flight
       // request across every process. No model request runs in this transaction.
-      await client.query("INSERT INTO ai_budget_days(day) VALUES($1) ON CONFLICT DO NOTHING", [day]);
+      const opened = await client.query("INSERT INTO ai_budget_days(day) VALUES($1) ON CONFLICT DO NOTHING", [day]);
+      if (opened.rowCount === 1) await client.query("DELETE FROM demo_action_budgets WHERE key LIKE 'ai-network:%' AND key NOT LIKE $1",[`ai-network:${day}:%`]);
       const budget = (await client.query("SELECT * FROM ai_budget_days WHERE day=$1 FOR UPDATE", [day])).rows[0];
       await client.query(`UPDATE ai_investigations SET status='UNAVAILABLE',completed_at=$1,error_kind='INTERRUPTED_UNKNOWN_USAGE'
         WHERE status='RESERVED' AND requested_at<$2`, [new Date(now).toISOString(),new Date(now-90_000).toISOString()]);
@@ -84,10 +85,18 @@ export class PostgresInvestigationService {
       if (budget.reservations >= this.settings.dailyLimit) return { reason: "APP_DAILY_BUDGET",retryAt:nextDay };
       const own = (await client.query("SELECT count(*)::integer AS n FROM ai_investigations WHERE user_id=$1 AND requested_at>=$2 AND requested_at<$3", [user,`${day}T00:00:00.000Z`,nextDay])).rows[0].n;
       if (own >= this.settings.userDailyLimit) return { reason: "SESSION_DAILY_BUDGET",retryAt:nextDay };
+      if (network === null || (network !== undefined && !network.startsWith(day+":"))) return { reason: "AI_ATTRIBUTION_UNAVAILABLE" };
+      const networkBudget = network === undefined ? null : `ai-network:${network}`;
+      if (networkBudget) {
+        const group = (await client.query("SELECT used FROM demo_action_budgets WHERE key=$1",[networkBudget])).rows[0];
+        if (group && group.used >= Math.max(1,Math.floor(this.settings.dailyLimit/2))) return { reason: "NETWORK_DAILY_BUDGET",retryAt:nextDay };
+      }
       if ((await client.query("SELECT 1 FROM ai_investigations WHERE status='RESERVED' LIMIT 1")).rowCount) return { reason: "AI_BUSY" };
       if (now-budget.last_reserved_at_ms < this.settings.minIntervalMs) return { reason: "APP_REQUEST_SPACING",retryAt: new Date(budget.last_reserved_at_ms+this.settings.minIntervalMs).toISOString() };
       const id = `ai_${randomUUID()}`;
       await client.query("UPDATE ai_budget_days SET reservations=reservations+1,last_reserved_at_ms=$1 WHERE day=$2", [now,day]);
+      if (networkBudget) await client.query(`INSERT INTO demo_action_budgets(key,used) VALUES($1,1)
+        ON CONFLICT(key) DO UPDATE SET used=demo_action_budgets.used+1`,[networkBudget]);
       await client.query("INSERT INTO ai_investigations(id,run_id,user_id,snapshot_sha256,status,model,requested_at,evidence_json) VALUES($1,$2,$3,$4,'RESERVED',$5,$6,$7)", [id,run,user,snapshotSha256,this.settings.model,new Date(now).toISOString(),JSON.stringify(evidence)]);
       return { id };
     });

@@ -26,5 +26,5 @@ export function createSessionAuth(pool: Pool, origin: string, secret: string) {
     plugins: [anonymous({ disableDeleteAnonymousUser: true })],
     telemetry: { enabled: false }, logger: { disabled: true },
   });
-  return Object.assign(auth,{ reserveGuestAdmission: () => reserveGuestAdmission(pool) });
+  return Object.assign(auth,{ reserveGuestAdmission: (network?: string) => reserveGuestAdmission(pool,network) });
 }

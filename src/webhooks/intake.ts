@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import type { Logger } from "../checkout-service.ts";
 import { claimedIdentity, EventSchema, parseTransmissionHeaders, summarizeEvent, type EventSummary } from "./event.ts";
 import type { WebhookInbox } from "./inbox.ts";
-import type { WebhookVerifier } from "./verifier.ts";
+import type { VerifyInput, VerifyResult, WebhookVerifier } from "./verifier.ts";
 
 export type IntakeResponse = { status: number; body: { ok: boolean; result?: "accepted" | "duplicate"; error?: string; delivery?: number } };
 
@@ -29,6 +29,8 @@ export type IntakeOptions = {
 };
 
 const fatalUtf8 = new TextDecoder("utf-8", { fatal: true });
+const REJECTED_REPLAY_TTL_MS = 30_000;
+const REJECTED_REPLAY_MAX = 128;
 type IntakeMethod = "recordDelivery" | "countStoredUnverified" | "noteTransmission" | "finishUnverified" | "acceptVerified";
 export type AuthenticatedDelivery = Parameters<WebhookInbox["recordDelivery"]>[0] & { transmissionId: string; transmissionTime: string };
 export type IntakeInbox = { [K in IntakeMethod]: (...args: Parameters<WebhookInbox[K]>) => ReturnType<WebhookInbox[K]> | Promise<ReturnType<WebhookInbox[K]>> } & {
@@ -54,6 +56,8 @@ export type IntakeInbox = { [K in IntakeMethod]: (...args: Parameters<WebhookInb
  */
 export class WebhookIntake {
   #active = 0;
+  readonly #pending = new Map<string,Promise<VerifyResult>>();
+  readonly #rejected = new Map<string,number>();
   readonly #now: () => number;
   readonly #max: number;
   readonly #ceiling: number;
@@ -87,6 +91,32 @@ export class WebhookIntake {
     }
     this.#log(status === 503 ? "warn" : "info", { seq, state: to, reason });
     return { status, body: { ok: false, error: reason.split(":")[0]!, delivery: seq } };
+  }
+
+  async #verify(input: VerifyInput, key?: string): Promise<VerifyResult | null> {
+    if (key) {
+      if ((this.#rejected.get(key) ?? 0) > this.#now()) return { status: "FAILURE", durationMs: 0, debugId: null };
+      const pending = this.#pending.get(key);
+      if (pending) return pending;
+    }
+    if (this.#active >= this.#max) return null;
+    this.#active++;
+    const verification = Promise.resolve().then(() => this.verifier.verify(input)).catch((): VerifyResult => ({
+      status: "UNAVAILABLE", kind: "verifier_threw", durationMs: 0, debugId: null,
+    }));
+    if (key) this.#pending.set(key, verification);
+    try {
+      const verdict = await verification;
+      if (key && verdict.status === "FAILURE") {
+        this.#rejected.delete(key);
+        if (this.#rejected.size >= REJECTED_REPLAY_MAX) this.#rejected.delete(this.#rejected.keys().next().value!);
+        this.#rejected.set(key,this.#now()+REJECTED_REPLAY_TTL_MS);
+      }
+      return verdict;
+    } finally {
+      this.#active--;
+      if (key) this.#pending.delete(key);
+    }
   }
 
   async receive(raw: Buffer, headers: Record<string, string | string[] | undefined>, correlationId: string): Promise<IntakeResponse> {
@@ -138,16 +168,12 @@ export class WebhookIntake {
     if (nowMs - h.transmissionTimeMs > this.opts.maxTransmissionAgeMs) return reject(400, "transmission_expired");
     if (h.transmissionTimeMs - nowMs > this.opts.maxFutureSkewMs) return reject(400, "transmission_in_future");
 
-    if (this.#active >= this.#max) return reject(503, "verifier_busy");
-    this.#active++;
-    let v: Awaited<ReturnType<WebhookVerifier["verify"]>>;
-    try {
-      v = await this.verifier.verify({ rawBody: text, headers: h, webhookId: this.opts.webhookId, correlationId });
-    } catch {
-      v = { status: "UNAVAILABLE", kind: "verifier_threw", durationMs: 0, debugId: null };
-    } finally {
-      this.#active--;
-    }
+    // Coalesce only byte-identical verification input on the hosted path.
+    // Claimed event identity alone is never enough to share a verdict.
+    const bodySha256 = this.inbox.persistAuthenticated ? createHash("sha256").update(raw).digest("hex") : undefined;
+    const key = bodySha256 ? createHash("sha256").update(JSON.stringify([bodySha256,h])).digest("hex") : undefined;
+    const v = await this.#verify({ rawBody: text, headers: h, webhookId: this.opts.webhookId, correlationId },key);
+    if (!v) return reject(503, "verifier_busy");
     const vm = { ms: v.durationMs, debugId: v.debugId };
     if (v.status === "FAILURE") return reject(400, "signature_invalid", vm);
     if (v.status === "UNAVAILABLE") return reject(503, `verification_unavailable:${v.kind}`, vm);
@@ -157,7 +183,7 @@ export class WebhookIntake {
     try {
       if (this.inbox.persistAuthenticated) {
         const committed = await this.inbox.persistAuthenticated({ claimedEventId: claimed.id,claimedEventType: claimed.type,
-          bodySha256: createHash("sha256").update(raw).digest("hex"),bodyBytes: raw.length,correlationId,nowMs,
+          bodySha256: bodySha256!,bodyBytes: raw.length,correlationId,nowMs,
           transmissionId: h.transmissionId,transmissionTime: h.transmissionTime },summarizeEvent(ev.data),vm);
         result = committed.result; seq = committed.seq;
       } else {

@@ -9,6 +9,8 @@ import { PostgresInvestigationStore } from "../../src/ai/postgres-investigation.
 import { PostgresInvestigationService } from "../../src/ai/postgres-investigation-service.ts";
 import { prepareEvidenceEgress } from "../../src/ai/evidence-egress.ts";
 import { prepareGroundedContext,validateGroundedPlan } from "../../src/ai/grounded-investigation.ts";
+import { PayPalError } from "../../src/paypal/client.ts";
+import { attestNetwork, verifyNetwork } from "../../src/server/network-attribution.ts";
 
 import { env } from "./local-db.ts";
 const pool = createPostgresPool(env.DATABASE_URL!);
@@ -24,9 +26,88 @@ async function payment() {
   const suffix = randomBytes(8).toString("hex").toUpperCase();
   const { intent, attempt } = await checkout.createCheckout(`synthetic-scenario-${suffix}`);
   await checkout.attachOrder(attempt.id, `ORDER${suffix}`);
-  await checkout.recordReadback(attempt.id, { id: `ORDER${suffix}`, status: "COMPLETED", intent: "CAPTURE", purchase_units: [{ custom_id: intent.id, amount: { currency_code: "USD", value: "1.00" }, payments: { captures: [{ id: `CAPTURE${suffix}`, status: "COMPLETED", amount: { currency_code: "USD", value: "1.00" } }] } }] }, "SYNTHETIC_QUALIFICATION");
-  return { intent, attempt };
+  const readback = (captureId = `CAPTURE${suffix}`, orderAmount = "1.00") => checkout.recordReadback(attempt.id, { id: `ORDER${suffix}`, status: "COMPLETED", intent: "CAPTURE", purchase_units: [{ custom_id: intent.id, amount: { currency_code: "USD", value: orderAmount }, payments: { captures: [{ id: captureId, status: "COMPLETED", amount: { currency_code: "USD", value: "1.00" } }] } }] }, "SYNTHETIC_QUALIFICATION");
+  await readback();
+  return { intent, attempt, readback };
 }
+it("keeps independent approvals and historical receipts across shared payment observations", async () => {
+  const org = "org_reference";
+  const f = await payment();
+  const [a, b] = await Promise.all(["synthetic_judge_a", "synthetic_judge_b"].map(async userId => {
+    const run = await scenarios.createQualification(userId, f.attempt.id);
+    await scenarios.injectDuplicate(userId, run.id);
+    const service = new PostgresRecoveryService(pool, schema, { runId: run.id, userId });
+    const checked = await service.check(org, f.intent.id);
+    const plan = await service.plan(org, checked.incidentId!, userId);
+    return { run, service, plan, incidentId: checked.incidentId! };
+  }));
+  expect(a!.run.source_evidence_seq).toBe(b!.run.source_evidence_seq);
+  await expect(b!.service.approveSession(org, a!.plan.id, a!.plan.plan_sha256)).rejects.toThrow(/not found/i);
+  await a!.service.approveSession(org, a!.plan.id, a!.plan.plan_sha256);
+  await f.readback();
+  await b!.service.approveSession(org, b!.plan.id, b!.plan.plan_sha256);
+  const receipt = await a!.service.execute(org, a!.plan.id);
+  expect(receipt.outcome).toBe("SUCCEEDED");
+  expect(receipt.provider_before_sha256).toBe(receipt.provider_after_sha256);
+  expect(await a!.service.verify(org, a!.plan.id)).toMatchObject({ historicalVerified: true, verifiedCurrent: true });
+  await expect(b!.service.verify(org, a!.plan.id)).rejects.toThrow(/not found/i);
+
+  await checkout.recordProviderResult(f.attempt.id, "readback", new PayPalError("timeout", "synthetic timeout", {
+    httpStatus: null, debugId: null, issues: [], durationMs: 1000,
+  }), "SYNTHETIC_QUALIFICATION");
+  expect(await a!.service.verify(org, a!.plan.id)).toMatchObject({ receipt, historicalVerified: true, verifiedCurrent: false, paymentVerification: "UNAVAILABLE" });
+  await f.readback();
+  expect(await a!.service.verify(org, a!.plan.id)).toMatchObject({ receipt, historicalVerified: true, verifiedCurrent: true, paymentVerification: "CONFIRMED" });
+  expect((await b!.service.execute(org, b!.plan.id)).outcome).toBe("REJECTED_STALE");
+
+  const renewed = await b!.service.plan(org, b!.incidentId, "synthetic_judge_b");
+  await f.readback(undefined, "2.00");
+  expect(await a!.service.verify(org, a!.plan.id)).toMatchObject({ receipt, historicalVerified: true, verifiedCurrent: false, paymentVerification: "CONTRADICTORY" });
+  await expect(b!.service.plan(org, b!.incidentId, "synthetic_judge_b")).rejects.toThrow(/eligible/i);
+  await f.readback("SYNTHETIC_CONTRADICTORY_CAPTURE");
+  expect(await a!.service.verify(org, a!.plan.id)).toMatchObject({ receipt, historicalVerified: true, verifiedCurrent: false, paymentVerification: "CONTRADICTORY" });
+  await expect(b!.service.approveSession(org, renewed.id, renewed.plan_sha256)).rejects.toThrow(/eligible/i);
+
+  const counts = await pool.query(`SELECT r.run_id,count(*) FILTER(WHERE v.order_id IS NULL)::int AS active,count(v.order_id)::int AS voided
+    FROM ${schema}.scenario_run_orders r LEFT JOIN ${schema}.merchant_order_voids v ON v.order_id=r.order_id
+    WHERE r.run_id=ANY($1) GROUP BY r.run_id`, [[a!.run.id, b!.run.id]]);
+  expect(counts.rows).toEqual(expect.arrayContaining([{run_id:a!.run.id,active:1,voided:1},{run_id:b!.run.id,active:2,voided:0}]));
+});
+it("keeps a shared-network inference allowance across rotating guests and service restart", async () => {
+  const f = await payment();
+  const users = await Promise.all([1,2,3,4,5].map(async n => {
+    const id = `synthetic_network_${n}`;
+    await pool.query(`INSERT INTO ${schema}.ot_auth_user(id,name,email,"emailVerified","isAnonymous") VALUES($1,'Synthetic judge',$2,false,true)`,[id,`${id}@example.invalid`]);
+    const run = await scenarios.createQualification(id,f.attempt.id);
+    await scenarios.injectDuplicate(id,run.id);
+    return { id,run:run.id };
+  }));
+  const now = Date.now()-2*86_400_000;
+  const clock = vi.spyOn(Date,"now").mockReturnValue(now);
+  const ingressKey = randomBytes(32).toString("hex");
+  const group = (user: typeof users[number], ip: string) => {
+    const path = `/api/scenarios/${user.run}/investigate`;
+    return verifyNetwork(ingressKey,attestNetwork(ingressKey,ip,path,now),path,now);
+  };
+  const infer = vi.fn(async () => ({ ok:false,result:null,error:"INVALID_PROVIDER_RESPONSE",
+    usage:{ promptTokens:null,outputTokens:null,totalTokens:null },latencyMs:1,httpStatus:200 }));
+  const settings = { model:"synthetic-network-limit",dailyLimit:4,userDailyLimit:1,minIntervalMs:0,infer };
+  const [a,b,c,d,e] = users;
+  try {
+    const service = new PostgresInvestigationService(pool,schema,settings);
+    const check = (svc: typeof service, user: typeof users[number], ip: string) => svc.investigate(user.id,user.run,group(user,ip));
+    expect((await service.investigate(a!.id,a!.run,null)).reason).toBe("AI_ATTRIBUTION_UNAVAILABLE");
+    for (const guest of [a!,b!]) expect((await check(service,guest,"192.0.2.31")).reason).toBe("INVALID_PROVIDER_RESPONSE");
+    const restarted = new PostgresInvestigationService(pool,schema,settings);
+    expect((await check(restarted,c!,"192.0.2.31")).reason).toBe("NETWORK_DAILY_BUDGET");
+    expect((await check(restarted,a!,"198.51.100.20")).reason).toBe("SESSION_DAILY_BUDGET");
+    for (const guest of [c!,d!]) expect((await check(restarted,guest,"198.51.100.20")).reason).toBe("INVALID_PROVIDER_RESPONSE");
+    expect((await check(restarted,e!,"203.0.113.33")).reason).toBe("APP_DAILY_BUDGET");
+    expect(infer).toHaveBeenCalledTimes(4);
+    const reservations = (await pool.query(`SELECT reservations FROM ${schema}.ai_budget_days WHERE day=$1`,[new Date(now).toISOString().slice(0,10)])).rows[0];
+    expect(reservations.reservations).toBe(4);
+  } finally { clock.mockRestore(); }
+});
 it("isolates controlled merchant runs while referencing one immutable payment observation", async () => {
   const f = await payment();
   // The production admission path must reject these synthetic observations.

@@ -184,6 +184,7 @@ export function loadPostgresConfig(env: Record<string,string | undefined>) {
   try { database = new URL(e.DATABASE_URL); } catch { throw new ConfigError("PostgreSQL configuration required",["DATABASE_URL"]); }
   if (!["postgres:","postgresql:"].includes(database.protocol) || !database.hostname || !database.username || !database.password) throw new ConfigError("PostgreSQL credentials and host required",["DATABASE_URL"]);
   const hosted = z.object({ APP_ORIGIN: z.string().url(),AUTH_SECRET: z.string().min(32),OWNER_USER_ID: optionalString,
+    ORDERTRUTH_INGRESS_KEY: z.string().regex(/^[a-f0-9]{64}$/).optional(),
     APP_SOURCE_ATTEMPT_ID: optionalString,AI_DAILY_LIMIT: z.coerce.number().int().min(0).max(200).default(60),AI_USER_DAILY_LIMIT: z.coerce.number().int().min(0).max(10).default(3),
   }).safeParse(env);
   if (!hosted.success) { const keys = [...new Set(hosted.error.issues.map(i => String(i.path[0])))]; throw new ConfigError("Invalid hosted application configuration",keys); }
@@ -191,8 +192,8 @@ export function loadPostgresConfig(env: Record<string,string | undefined>) {
   if (!["http:","https:"].includes(origin.protocol) || origin.origin !== hosted.data.APP_ORIGIN || (!['127.0.0.1','localhost','[::1]'].includes(origin.hostname) && origin.protocol !== 'https:')) throw new ConfigError("Application origin must be HTTPS or loopback",["APP_ORIGIN"]);
   return { ...sharedConfig(e),databaseUrl: e.DATABASE_URL,origin: origin.origin,authSecret: hosted.data.AUTH_SECRET,
     ownerIds: new Set(hosted.data.OWNER_USER_ID ? [hosted.data.OWNER_USER_ID] : []),sourceAttemptId: hosted.data.APP_SOURCE_ATTEMPT_ID ?? null,
-    aiDailyLimit: hosted.data.AI_DAILY_LIMIT,aiUserDailyLimit: hosted.data.AI_USER_DAILY_LIMIT,
-    secrets: [...sharedConfig(e).secrets,e.DATABASE_URL,hosted.data.AUTH_SECRET] };
+    aiDailyLimit: hosted.data.AI_DAILY_LIMIT,aiUserDailyLimit: hosted.data.AI_USER_DAILY_LIMIT,ingressKey: hosted.data.ORDERTRUTH_INGRESS_KEY,
+    secrets: [...sharedConfig(e).secrets,e.DATABASE_URL,hosted.data.AUTH_SECRET,...(hosted.data.ORDERTRUTH_INGRESS_KEY ? [hosted.data.ORDERTRUTH_INGRESS_KEY] : [])] };
 }
 
 /** Load `.env` into process.env (Node built-in, no values printed) and validate. */

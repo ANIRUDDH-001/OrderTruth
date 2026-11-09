@@ -59,6 +59,22 @@ it("fails readiness closed on a schema-version mismatch without exposing configu
   } finally { await admin.query(`DELETE FROM ${schema}.ordertruth_postgres_migrations WHERE version=10`); }
 });
 
+it("keeps liveness available while PostgreSQL cannot serve readiness and recovers after release",async () => {
+  const blocker = await admin.connect();
+  try {
+    await blocker.query("BEGIN");
+    await blocker.query(`LOCK TABLE ${schema}.ordertruth_postgres_migrations IN ACCESS EXCLUSIVE MODE`);
+    const [health, readiness] = await Promise.all([app.inject({ url:"/api/health" }),app.inject({ url:"/api/readiness" })]);
+    expect(health.statusCode).toBe(200);
+    expect(readiness.statusCode).toBe(503);
+    expect(readiness.json()).toEqual({ ready:false });
+  } finally {
+    try { await blocker.query("ROLLBACK"); } finally { blocker.release(); }
+  }
+  expect((await app.inject({ url:"/api/readiness" })).statusCode).toBe(200);
+  expect(network).not.toHaveBeenCalled();
+});
+
 it("limits webhook ingress before body parsing and durable intake",async () => {
   const guarded = await buildHostedApp({ ...config,paypal: { ...config.paypal,webhookId: "SYNTHETICWEBHOOK" },webhookIngress: { ...config.webhookIngress,ratePerMinute: 1,rateBurst: 1 } },{ schema,staticFiles: false });
   try {

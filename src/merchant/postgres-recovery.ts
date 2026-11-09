@@ -8,10 +8,11 @@ import { canonical, sha256 } from "../domain/canonical.ts";
 import { withTransaction } from "../db/postgres.ts";
 import { postgresWebhookProof } from "../db/postgres-webhook-proof.ts";
 import {assessMissingOrder,DEFAULT_MISSING_ORDER_GRACE_MS,MISSING_INCIDENT_CLASS} from './missing-order.ts';
-import {capturedPaymentFacts,completedObservation,isPaymentObservation,type PaymentObservation} from './current-payment-evidence.ts';
+import {capturedPaymentFacts,completedObservation,confirmsCapturedPayment,isPaymentObservation,providerObservation,type PaymentObservation} from './current-payment-evidence.ts';
 
 type Evidence = PaymentObservation;
 type EffectiveOrder = MerchantOrderRow & { effective_status: string };
+type StoredFacts = { intent: IntentRow; attempt: AttemptRow; providerHash: string; eligibility?: { hash: string; observationSeq: number } };
 const hashPlan = (plan: RepairPlan): string => { const { plan_sha256: _, ...body } = plan; return sha256(canonical(body)); };
 const intactPlan = (plan: RepairPlan): boolean => hashPlan(plan) === plan.plan_sha256 && sha256(plan.facts_json) === plan.facts_sha256;
 const printable = (value: string): string => {
@@ -76,7 +77,11 @@ export class PostgresRecoveryService {
     const resolution = incident ? (await client.query("SELECT * FROM incident_resolutions WHERE incident_id=$1", [incident.id])).rows[0] ?? null : null;
     // A newer inconclusive GET must block correction rather than silently
     // falling back to an older completed capture. Historical evidence stays.
-    const observations=evidence.filter(isPaymentObservation),latest=completedObservation(observations.at(-1));
+    const observations=evidence.filter(isPaymentObservation);
+    const run = this.scope ? (await client.query<{ provenance: string; created_at: string }>(
+      'SELECT provenance,created_at FROM scenario_runs WHERE id=$1',[this.scope.runId])).rows[0] : null;
+    const observed = completedObservation(observations.at(-1));
+    const latest = observed && (!run || observed.provenance === run.provenance) && confirmsCapturedPayment(intent,attempt,observed) ? observed : null;
     const payment=capturedPaymentFacts(intent,attempt,latest?[latest.fact]:[]);
     let evaluation = evaluateContract(payment, orders.map(o => ({ id: o.id, status: o.status, effectiveStatus: o.effective_status,
       attemptId: o.attempt_id, paypalOrderId: o.paypal_order_id, captureId: o.capture_id, sku: o.sku, currency: o.currency, amountMinor: o.amount_minor })));
@@ -84,15 +89,18 @@ export class PostgresRecoveryService {
     const missingCase=orders.length===0;
     if(missingCase){
       const now=this.options.now();if(!Number.isFinite(now))throw Error('Invalid observation clock');
-      const classified=observations.map(row=>({row,completed:completedObservation(row)}));
-      const assessment=assessMissingOrder({...payment,readbacks:classified.flatMap(({completed})=>completed&&completed.provenance===latest?.provenance?[completed.fact]:[]),
-        readbackFailures:classified.flatMap(({row,completed})=>completed&&completed.provenance===latest?.provenance?[]:[{seq:row.seq,createdAt:row.created_at}])},evaluation,now,this.options.missingOrderGraceMs);
+      const confirmations = [], failures = [];
+      for (const row of observations) {
+        const observation = completedObservation(row);
+        if (observation && observation.provenance === latest?.provenance && confirmsCapturedPayment(intent,attempt,observation)) confirmations.push(observation.fact);
+        else failures.push({ seq: row.seq, createdAt: row.created_at });
+      }
+      const assessment=assessMissingOrder({...payment,readbacks:confirmations,readbackFailures:failures},evaluation,now,this.options.missingOrderGraceMs);
       missingOrder=assessment.timing;evaluation=assessment.evaluation;
       // A newly controlled case has its own merchant grace. Never rewrite the
       // original provider observation's timestamp to manufacture that interval.
-      if(this.scope&&missingOrder.dueAt){
-        const born=(await client.query('SELECT created_at FROM scenario_runs WHERE id=$1',[this.scope.runId])).rows[0].created_at;
-        const bornMs=Date.parse(born);if(!Number.isFinite(bornMs)||bornMs>now)throw Error('Invalid controlled observation clock');
+      if(run&&missingOrder.dueAt){
+        const bornMs=Date.parse(run.created_at);if(!Number.isFinite(bornMs)||bornMs>now)throw Error('Invalid controlled observation clock');
         const due=Math.max(Date.parse(missingOrder.dueAt),bornMs+this.options.missingOrderGraceMs);
         if(!Number.isFinite(due))throw Error('Invalid controlled grace');
         missingOrder={...missingOrder,dueAt:new Date(due).toISOString()};
@@ -100,8 +108,32 @@ export class PostgresRecoveryService {
       }
     }
     const providerHash = sha256(canonical({ intent, attempt, evidence, ...(webhook ? { webhook } : {}) }));
-    const factsJson = canonical({ contract: CONTRACT_ID, intent, attempt, providerHash, orders, voids, incident, resolution, scenarioRunId: this.scope?.runId ?? null });
-    return { intent, attempt, evidence, orders, resolution, evaluation, providerHash, factsJson,missingOrder,missingCase };
+    const merchantFacts = { contract: CONTRACT_ID, intent, orders, voids, incident, resolution, scenarioRunId: this.scope?.runId ?? null };
+    // A case's approval binds the merchant facts and payment identity. Readback
+    // timestamps and duplicate deliveries do not change either.
+    const { updated_at: _observedAt, ...paymentIdentity } = attempt;
+    const eligibility = this.scope && latest ? {
+      hash: sha256(canonical({ ...merchantFacts, paymentIdentity, provenance: latest.provenance,
+        webhookEvents: webhook?.events.map(({ event_id, attempt_id, state, summary_json }) => ({ event_id, attempt_id, state, summary_json })) ?? [] })),
+      observationSeq: latest.fact.seq,
+    } : undefined;
+    const exactFacts = { ...merchantFacts, attempt, providerHash };
+    const factsJson = canonical(eligibility ? { ...exactFacts, eligibility } : exactFacts);
+    return { intent, attempt, evidence, orders, resolution, evaluation, providerHash, factsJson,exactFacts,eligibility,latest,missingOrder,missingCase };
+  }
+  private matchesPlan(p: RepairPlan, s: Awaited<ReturnType<PostgresRecoveryService["snapshot"]>>) {
+    const planned = (JSON.parse(p.facts_json) as StoredFacts).eligibility;
+    // Previously issued plans retain the exact snapshot rule.
+    if (!planned) return p.facts_json === canonical(s.exactFacts);
+    if (!s.latest || planned.hash !== s.eligibility?.hash) return false;
+    const anchor = completedObservation(s.evidence.find(row => row.seq === planned.observationSeq));
+    if (!anchor || anchor.provenance !== s.latest.provenance || !confirmsCapturedPayment(s.intent,s.attempt,anchor)) return false;
+    // An intervening failure or contradiction requires a fresh review even
+    // after a later matching readback restores current payment confidence.
+    return s.evidence.filter(row => row.seq > planned.observationSeq && isPaymentObservation(row)).every(row => {
+      const observation = completedObservation(row);
+      return observation?.provenance === anchor.provenance && confirmsCapturedPayment(s.intent,s.attempt,observation);
+    });
   }
   private eligible(s: Awaited<ReturnType<PostgresRecoveryService["snapshot"]>>) {
     const active = s.orders.filter(o => o.effective_status === "placed");
@@ -181,7 +213,7 @@ export class PostgresRecoveryService {
   private async approve(org: string, id: string, hash: string, browser: boolean): Promise<void> {
     return this.transaction(org, async client => {
       const p = await this.getPlan(client, org, id);
-      if (hashPlan(p) !== hash || hash !== p.plan_sha256) throw new Error("Exact plan hash required");
+      if (!intactPlan(p) || hash !== p.plan_sha256) throw new Error("Exact plan hash required");
       const previous = (await client.query("SELECT * FROM repair_approvals WHERE plan_id=$1", [id])).rows[0];
       if (previous) {
         if (previous.plan_sha256 === hash && (browser ? previous.approval_mode === "BROWSER_SESSION" && previous.session_user_id === this.scope!.userId : previous.approval_mode === "SIMULATED_TEST")) return;
@@ -191,7 +223,7 @@ export class PostgresRecoveryService {
       const incident = await this.incident(client, org, p.incident_id);
       const s = await this.snapshot(client, org, incident.intent_id, incident);
       this.eligible(s);
-      if (sha256(s.factsJson) !== p.facts_sha256) throw new Error("Plan is stale");
+      if (!this.matchesPlan(p,s)) throw new Error("Plan is stale");
       await client.query("INSERT INTO repair_approvals(id,plan_id,plan_sha256,operator_name,identity_assurance,approval_mode,approved_at,session_user_id) VALUES($1,$2,$3,$4,$5,$6,$7,$8)",
         [`ra_${randomUUID()}`, id, hash, browser ? this.scope!.userId : "qualification-actor",browser ? "SESSION_AUTHENTICATED" : "LOCAL_DEMO_DECLARED_OPERATOR",browser ? "BROWSER_SESSION" : "SIMULATED_TEST",new Date().toISOString(),browser ? this.scope!.userId : null]);
       await this.audit(client, id, "APPROVED", { mode: browser ? "BROWSER_SESSION" : "SIMULATED_TEST", authentication: browser ? "MAINTAINED_SESSION" : "NONE" });
@@ -238,7 +270,7 @@ export class PostgresRecoveryService {
       if (outcome === "SUCCEEDED") {
         try {
           const active = this.eligible(before);
-          if (p.facts_json !== before.factsJson || p.facts_sha256 !== sha256(before.factsJson) || active[0]!.id !== p.keep_order_id
+          if (!this.matchesPlan(p,before) || active[0]!.id !== p.keep_order_id
             || canonical(active.slice(1).map(o => o.id).sort()) !== p.void_order_ids_json) throw new Error("Changed facts");
         } catch { outcome = "REJECTED_STALE"; }
       }
@@ -290,21 +322,35 @@ export class PostgresRecoveryService {
       const attempt = (await client.query<AttemptRow>("SELECT * FROM payment_attempts WHERE intent_id=$1", [p.intent_id])).rows[0]!;
       const evidence = (await client.query<Evidence>("SELECT * FROM evidence WHERE attempt_id=$1 ORDER BY seq", [attempt.id])).rows;
       await postgresWebhookProof(client,attempt);
-      const planned=JSON.parse(p.facts_json) as {intent:IntentRow;attempt:AttemptRow;providerHash:string};
-      const evaluated=(await client.query('SELECT facts_json FROM invariant_evaluations WHERE seq=$1 AND intent_id=$2',[p.evaluation_seq,p.intent_id])).rows[0];
-      const anchors:unknown=evaluated?JSON.parse(evaluated.facts_json).confirmingReadbackSeqs:null;
-      const anchor=Array.isArray(anchors)&&anchors.length?completedObservation(evidence.find(e=>e.seq===anchors.at(-1))):null;
-      const latest=completedObservation(evidence.filter(isPaymentObservation).at(-1));
-      // Append-only evidence can grow after the correction. Keep the receipt's exact
-      // execution hashes, and independently re-establish the same capture today.
-      const providerUnchanged=receipt.provider_before_sha256===receipt.provider_after_sha256&&receipt.provider_after_sha256===planned.providerHash
-        &&canonical(intent)===canonical(planned.intent)&&attempt.capture_claims===planned.attempt.capture_claims
-        &&canonical(capturedPaymentFacts(intent,attempt))===canonical(capturedPaymentFacts(planned.intent,planned.attempt))
-        &&!!anchor&&!!latest&&anchor.provenance===latest.provenance
-        &&evaluateContract(capturedPaymentFacts(intent,attempt,[anchor.fact]),[]).eligible
-        &&evaluateContract(capturedPaymentFacts(intent,attempt,[latest.fact]),[]).eligible;
+      const planned = JSON.parse(p.facts_json) as StoredFacts;
+      // The immutable resolution links the receipt to the execution-time keeper
+      // and observation. A case may have received equivalent evidence after planning.
+      const resolved = (await client.query(`SELECT v.facts_json FROM incident_resolutions r
+        JOIN invariant_evaluations v ON v.seq=r.evaluation_seq
+        WHERE r.incident_id=$1 AND r.execution_id=$2 AND v.result='HOLDS' AND v.active_order_count=1`,
+      [p.incident_id,receipt.execution_id])).rows[0];
+      const execution = resolved ? JSON.parse(resolved.facts_json) as {
+        repairFacts?: StoredFacts; confirmingReadbackSeqs?: number[]; matchingOrderIds?: string[];
+      } : null;
+      const anchor = completedObservation(evidence.find(row => row.seq === execution?.confirmingReadbackSeqs?.at(-1)));
+      const originalPayment = capturedPaymentFacts(planned.intent,planned.attempt);
+      const historicalVerified = receipt.outcome === 'SUCCEEDED' && receipt.provider_before_sha256 === receipt.provider_after_sha256
+        && execution?.repairFacts?.providerHash === receipt.provider_after_sha256
+        && (planned.eligibility !== undefined || receipt.provider_after_sha256 === planned.providerHash)
+        && execution?.matchingOrderIds?.length === 1 && execution.matchingOrderIds[0] === p.keep_order_id
+        && !!anchor && confirmsCapturedPayment(planned.intent,planned.attempt,anchor);
+      const latest = providerObservation(evidence.filter(isPaymentObservation).at(-1));
+      const samePayment = canonical(intent) === canonical(planned.intent) && attempt.capture_claims === planned.attempt.capture_claims
+        && canonical(capturedPaymentFacts(intent,attempt)) === canonical(originalPayment);
+      let paymentVerification: 'CONFIRMED' | 'UNAVAILABLE' | 'CONTRADICTORY' = 'UNAVAILABLE';
+      if (!samePayment) paymentVerification = 'CONTRADICTORY';
+      else if (anchor && latest && anchor.provenance === latest.provenance) {
+        paymentVerification = confirmsCapturedPayment(intent,attempt,latest) ? 'CONFIRMED' : 'CONTRADICTORY';
+      }
+      const providerUnchanged = paymentVerification === 'CONFIRMED';
       return { receipt, current: { activeOrders: count.active as number, matchingKeeper: count.keeper as number, providerUnchanged },
-        verifiedCurrent: receipt.outcome === "SUCCEEDED" && count.active === 1 && count.keeper === 1 && providerUnchanged };
+        historicalVerified, paymentVerification,
+        verifiedCurrent: historicalVerified && count.active === 1 && count.keeper === 1 && providerUnchanged };
     });
   }
 }

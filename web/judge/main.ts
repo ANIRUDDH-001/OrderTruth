@@ -17,6 +17,7 @@ let accountOpen = false;
 let ownerReauthentication=new URL(location.href).searchParams.get('reauth')==='1';
 if(ownerReauthentication)state.ownerForm=true;
 let planExpiryTimer: ReturnType<typeof setTimeout>|undefined;
+let refusedPlanId: string | undefined;
 function el<K extends keyof HTMLElementTagNameMap>(tag: K,text = "",className = ""): HTMLElementTagNameMap[K] { const node = document.createElement(tag); node.textContent = text; node.className = className; return node; }
 function section(title: string,description: string) { const node = el("section","","panel"); node.append(el("h2",title),el("p",description,"muted")); return node; }
 function button(text: string,action: () => Promise<void>|void,secondary = false,mutation = false) {
@@ -28,7 +29,9 @@ async function api<T>(path: string,body?: unknown): Promise<T> {
   if (body !== undefined && ((!signingIn && (state.needsRecheck || state.sessionStatus !== "AUTHENTICATED")) || ["UNKNOWN","CHECKING"].includes(state.sessionStatus))) throw new Error("Resume/Recheck Case before another action. The previous request may have committed.");
   try {const value=await requestJson<T>(path,body);state.maintenance=false;return value; }
   catch (error) {
-    if(path==='/api/auth/sign-in/anonymous'&&error instanceof RequestError&&error.status===429&&error.responseCode==='GUEST_ADMISSION_LIMIT')throw error;
+    if(path==='/api/auth/sign-in/anonymous'&&error instanceof RequestError&&[
+      'GUEST_ADMISSION_LIMIT','GUEST_ATTRIBUTION_UNAVAILABLE',
+    ].includes(error.responseCode ?? ''))throw error;
     if(error instanceof RequestError && error.kind==='MAINTENANCE')state.maintenance=true;
     if (body !== undefined) state.needsRecheck = true;
     const run = /^\/api\/scenarios\/([a-zA-Z0-9_-]{1,100})\//.exec(path)?.[1];
@@ -121,7 +124,7 @@ async function restoreCase(runId: string) {
   const restored = await readCase(api,runId).catch(error => { state.needsRecheck = true; throw error; });
   // A changed merchant snapshot invalidates advisory panels, even within one run.
   const same = state.scenario?.run.id === runId;
-  if (!same || JSON.stringify(state.scenario?.orders) !== JSON.stringify(restored.scenario.orders)) clearAdvisory();
+  if (!same || (!restored.receipt && JSON.stringify(state.scenario?.orders) !== JSON.stringify(restored.scenario.orders))) clearAdvisory();
   state.scenario = restored.scenario; state.plan = restored.plan; state.receipt = restored.receipt;
   if(restored.scenario.diagnostics!==undefined){
     try{state.diagnostics=parseCaseDiagnostics(restored.scenario.diagnostics);state.diagnosticNotice='';}
@@ -134,7 +137,11 @@ async function mutateCase(action: string,body: unknown = {}) {
   if (state.needsRecheck || state.sessionStatus !== "AUTHENTICATED") throw new Error("Resume/Recheck Case before another mutation.");
   const runId = state.scenario!.run.id;
   markMutation(runId); // Survives reload while the POST or subsequent read is interrupted.
-  await api(path(action),body);
+  try { await api(path(action),body); }
+  catch (error) {
+    if (error instanceof RequestError && error.responseCode === "PLAN_REVIEW_REQUIRED") refusedPlanId = state.plan?.id;
+    throw error;
+  }
   state.needsRecheck = true; state.pendingMutationRun = runId;
   await restoreCase(runId);
   markMutation(null); state.needsRecheck = false;
@@ -152,7 +159,8 @@ async function resumeCase() {
   }
   markMutation(null);
   state.needsRecheck = false;
-  state.notice = "Persisted case state rechecked using read-only requests. No approval or repair was replayed.";
+  state.notice = state.scenario ? "Persisted case state rechecked using read-only requests. No approval or repair was replayed."
+    : "Session confirmed. There is no saved case to reopen. Choose Inspect a payment outcome to start one.";
 }
 function restoreHistory(runId: string) {
   const revision = ++historyRevision;
@@ -353,7 +361,7 @@ function caseView() {
   payment.append(el("span","Payment evidence","muted"),el("strong","1 recorded observation"),el("p",scenario.paymentReference.provenance === "PAYPAL_SANDBOX_GET" ? "PayPal Sandbox GET readback" : "Synthetic qualification input"),
     el("p",capture ? `Recorded capture: ${capture.status} · ${capture.currency} ${capture.value}. Historical provider observation; no fresh PayPal call.` : "Capture amount and status are unavailable in this observation.","muted"));
   orders.append(el("span","Controlled merchant outcome","muted"),el("strong",`${active.length} active ${active.length === 1 ? "order" : "orders"}`),el("p",active.length > 1 ? "One observation is linked to multiple active orders." : active.length === 1 ? "One active order remains linked to the observation." : missing?"This controlled case deliberately omits the reference merchant order. A finding requires the waiting period and matching payment evidence.":"No active merchant orders are present in this response. Recheck the case before proceeding.")); comparison.append(payment,orders); merchant.append(comparison);
-  const verdict = el("p",missing?state.detected?'Deterministic finding: no reference merchant order after the recorded grace period. This does not establish a payment failure.':'Controlled missing-order inspection: no reference merchant order is created in this case. Check the condition; a missing-order finding requires the grace period to expire.':currentVerified ? "Current merchant state verified: one active order." : state.detected && active.length > 1 ? "Deterministic finding: duplicate active merchant orders." : "Check the merchant outcome first. Deterministic checks establish whether a duplicate is actionable.",state.detected ? "result-label" : "scope-note"); merchant.append(verdict);
+  const verdict = el("p",missing?state.detected?'Deterministic finding: no reference merchant order after the recorded grace period. This does not establish a payment failure.':'Controlled missing-order inspection: no reference merchant order is created in this case. Check the condition; a missing-order finding requires the grace period to expire.':currentVerified ? "Current merchant state verified: one active order." : state.detected && active.length > 1 ? "Deterministic finding: duplicate active merchant orders from the controlled scenario." : "Check the merchant outcome first. Deterministic checks establish whether a duplicate is actionable.",state.detected ? "result-label" : "scope-note"); merchant.append(verdict);
   if(missing&&scenario.latestCheck?.missingOrder?.dueAt)merchant.append(el('p',`Merchant grace deadline: ${dateTime(scenario.latestCheck.missingOrder.dueAt)}. Rechecking the saved case is read-only; use the condition check after this deadline to record a new assessment.`,'muted'));
   const orderList = el("div","","order-list");
   scenario.orders.forEach((order,index) => { const row = el("div","","order-row"); const description = el("div"); description.append(el("strong",`Merchant order ${index+1}`),el("span",`${formatMoney(order.amount_minor,order.currency)} · Merchant amount`,"muted")); row.append(description,el("span",order.effective_status === "placed" ? "Active" : "Voided duplicate",order.effective_status === "placed" ? "badge" : "badge neutral")); orderList.append(row); }); merchant.append(orderList);
@@ -380,17 +388,19 @@ function caseView() {
   recovery.id = "recovery-panel";
   const reviewHeading = recovery.querySelector("h2")!; reviewHeading.id = "review-heading"; reviewHeading.tabIndex = -1;
   const completed = state.receipt?.verifiedCurrent === true && state.receipt.receipt.outcome === "SUCCEEDED";
+  const paymentNeedsReview = state.receipt?.historicalVerified && state.receipt.paymentVerification !== "CONFIRMED";
   const expired = state.plan ? planExpired(state.plan) : false;
+  const refused = !!state.plan && state.plan.id === refusedPlanId;
   if (!state.detected && !state.plan) recovery.append(el("p","Check the merchant outcome first. A confirmed, actionable duplicate is required to prepare a correction.","scope-note"));
-  if (!completed && (state.detected || state.plan) && (!state.plan || expired || state.receipt)) recovery.append(button(expired && !state.receipt ? "Renew expired plan" : "Review exact repair plan",() => mutateCase("plan"),false,true));
+  if (!completed && !paymentNeedsReview && (state.detected || state.plan) && (!state.plan || expired || refused || state.receipt)) recovery.append(button(expired && !state.receipt ? "Renew expired plan" : "Review exact repair plan",() => mutateCase("plan"),false,true));
   if (state.plan) {
     const plan = state.plan;
     const voids = JSON.parse(plan.void_order_ids_json) as string[];
     const changes = el("div","","change-preview");
     changes.append(record(state.receipt ? "Approved plan scope" : "Before → proposed after",state.receipt ? `${voids.length} duplicate ${voids.length === 1 ? "order" : "orders"} targeted; 1 keeper` : `${active.length} active orders → 1 active order`),record("Keep active",orderName(plan.keep_order_id)),record("Void in the merchant database",voids.map(orderName).join(", ")),record("PayPal effects","No capture, refund or provider record change")); recovery.append(changes);
     recovery.append(json("Exact plan identity and order changes",{ planId: plan.id,planSha256: plan.plan_sha256,keepOrderId: plan.keep_order_id,voidOrderIds: voids }));
-    if (!state.receipt) { const expiry = el("p",`${expired ? "Plan expired" : "Approval expires"}: ${dateTime(plan.expires_at)}. ${expired ? "Renew to review a new exact plan and approve it again." : "The server rechecks expiry and merchant state before execution."}`,expired ? "error" : "muted"); expiry.id = "plan-expiry";recovery.append(expiry); }
-    if (!completed && !expired && !state.receipt) {
+    if (!state.receipt) { const expiry = el("p",refused ? "The saved plan requires a new review and approval." : `${expired ? "Plan expired" : "Approval expires"}: ${dateTime(plan.expires_at)}. ${expired ? "Renew to review a new exact plan and approve it again." : "The server rechecks expiry and merchant state before execution."}`,expired || refused ? "error" : "muted"); expiry.id = "plan-expiry";recovery.append(expiry); }
+    if (!completed && !expired && !refused && !state.receipt) {
       if (state.approved) recovery.append(el("p","Exact plan approved for this session. Approval does not execute the correction.","approval-status"));
       else recovery.append(button("Approve this exact merchant-only plan",async () => { if (planExpired(plan)) throw new Error("Plan expired. Recheck the case and renew the exact plan before approval."); await mutateCase("approve",{ planId: plan.id,planSha256: plan.plan_sha256 }); },false,true));
       if (state.approved) recovery.append(button("Execute approved local repair",async () => { if (planExpired(plan)) throw new Error("Plan expired. Recheck the case and renew before execution."); await mutateCase("execute",{ planId: plan.id }); },false,true));
@@ -398,9 +408,16 @@ function caseView() {
   }
   if (state.receipt) {
     const receipt = state.receipt;
-    const heading = el("h3",receipt.verifiedCurrent && !state.needsRecheck ? "Merchant correction verified" : "Outcome needs review"); heading.id = "receipt-heading"; heading.tabIndex = -1;
+    const heading = el("h3",currentVerified ? "Merchant correction verified" : receipt.historicalVerified ? "Original correction verified" : "Outcome needs review"); heading.id = "receipt-heading"; heading.tabIndex = -1;
     recovery.append(heading,el("p",`Persisted receipt: ${receipt.receipt.outcome}. Recorded ${dateTime(receipt.receipt.completed_at)}.`),el("p","Verification checks the current merchant order and the latest stored payment confirmation against the original correction. The receipt keeps its original evidence hashes. No fresh PayPal API call is made.","scope-note"),record(state.needsRecheck ? "Last verified active orders" : "Current active orders",String(receipt.current.activeOrders)),record("Expected surviving order",`${receipt.current.matchingKeeper} matching keeper`),record("Recorded payment facts",receipt.current.providerUnchanged ? "Match the original capture" : "Current match not established"));
-    if (!currentVerified) recovery.append(el("p","The historical receipt is preserved, but the current merchant postconditions are not verified. Recheck before preparing another correction.","error"));
+    if (!currentVerified) {
+      const detail = state.needsRecheck ? "The current merchant postconditions are not verified. Recheck the receipt to refresh verification."
+        : receipt.paymentVerification === "UNAVAILABLE" && receipt.historicalVerified ? "Latest stored PayPal check could not confirm the payment. The original correction still stands. Recheck after a successful PayPal readback."
+        : receipt.paymentVerification === "CONTRADICTORY" && receipt.historicalVerified ? "Latest stored PayPal evidence conflicts with the original capture. Review the payment evidence before any further correction."
+        : receipt.historicalVerified ? "The current merchant orders differ from the original verified outcome. Check the merchant state before another correction."
+        : "Review the saved execution outcome and check the case before preparing another correction.";
+      recovery.append(el("p",detail,"error"));
+    }
     recovery.append(button("Recheck committed receipt",resumeCase,true),button("Export receipt and evidence",() => {
       const blob = new Blob([JSON.stringify({ scenario,receipt: { ...state.receipt,verifiedCurrent: currentVerified },verificationStatus: state.needsRecheck ? "RECHECK_REQUIRED" : "READ_COMPLETED",investigation: state.analysis,diagnostics: state.diagnostics },null,2)],{ type: "application/json" });
       const url = URL.createObjectURL(blob); const link = el("a"); link.href = url; link.download = `ordertruth-${scenario.run.id}.json`; link.click(); setTimeout(() => URL.revokeObjectURL(url),1000);
@@ -439,7 +456,7 @@ function investigationView() {
   },true,true); ai.disabled ||= !state.detected; if (!state.receipt&&(!state.detected||(!missing&&available.length))) investigation.append(ai);
   const analysis = state.analysis;
   if (analysis) {
-    if(newerEvidence)investigation.append(el('p','New diagnostic evidence is available. The saved AI advice predates it; reassess to include the new findings. Rechecking alone does not run AI.','scope-note'));
+    if(newerEvidence)investigation.append(el('p',state.receipt ? 'The saved AI advice predates some recorded diagnostics. Review those findings separately below.' : 'New diagnostic evidence is available. The saved AI advice predates it; reassess to include the new findings. Rechecking alone does not run AI.','scope-note'));
     investigation.append(el("p",analysis.status === "FRESH" ? "Fresh AI inference" : analysis.status === "CACHED" ? "Cached AI result — no new model execution" : "AI unavailable — rules-based guidance","result-label"));
     investigation.append(el("p",analysis.baseline.summary,"baseline"));
     if (analysis.generatedAt) investigation.append(el("p",`${analysis.model ?? "Model"} · Generated ${dateTime(analysis.generatedAt)}`,"muted"));
@@ -467,7 +484,7 @@ function investigationView() {
   }
   if (state.role === "engineering") {
     const advanced = el("details"); advanced.append(el("summary","Advanced merchant diagnostics"),el("p","These inspect controlled merchant writes and persist diagnostic evidence; they do not call PayPal.","muted"));
-    for (const kind of available) { const control = button(diagnosticName(kind),() => diagnostic(kind),true,true); control.disabled ||= !state.detected || !!state.receipt; advanced.append(control); } if(available.length)investigation.append(advanced);
+    for (const kind of available) { const control = button(diagnosticName(kind),() => diagnostic(kind),true,true); control.disabled ||= !state.detected; advanced.append(control); } if(available.length && !state.receipt)investigation.append(advanced);
   }
   return investigation;
 }

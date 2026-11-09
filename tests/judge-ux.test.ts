@@ -8,6 +8,21 @@ const plan = { id: "rp_fixture",plan_sha256: "fixture_hash",keep_order_id: "keep
 const receipt = (outcome: string,verifiedCurrent: boolean) => ({ receipt: { execution_id: "execution_fixture",outcome,completed_at: "2026-10-26T00:00:00Z",provider_before_sha256: "unchanged",provider_after_sha256: "unchanged" },verifiedCurrent,current: { activeOrders: 1,matchingKeeper: 1,providerUnchanged: true } });
 
 describe("judge keyboard and completed-case UX",() => {
+  it("reports what was checked when there is no saved case",async () => {
+    const ui = await mountJudge(call => call.path === "/api/session" ? session : null);
+    await ui.click("Resume/Recheck Case");
+    expect(ui.doc.root.textContent).toContain("Session confirmed. There is no saved case to reopen.");
+    expect(ui.calls.every(call => call.method === "GET")).toBe(true);
+  });
+  it.each([["UNAVAILABLE","Latest stored PayPal check could not confirm"],["CONTRADICTORY","Latest stored PayPal evidence conflicts"]])(
+    "keeps the original correction visible when current payment evidence is %s",async (paymentVerification, message) => {
+      const ui = await mountJudge(call => call.path === "/api/session" ? session : call.path.endsWith("/investigation") ? null
+        : call.path.includes("/receipts/") ? { ...receipt("SUCCEEDED",false),historicalVerified:true,paymentVerification,current:{activeOrders:1,matchingKeeper:1,providerUnchanged:false} }
+          : { ...scenario("run_owned"),latestPlan:plan },"run_owned");
+      expect(ui.doc.root.textContent).toContain("Original correction verified");
+      expect(ui.doc.root.textContent).toContain(message);
+      expect(ui.doc.root.querySelectorAll("button").some(b => /Review exact repair plan|Execute approved/.test(b.textContent))).toBe(false);
+    });
   it("explains guest entry and groups protected access without asking an authenticated owner to sign in again",async () => {
     const guest = await mountJudge(call => call.path === "/api/session" ? session : null);
     expect(guest.doc.root.textContent).toContain("No registration or owner password is needed");

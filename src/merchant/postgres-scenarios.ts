@@ -2,8 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { Pool, PoolClient } from "pg";
 import { withTransaction } from "../db/postgres.ts";
 import type { AttemptRow, IntentRow } from "../db/store.ts";
-import { evaluateContract } from "./contract.ts";
-import {capturedPaymentFacts,completedObservation,type PaymentObservation} from './current-payment-evidence.ts';
+import {completedObservation,confirmsCapturedPayment,type PaymentObservation} from './current-payment-evidence.ts';
 import { recordedCapture } from "./recorded-capture.ts";
 
 type Run = { id: string; user_id: string; payment_attempt_id: string; source_evidence_seq: number; provenance: string; label: string; created_at: string };
@@ -65,8 +64,7 @@ export class PostgresScenarioStore {
         ORDER BY seq DESC LIMIT 1`, [attempt])).rows[0];
       const observation=completedObservation(source);
       if (!observation||observation.provenance!==provenance) throw new ScenarioCreationRejection("SOURCE_UNAVAILABLE");
-      const evaluated = evaluateContract(capturedPaymentFacts(i,a,[observation.fact]), []);
-      if (!evaluated.eligible) throw new ScenarioCreationRejection("SOURCE_UNAVAILABLE");
+      if (!confirmsCapturedPayment(i,a,observation)) throw new ScenarioCreationRejection("SOURCE_UNAVAILABLE");
       // One bounded admission lock prevents concurrent requests exceeding limits.
       await client.query("SELECT pg_advisory_xact_lock(hashtextextended($1,0))", [`${this.schema}:scenario-admission`]);
       const counts = (await client.query(`SELECT count(*)::integer AS total,count(*) FILTER(WHERE r.user_id=$1)::integer AS own

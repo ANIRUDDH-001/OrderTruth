@@ -4,7 +4,7 @@ export type Plan = { id: string; plan_sha256: string; keep_order_id: string; voi
 export type Scenario = { run: { id: string; label: string };caseKind?:'DUPLICATE'|'MISSING'; orders: Array<{ id: string; effective_status: string; amount_minor: number; currency: string }>;diagnostics?:unknown;
   paymentReference: { attemptId: string; evidenceSeq: number; observedAt: string; provenance: string; note: string;recordedCapture?:{status:"COMPLETED";currency:string;value:string}|null };latestPlan?: Plan & { approved: boolean; has_receipt: boolean };
   latestCheck?: { seq: number; result: string; activeOrderCount: number; evaluatedAt: string; incidentId: string|null;incidentClass?:string|null;missingOrder?:{dueAt:string|null;confirmedAt:string|null}|null }|null };
-export type Receipt = { receipt: { execution_id: string; outcome: string; completed_at: string; provider_before_sha256: string; provider_after_sha256: string }; verifiedCurrent: boolean; current: { activeOrders: number; matchingKeeper: number; providerUnchanged: boolean } };
+export type Receipt = { receipt: { execution_id: string; outcome: string; completed_at: string; provider_before_sha256: string; provider_after_sha256: string }; verifiedCurrent: boolean; historicalVerified?: boolean; paymentVerification?: "CONFIRMED" | "UNAVAILABLE" | "CONTRADICTORY"; current: { activeOrders: number; matchingKeeper: number; providerUnchanged: boolean } };
 export type ReadApi = <T>(path: string) => Promise<T>;
 export type Session = { authenticated: boolean; userId?: string; owner?: boolean };
 export type SessionStatus = "UNKNOWN"|"CHECKING"|"AUTHENTICATED"|"SIGNED_OUT";
@@ -52,9 +52,11 @@ export function aiAvailability(reason?: string|null,retryAt?: string|null) {
   const reasons: Record<string,string> = {
     AI_NOT_CONFIGURED: "AI is not connected for this environment.",BUDGET_DISABLED: "AI requests are disabled for this environment.",
     SESSION_DAILY_BUDGET: "This session has used its daily AI allowance.",APP_DAILY_BUDGET: "Today's shared AI allowance has been used.",
+    NETWORK_DAILY_BUDGET: "This network has used its share of today's free AI allowance.",AI_ATTRIBUTION_UNAVAILABLE: "The connection could not be verified for a new AI request. Reopen the public OrderTruth site and try again.",
     APP_REQUEST_SPACING: "AI requests are temporarily spaced out. Wait before requesting another analysis.",AI_BUSY: "Another analysis is in progress. Try again later.",
     QUOTA_OR_RATE_LIMIT: "The AI provider has reached its request allowance. Try again later.",TIMEOUT: "The AI provider did not respond within the time limit.",
     NETWORK: "The AI provider could not be reached.",PROVIDER_UNAVAILABLE: "The AI provider is temporarily unavailable.",
+    PROVIDER_CIRCUIT_OPEN: "AI requests are paused briefly while the provider recovers.",
     RESERVATION_INTERRUPTED: "The analysis was interrupted; its model usage is uncertain.",CACHED_RESULT_INVALID: "The saved AI response could not be validated.",
     NO_ACTIONABLE_COMPARISON:"There is no useful new AI comparison for these recorded diagnostics."
   };
@@ -132,7 +134,11 @@ export async function readCase(api: ReadApi, runId: string) {
   if (plan?.has_receipt && (!receipt || typeof receipt.verifiedCurrent !== "boolean" || !receipt.receipt || !receipt.current
     || ![receipt.receipt.execution_id,receipt.receipt.outcome,receipt.receipt.completed_at,receipt.receipt.provider_before_sha256,receipt.receipt.provider_after_sha256].every(v => typeof v === "string")
     || !instant(receipt.receipt.completed_at) || !count(receipt.current.activeOrders) || !count(receipt.current.matchingKeeper) || typeof receipt.current.providerUnchanged !== "boolean"
-    || (receipt.verifiedCurrent && (receipt.receipt.outcome !== "SUCCEEDED" || receipt.current.activeOrders !== 1 || receipt.current.matchingKeeper !== 1 || !receipt.current.providerUnchanged
+    || (receipt.historicalVerified !== undefined && typeof receipt.historicalVerified !== "boolean")
+    || (receipt.historicalVerified && (receipt.receipt.outcome !== "SUCCEEDED" || receipt.receipt.provider_before_sha256 !== receipt.receipt.provider_after_sha256))
+    || (receipt.paymentVerification !== undefined && (!["CONFIRMED","UNAVAILABLE","CONTRADICTORY"].includes(receipt.paymentVerification)
+      || (receipt.paymentVerification === "CONFIRMED") !== receipt.current.providerUnchanged))
+    || (receipt.verifiedCurrent && (receipt.historicalVerified === false || receipt.receipt.outcome !== "SUCCEEDED" || receipt.current.activeOrders !== 1 || receipt.current.matchingKeeper !== 1 || !receipt.current.providerUnchanged
       || receipt.receipt.provider_before_sha256 !== receipt.receipt.provider_after_sha256)))) throw new Error("Case receipt returned an invalid response. Resume/Recheck Case.");
   return { scenario, plan, receipt };
 }

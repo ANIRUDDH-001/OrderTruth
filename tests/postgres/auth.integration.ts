@@ -8,6 +8,7 @@ import { registerSessionApi } from "../../src/server/session-api.ts";
 import { registerJudgeApi } from "../../src/server/judge-api.ts";
 import { PostgresCheckoutStore } from "../../src/db/postgres-checkout.ts";
 import { PostgresScenarioStore } from "../../src/merchant/postgres-scenarios.ts";
+import { attestNetwork,NETWORK_PROOF_HEADER } from "../../src/server/network-attribution.ts";
 
 import { env } from "./local-db.ts";
 const schema = `qual_${randomBytes(10).toString("hex")}`;
@@ -84,6 +85,28 @@ it("admits independent guests behind one proxy, bounds new identities globally a
 it("preserves the owner email sign-in limit and ignores forged peer headers",async () => {
   for (let i=0;i<5;i++) expect((await app.inject({ method:"POST",url:"/api/auth/sign-in/email",headers:{origin,"x-ordertruth-client-ip":`203.0.113.${i+1}`,"x-forwarded-for":`203.0.113.${i+1}`},remoteAddress:"192.0.2.77",payload:{email:"missing-owner@example.test",password:"synthetic-wrong-password"} })).statusCode).toBe(401);
   expect((await app.inject({method:"POST",url:"/api/auth/sign-in/email",headers:{origin},remoteAddress:"192.0.2.77",payload:{email:"missing-owner@example.test",password:"synthetic-wrong-password"}})).statusCode).toBe(429);
+});
+it("shares network admission among independent guests while preserving other networks and restored sessions",async()=>{
+  const key = randomBytes(32).toString("hex");
+  const ingress = Fastify({ logger: false });
+  registerSessionApi(ingress,createSessionAuth(pool,origin,secret),origin,new Set(),key);
+  const url = "/api/auth/sign-in/anonymous";
+  const enter = (ip: string, cookie?: string) => ingress.inject({ method:"POST",url,payload:{},headers:{ origin,
+    ...(cookie ? { cookie } : { [NETWORK_PROOF_HEADER]:attestNetwork(key,ip,url)! }),"x-forwarded-for":"203.0.113.100" } });
+  try {
+    expect((await ingress.inject({method:"POST",url,payload:{},headers:{origin,"x-real-ip":"192.0.2.33",[NETWORK_PROOF_HEADER]:"forged"}})).json().code).toBe("GUEST_ATTRIBUTION_UNAVAILABLE");
+    const attempts = await Promise.all(Array.from({length:16},()=>enter("192.0.2.33")));
+    expect(attempts.filter(r => r.statusCode===200)).toHaveLength(12);
+    expect(attempts.filter(r => r.statusCode===429)).toHaveLength(4);
+    const first = attempts.find(r => r.statusCode===200)!;
+    const cookies = first.cookies.map(c=>`${c.name}=${c.value}`).join("; ");
+    const restored = await enter("192.0.2.33",cookies);
+    expect(restored.statusCode).toBe(200);
+    expect(restored.cookies).toHaveLength(0);
+    expect((await enter("198.51.100.44")).statusCode).toBe(200);
+    const total = (await pool.query(`SELECT "count" FROM ${schema}.ot_auth_rate_limit WHERE "key"='ordertruth:guest-admission:v1'`)).rows[0].count;
+    expect(total).toBe(13);
+  } finally { await ingress.close(); }
 });
 it("enforces the global new-guest bound under concurrent requests across authentication instances",async()=>{
   const restarted=Fastify({logger:false});registerSessionApi(restarted,createSessionAuth(pool,origin,secret),origin);
