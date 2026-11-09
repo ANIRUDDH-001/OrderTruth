@@ -22,13 +22,17 @@ export function registerSessionApi(app: FastifyInstance, auth: SessionAuth, orig
     reply.header("cache-control", "no-store");
     if (request.headers.origin !== origin) return reply.code(403).send({ error: "Same-origin request required" });
     try {
+      const headers = fromNodeHeaders(request.headers);
       // Retrying entry with a valid guest cookie must not allocate a new user or
       // fail because unrelated guests consumed the new-identity budget. Owners
       // still follow the ordinary anonymous-entry path; never silently retain
       // owner authority when a caller asks to enter as a guest.
-      if (path === "sign-in/anonymous" && request.headers.cookie) {
+      if (path !== "sign-out" && headers.has("cookie")) {
         const current = await sessionIdentity(auth,request,ownerIds);
-        if (current?.anonymous) return { ok: true };
+        if (path === "sign-in/anonymous" && current?.anonymous) return { ok: true };
+        // The anonymous linking hook can clear an expired incoming session
+        // cookie after sign-in has already set the replacement cookie.
+        if (!current) headers.delete("cookie");
       }
       if (path === "sign-in/anonymous") {
         const group = ingressKey ? verifyNetwork(ingressKey,request.headers[NETWORK_PROOF_HEADER],`/api/auth/${path}`) : null;
@@ -38,7 +42,6 @@ export function registerSessionApi(app: FastifyInstance, auth: SessionAuth, orig
           return reply.code(429).send({ code:'GUEST_ADMISSION_LIMIT',error: "Guest admission capacity reached; retry after 60 seconds. Existing sessions remain available." });
         }
       }
-      const headers = fromNodeHeaders(request.headers);
       // Overwrite all client input. Preserve actual socket-peer attribution;
       // email sign-in keeps its existing peer-IP bucket and strict limit.
       headers.set("x-ordertruth-client-ip", request.ip);

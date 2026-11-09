@@ -1,6 +1,7 @@
 import { randomBytes, randomUUID } from "node:crypto";
 import { afterAll, beforeAll, beforeEach, expect, it } from "vitest";
 import Fastify from "fastify";
+import { betterAuth } from "better-auth";
 import { createPostgresPool } from "../../src/db/postgres.ts";
 import { migratePostgres } from "../../src/db/postgres-migrate.ts";
 import { createSessionAuth } from "../../src/server/auth.ts";
@@ -56,6 +57,32 @@ it("denies missing/foreign origins and disables public account registration", as
   for (const headers of [{}, { origin: "https://foreign.invalid" }]) expect((await app.inject({ method: "POST", url: "/api/auth/sign-in/anonymous", headers, payload: {} })).statusCode).toBe(403);
   expect((await app.inject({ method: "POST", url: "/api/auth/sign-up/email", headers: { origin }, payload: {} })).statusCode).toBe(404);
   expect((await app.inject({ url: "/api/session", headers: { cookie: "better-auth.session_token=forged" } })).json().authenticated).toBe(false);
+});
+it("replaces an expired browser cookie on either sign-in path", async () => {
+  const bootstrap = betterAuth({ ...auth.options,emailAndPassword: { ...auth.options.emailAndPassword,enabled: true,disableSignUp: false } });
+  const credentials = { email: "synthetic-expired-owner@example.test",password: "synthetic-expired-owner-password" };
+  const owner = await bootstrap.api.signUpEmail({ body: { ...credentials,name: "Synthetic owner" } });
+  const enter = (path: string, cookie?: string) => app.inject({ method: "POST",url: `/api/auth/sign-in/${path}`,
+    headers: { origin,...(cookie ? {cookie} : {}) },payload: path === "email" ? credentials : {} });
+  const session = async (cookie: string) => (await app.inject({url:"/api/session",headers:{cookie}})).json();
+  for (const path of ["email","anonymous"]) {
+    const first = await enter(path);
+    expect(first.statusCode).toBe(200);
+    const original = first.cookies.find(c=>c.name.endsWith(".session_token"))!;
+    const stale = `${original.name}=${original.value}`;
+    const previous = await session(stale);
+    expect(previous.authenticated).toBe(true);
+    await pool.query(`UPDATE ${schema}.ot_auth_session SET "expiresAt"=now()-interval '1 second' WHERE "userId"=$1`,[previous.userId]);
+    expect((await session(stale)).authenticated).toBe(false);
+    const next = await enter(path,stale);
+    expect(next.statusCode).toBe(200);
+    const token = next.cookies.find(c=>c.name === original.name);
+    expect(Boolean(token?.value && token.value !== original.value)).toBe(true);
+    const restored = await session(`${token!.name}=${token!.value}`);
+    expect(restored).toMatchObject({authenticated:true,anonymous:path === "anonymous"});
+    if(path === "email") expect(restored.userId).toBe(owner.user.id);
+    else expect(restored.userId).not.toBe(previous.userId);
+  }
 });
 it("admits independent guests behind one proxy, bounds new identities globally across restart, and reuses existing guests", async () => {
   const cookie = await guest("192.0.2.40");
