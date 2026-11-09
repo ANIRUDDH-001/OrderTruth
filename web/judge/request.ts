@@ -2,7 +2,7 @@
  * GET may meet a gateway error while the API wakes. Only GETs are retried:
  * state-changing POSTs are sent once and their failure is reported, never replayed. */
 export class RequestError extends Error {
-  constructor(message: string, readonly status: number, readonly kind: "HTTP"|"NETWORK"|"TIMEOUT"|"INVALID_RESPONSE"|"MAINTENANCE" = "HTTP",readonly outcomeUnknown = false) { super(message); this.name = "RequestError"; }
+  constructor(message: string, readonly status: number, readonly kind: "HTTP"|"NETWORK"|"TIMEOUT"|"INVALID_RESPONSE"|"MAINTENANCE" = "HTTP",readonly outcomeUnknown = false,readonly responseCode?:string) { super(message); this.name = "RequestError"; }
 }
 declare const __ORDERTRUTH_SOURCE__:string|null;
 const source=typeof __ORDERTRUTH_SOURCE__ === "undefined" ? null : __ORDERTRUTH_SOURCE__;
@@ -50,7 +50,7 @@ export async function requestJson<T>(path: string, body?: unknown, options: {
       const detail = data && typeof data === "object" ? data as { message?: unknown; error?: unknown; code?:unknown } : null;
       if(response.status===503 && detail?.code==='RELEASE_MAINTENANCE') throw new RequestError('OrderTruth is briefly unavailable while we update the service. Your saved cases and receipts are preserved.',503,'MAINTENANCE',false);
       const message = typeof detail?.message === "string" ? detail.message : typeof detail?.error === "string" ? detail.error : `Request unavailable (${response.status})`;
-      failure = new RequestError(message,response.status,"HTTP",post && response.status >= 500);
+      failure = new RequestError(message,response.status,"HTTP",post && response.status >= 500,typeof detail?.code==='string'?detail.code:undefined);
       if (!RETRYABLE.has(response.status)) break;
     }
     throw failure;

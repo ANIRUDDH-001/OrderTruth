@@ -1,8 +1,9 @@
 import { expect,it } from "vitest";
 import { callPrivateInvestigator } from "../src/ai/private-investigator.ts";
 import { callGroqInvestigator } from "../src/ai/groq-investigator.ts";
+import {pilotCases} from '../src/ai/pilot-cases.ts';
 
-const evidence=[{id:"synthetic-merchant",source:"CONTROLLED_MERCHANT_STATE" as const,observedAt:"2026-11-08T00:00:00.000Z",facts:{activeOrders:0,orders:[],providerMutation:false}}];
+const evidence=pilotCases[0]!.evidence;
 const providers=[{call:callPrivateInvestigator,model:"synthetic-model"},{call:callGroqInvestigator,model:"openai/gpt-oss-120b"}];
 for(const provider of providers){
  it(`${provider.model} refuses redirects and unexpected response origins`,async()=>{

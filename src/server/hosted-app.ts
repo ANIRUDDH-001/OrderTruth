@@ -24,6 +24,7 @@ import { WebhookProcessor } from "../webhooks/processor.ts";
 import { EVENT_TERMINAL } from "../webhooks/inbox.ts";
 import { TokenBucket } from "../webhooks/rate-limit.ts";
 import { installReleaseBarrier } from "./release-barrier.ts";
+import {webhookRecoveryPump} from '../webhooks/recovery-pump.ts';
 
 export async function buildHostedApp(config: ReturnType<typeof loadPostgresConfig>,options: { staticFiles?: boolean; schema?: string; maintenance?: () => boolean; sourceSha?:string; migration?: "check" | "apply"; logStream?: { write(line: string): unknown } } = {}) {
   const schema = options.schema ?? "ordertruth";
@@ -39,9 +40,12 @@ export async function buildHostedApp(config: ReturnType<typeof loadPostgresConfi
   const auth = createSessionAuth(pool,config.origin,config.authSecret);
   const checkoutStore = new PostgresCheckoutStore(pool,schema);
   const paypal = new PayPalClient(config.paypal);
-  const checkout = new PostgresCheckoutService(paypal,checkoutStore);
+  const checkout = new PostgresCheckoutService(paypal,checkoutStore,schema==='ordertruth'?'PAYPAL_SANDBOX_GET':'SYNTHETIC_QUALIFICATION');
   const app = Fastify({ logger: false,bodyLimit: 16_384,genReqId: () => randomUUID(),trustProxy: false });
-  installReleaseBarrier(app,options.maintenance ?? (()=>false),options.sourceSha);
+  const barrier=installReleaseBarrier(app,options.maintenance ?? (()=>false),options.sourceSha);
+  let webhookRecovery:ReturnType<typeof webhookRecoveryPump>|undefined;
+  app.addHook('onListen',async()=>{webhookRecovery?.start();});
+  app.addHook('preClose',async()=>{await webhookRecovery?.stop();});
   app.addHook("onClose",async () => { await pool.end(); });
   // Allowlist operational metadata. Never log raw URLs, IDs in paths, headers,
   // request/response bodies, auth payloads or exception messages.
@@ -102,9 +106,11 @@ export async function buildHostedApp(config: ReturnType<typeof loadPostgresConfi
       const allowed = ingress.take();
       if (!allowed.ok) return reply.header("retry-after",String(Math.max(1,Math.ceil(allowed.retryAfterMs/1000)))).code(429).send({ error: "Webhook ingress limited; retry delivery" });
     });
-    const inbox = new PostgresWebhookInbox(pool,schema);
+    const inbox = new PostgresWebhookInbox(pool,schema,schema==='ordertruth'?'PAYPAL_SANDBOX_POSTBACK':'SYNTHETIC_QUALIFICATION');
     const quiet = { info: () => {},warn: () => {},error: () => {} };
     const processor = new WebhookProcessor(inbox,checkout,{ log: quiet });
+    const recovery=webhookRecovery=webhookRecoveryPump({nextDueAt:()=>inbox.nextDueAt(),drain:max=>processor.drain(max),enter:barrier.enterBackground,
+      report:attempted=>{try{(options.logStream??process.stdout).write(JSON.stringify({evt:'webhook_recovery',status:attempted===null?'RETRY_SCHEDULED':'DRAINED',attempted})+'\n');}catch{/* logging cannot change scheduling */}}});
     const intake = new WebhookIntake(inbox,new PayPalPostbackVerifier(paypal,config.webhook.verifyTimeoutMs),{
       webhookId: config.paypal.webhookId!,maxTransmissionAgeMs: config.webhook.maxTransmissionAgeMs,maxFutureSkewMs: config.webhook.maxFutureSkewMs,
       maxStoredUnverified: config.webhookIngress.maxStoredUnverified,log: quiet,
@@ -115,16 +121,16 @@ export async function buildHostedApp(config: ReturnType<typeof loadPostgresConfi
       if (!Buffer.isBuffer(request.body)) return reply.code(415).send({ error: "JSON event bytes required" });
       const accepted = await intake.receive(request.body,request.headers,request.id);
       if (accepted.status !== 200) return reply.code(accepted.status).send(accepted.body);
-      await processor.drain(10);
+      try{await processor.drain(10);}finally{recovery.wake();}
       const delivery = await inbox.getDelivery(accepted.body.delivery!);
       const event = delivery?.claimed_event_id ? await inbox.getEvent(delivery.claimed_event_id) : null;
       if (!event || !EVENT_TERMINAL.includes(event.state)) return reply.code(503).send({ error: "Event persisted; required processing is pending, retry delivery" });
       return { ...accepted.body,processingState: event.state };
     });
-    // Explicit owner resume replaces process timers as the recovery mechanism.
+    // Explicit owner resume remains available in addition to scheduled recovery.
     webhooks.post("/api/owner/webhooks/resume",async (request,reply) => {
       if (request.headers.origin !== config.origin || !(await sessionIdentity(auth,request,config.ownerIds))?.owner) return reply.code(403).send({ error: "Owner session required" });
-      return { attempted: await processor.drain(20) };
+      try{return { attempted: await processor.drain(20) };}finally{recovery.wake();}
     });
   });
   if (options.staticFiles !== false) {

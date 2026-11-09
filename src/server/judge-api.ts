@@ -6,7 +6,7 @@ import { sessionIdentity } from "./session-api.ts";
 import { PostgresScenarioStore, ScenarioCreationRejection, validScenarioOperation } from "../merchant/postgres-scenarios.ts";
 import { PostgresRecoveryService } from "../merchant/postgres-recovery.ts";
 import { PostgresInvestigationStore } from "../ai/postgres-investigation.ts";
-import type { PostgresInvestigationService } from "../ai/postgres-investigation-service.ts";
+import {readInvestigationHistory,type PostgresInvestigationService} from "../ai/postgres-investigation-service.ts";
 import { diagnosticKinds,deterministicInvestigator } from "../ai/investigation.ts";
 import { admitDemoAction } from "./demo-limits.ts";
 
@@ -122,8 +122,7 @@ export function registerJudgeApi(app: FastifyInstance, options: {
     routes.get<{ Params: { runId: string } }>("/api/scenarios/:runId/investigation", async (request,reply) => {
       const identity = await sessionIdentity(options.auth,request); if (!identity) return reply.code(401).send({ error: "Session required" });
       if (!id.safeParse(request.params.runId).success) return reply.code(400).send({ error: "Invalid investigation" });
-      await scenarios.get(identity.userId,request.params.runId);
-      return options.investigator ? options.investigator.history(identity.userId,request.params.runId) : null;
+      return readInvestigationHistory(options.pool,options.schema,identity.userId,request.params.runId);
     });
     routes.post<{ Params: { runId: string } }>("/api/scenarios/:runId/investigate", { bodyLimit: 4096 }, async (request,reply) => {
       const identity = await sessionIdentity(options.auth,request); if (!identity) return reply.code(401).send({ error: "Session required" });

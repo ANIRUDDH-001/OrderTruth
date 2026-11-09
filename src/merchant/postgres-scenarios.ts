@@ -2,7 +2,8 @@ import { randomUUID } from "node:crypto";
 import type { Pool, PoolClient } from "pg";
 import { withTransaction } from "../db/postgres.ts";
 import type { AttemptRow, IntentRow } from "../db/store.ts";
-import { evaluateContract, readbackFact } from "./contract.ts";
+import { evaluateContract } from "./contract.ts";
+import {capturedPaymentFacts,completedObservation,type PaymentObservation} from './current-payment-evidence.ts';
 import { recordedCapture } from "./recorded-capture.ts";
 
 type Run = { id: string; user_id: string; payment_attempt_id: string; source_evidence_seq: number; provenance: string; label: string; created_at: string };
@@ -59,19 +60,19 @@ export class PostgresScenarioStore {
       if (!attempt) throw new ScenarioCreationRejection("SOURCE_UNAVAILABLE");
       const { a, i } = await this.payment(client, attempt, true);
       const provenance = synthetic ? "SYNTHETIC_QUALIFICATION" : "PAYPAL_SANDBOX_GET";
-      const source = (await client.query<{ seq: number; http_status: number; created_at: string; summary_json: string }>(`SELECT * FROM evidence
-        WHERE attempt_id=$1 AND evidence_class='PAYPAL_API_READBACK' AND http_status=200 AND summary_json::jsonb->>'provenance'=$2 ORDER BY seq DESC LIMIT 1`, [attempt,provenance])).rows[0];
-      if (!source) throw new ScenarioCreationRejection("SOURCE_UNAVAILABLE");
-      const evaluated = evaluateContract({ intentId: i.id,intentSku: i.sku,intentCurrency: i.currency,intentMinor: i.amount_minor,
-        attemptId: a.id,attemptState: a.state,paypalOrderId: a.paypal_order_id,captureId: a.capture_id,captureStatus: a.capture_status,capturedMinor: a.captured_minor,capturedCurrency: a.captured_currency,
-        readbacks: [readbackFact(source)] }, []);
+      const source = (await client.query<PaymentObservation>(`SELECT seq,evidence_class,operation,http_status,created_at,summary_json FROM evidence
+        WHERE attempt_id=$1 AND (evidence_class='PAYPAL_API_READBACK' OR (evidence_class='PAYPAL_API_RESPONSE' AND operation IN('readback','readback_error','webhook_readback')))
+        ORDER BY seq DESC LIMIT 1`, [attempt])).rows[0];
+      const observation=completedObservation(source);
+      if (!observation||observation.provenance!==provenance) throw new ScenarioCreationRejection("SOURCE_UNAVAILABLE");
+      const evaluated = evaluateContract(capturedPaymentFacts(i,a,[observation.fact]), []);
       if (!evaluated.eligible) throw new ScenarioCreationRejection("SOURCE_UNAVAILABLE");
       // One bounded admission lock prevents concurrent requests exceeding limits.
       await client.query("SELECT pg_advisory_xact_lock(hashtextextended($1,0))", [`${this.schema}:scenario-admission`]);
       const counts = (await client.query(`SELECT count(*)::integer AS total,count(*) FILTER(WHERE r.user_id=$1)::integer AS own
         FROM scenario_admissions a JOIN scenario_runs r ON r.id=a.run_id WHERE a.expires_at>clock_timestamp()`, [user])).rows[0];
       if (counts.total >= this.admission.global || counts.own >= this.admission.perUser) throw new ScenarioCreationRejection("SCENARIO_CAPACITY");
-      const run: Run = { id: `run_${randomUUID()}`,user_id: user,payment_attempt_id: attempt,source_evidence_seq: source.seq,provenance,label: "CONTROLLED_MERCHANT_SCENARIO",created_at: new Date().toISOString() };
+      const run: Run = { id: `run_${randomUUID()}`,user_id: user,payment_attempt_id: attempt,source_evidence_seq: observation.fact.seq,provenance,label: "CONTROLLED_MERCHANT_SCENARIO",created_at: new Date().toISOString() };
       await client.query("INSERT INTO scenario_runs VALUES($1,$2,$3,$4,$5,$6,$7)", Object.values(run));
       if(kind==='DUPLICATE')await this.order(client, run, a, i, false);
       await client.query("INSERT INTO scenario_operations(user_id,operation_id,run_id) VALUES($1,$2,$3)", [user,operationId,run.id]);

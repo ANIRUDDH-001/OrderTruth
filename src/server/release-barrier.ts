@@ -24,7 +24,7 @@ export function maintenanceState(env: Record<string,string|undefined>): () => bo
  * premature quiescence. This is not proof that another process has stopped. */
 export function installReleaseBarrier(app: FastifyInstance,isClosed:()=>boolean,sourceSha?:string) {
   if(sourceSha && !/^[a-f0-9]{40}$/.test(sourceSha)) throw new Error("Invalid release source identity");
-  const active=new Set<string>();
+  const active=new Set<string|symbol>();
   const closed=()=>{try{return isClosed();}catch{return true;}};
   const status=()=>{const maintenance=closed();return {maintenance,activeRequests:active.size,quiescent:maintenance&&active.size===0};};
   app.addHook("onRequest",async(request,reply)=>{
@@ -43,5 +43,9 @@ export function installReleaseBarrier(app: FastifyInstance,isClosed:()=>boolean,
   app.addHook("onResponse",async request=>{active.delete(request.id);});
   app.get("/api/release/status",async()=>status());
   app.get("/api/release/identity",async()=>({sourceSha:sourceSha??null,schemaVersion:9,backendContract:"phase1-core-v1"}));
-  return {status};
+  function enterBackground(){
+    if(closed())return null;
+    const token=Symbol('background');active.add(token);return ()=>{active.delete(token);};
+  }
+  return {status,enterBackground};
 }

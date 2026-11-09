@@ -27,9 +27,10 @@ it("rejects nested unknown fields and duplicate private evidence identities",() 
   expect(() => prepareEvidenceEgress([{ ...evidence[0]!,source: "PAYPAL_SANDBOX_OBSERVATION" }])).toThrow("AI_EGRESS_REJECTED");
 });
 it("only accepts offered comparisons and attaches private merchant citations locally",async () => {
-  const run = (invented: boolean) => callPrivateInvestigator({ apiKey: "synthetic",model: "synthetic-model",evidence,fetchImpl: async (_url,init) => {
+  const eligible=[evidence[0]!,{...evidence[1]!,facts:{...evidence[1]!.facts,orders:['order_private_1','order_private_2'].map(id=>({id,status:'placed',amountMinor:1234,currency:'USD'}))}}];
+  const run = (invented: boolean) => callPrivateInvestigator({ apiKey: "synthetic",model: "synthetic-model",evidence:eligible,fetchImpl: async (_url,init) => {
     const body = JSON.parse(String(init?.body)); const input = JSON.parse(body.contents[0].parts[0].text);
-    expect(input.comparisonChoices).toHaveLength(15);
+    expect(input.comparisonChoices).toHaveLength(10);
     const output = { comparison: invented ? "P" : "E" };
     return new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: JSON.stringify(output) }] } }] }));
   } });

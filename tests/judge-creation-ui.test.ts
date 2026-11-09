@@ -5,6 +5,12 @@ const operationId = "12345678-1234-4234-8234-123456789abc";
 const marker = "ordertruth.judge.unidentifiedCreation";
 afterEach(async () => { if (vi.isFakeTimers()) await vi.runAllTimersAsync(); vi.useRealTimers(); vi.unstubAllGlobals(); vi.resetModules(); });
 describe("durable creation recovery UI",() => {
+  it('treats guest admission refusal as definite without creating an operation or locking saved access',async()=>{
+    const ui=await mountJudge(c=>c.path==='/api/session'?{authenticated:false}:Response.json({code:'GUEST_ADMISSION_LIMIT',error:'Guest admission capacity reached; retry after 60 seconds.'},{status:429}));
+    await ui.click('Inspect a payment outcome');expect(ui.doc.root.textContent).toContain('retry after 60 seconds');
+    expect(ui.button('Inspect a payment outcome').disabled).toBe(false);expect(ui.calls.filter(c=>c.path==='/api/scenarios')).toHaveLength(0);
+    expect(ui.doc.root.textContent).not.toContain('The last request may have committed');
+  });
   it("persists a UUID before POST and reconciles commit-after-response-loss with GET only",async () => {
     const storage = new Map<string,string>();let id = "";
     const ui = await mountJudge((c,body) => {

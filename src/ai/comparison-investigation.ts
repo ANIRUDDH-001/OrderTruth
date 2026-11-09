@@ -2,7 +2,7 @@ import {z} from 'zod';
 import {diagnosticKinds,type InvestigationEvidence} from './investigation.ts';
 import {mechanismKinds,mechanismDiagnostics,prepareGroundedContext,validateGroundedPlan,type Mechanism} from './grounded-investigation.ts';
 
-export const COMPARISON_POLICY='merchant-comparison-v1';
+export const COMPARISON_POLICY='merchant-comparison-v2';
 const codes=['A','B','C','D','E','F','G','H','I','J','K','L','M','N','O'] as const;
 export const ComparisonSelectionSchema=z.object({comparison:z.enum(codes)}).strict();
 const pairs=mechanismKinds.flatMap((first,i)=>mechanismKinds.slice(i+1).map(second=>[first,second] as const));
@@ -11,11 +11,14 @@ const pairs=mechanismKinds.flatMap((first,i)=>mechanismKinds.slice(i+1).map(seco
  * and every factual sentence remain independently controlled by the backend. */
 export function prepareComparisonContext(evidence:readonly InvestigationEvidence[]){
  const grounded=prepareGroundedContext(evidence);
- const choices=pairs.map((mechanisms,i)=>{
-  const relevant=new Set(mechanisms.flatMap(m=>mechanismDiagnostics[m]));
+ const duplicate=grounded.facts.some(f=>f.kind==='MULTIPLE_ACTIVE_ORDERS')&&!grounded.facts.some(f=>f.kind==='MERCHANT_COUNT_INCONSISTENT'||f.kind==='NO_ACTIVE_ORDERS'||f.kind==='SINGLE_ACTIVE_ORDER');
+ const choices=pairs.flatMap((mechanisms,i)=>{
+  if(!duplicate||mechanisms.includes('WRITE_FAILURE_OR_INTERRUPTION'))return [];
+  // Unknown is a competing explanation, not a reason to offer every check.
+  const relevant=new Set(mechanisms.filter(m=>m!=='UNKNOWN_CAUSE').flatMap(m=>mechanismDiagnostics[m]));
   const available=diagnosticKinds.filter(kind=>relevant.has(kind)&&!grounded.performed.has(kind));
-  const nextDiagnostic=available[0]??diagnosticKinds.find(kind=>relevant.has(kind))!;
-  return {code:codes[i]!,mechanisms:mechanisms as readonly Mechanism[],nextDiagnostic,status:available.length?'AVAILABLE' as const:'EXHAUSTED' as const};
+  if(!available.length)return [];
+  return [{code:codes[i]!,mechanisms:mechanisms as readonly Mechanism[],nextDiagnostic:available[0]!,status:'AVAILABLE' as const}];
  });
  const projected=JSON.parse(grounded.payload);
  // The menu already encodes relevance/availability; omit duplicate instruction

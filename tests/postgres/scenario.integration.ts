@@ -68,6 +68,9 @@ it("isolates controlled merchant runs while referencing one immutable payment ob
   const exhausted = await ai.investigate("synthetic_judge_a",a.id);
   expect(exhausted.status).toBe("UNAVAILABLE"); expect(exhausted.reason).toBe("APP_DAILY_BUDGET");
   expect(exhausted.baseline.kind).toBe("RULES_BASED"); expect(modelCalls).toBe(1);
+  await investigations.diagnostic("synthetic_judge_a",a.id,"MERCHANT_WRITE_OUTCOMES");
+  expect(await ai.investigate("synthetic_judge_a",a.id)).toMatchObject({status:'UNAVAILABLE',reason:'NO_ACTIONABLE_COMPARISON'});
+  expect(modelCalls).toBe(1);
   await expect(scenarios.injectDuplicate("synthetic_judge_b", a.id)).rejects.toThrow(/not found/i);
   await expect(scenarios.get("synthetic_judge_a", b.id)).rejects.toThrow(/not found/i);
   expect((await pool.query(`SELECT count(*)::integer AS n FROM ${schema}.payment_attempts WHERE id=$1`, [f.attempt.id])).rows[0].n).toBe(1);
@@ -91,6 +94,7 @@ it("isolates controlled merchant runs while referencing one immutable payment ob
 });
 it("rejects citation-valid financial prose and does not relabel legacy historical results",async()=>{
  const f=await payment(),run=await scenarios.createQualification("synthetic_judge_a",f.attempt.id);
+ await scenarios.injectDuplicate('synthetic_judge_a',run.id);
  const evidence=await new PostgresInvestigationStore(pool,schema).evidence("synthetic_judge_a",run.id);
  const unsafe={summary:"The payment was captured; refund it now.",hypotheses:[{explanation:"Refund the payment.",status:"HYPOTHESIS" as const,confidence:"LOW" as const,evidenceIds:[evidence[0]!.id]}],nextDiagnostic:"IDEMPOTENCY_KEYS" as const,diagnosticReason:"Compare keys."};
  const ai=new PostgresInvestigationService(pool,schema,{model:"synthetic-unsafe",dailyLimit:20,userDailyLimit:10,minIntervalMs:0,
@@ -132,7 +136,7 @@ it("projects real database evidence through the gateway and persists provider co
   const f = await payment(); const run = await scenarios.createQualification("synthetic_judge_a",f.attempt.id);
   await scenarios.injectDuplicate("synthetic_judge_a",run.id);
   const store = new PostgresInvestigationStore(pool,schema);
-  for (const kind of ["HANDLER_TIMING","IDEMPOTENCY_KEYS","MERCHANT_WRITE_OUTCOMES"] as const) await store.diagnostic("synthetic_judge_a",run.id,kind);
+  for (const kind of ["HANDLER_TIMING","IDEMPOTENCY_KEYS"] as const) await store.diagnostic("synthetic_judge_a",run.id,kind);
   const evidence = await store.evidence("synthetic_judge_a",run.id);
   const payload = prepareEvidenceEgress(evidence).payload;
   expect(payload).not.toContain(run.id); expect(payload).not.toContain("keySha256"); expect(payload).toContain("relation");

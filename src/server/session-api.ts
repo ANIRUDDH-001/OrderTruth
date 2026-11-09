@@ -31,7 +31,7 @@ export function registerSessionApi(app: FastifyInstance, auth: SessionAuth, orig
       }
       if (path === "sign-in/anonymous" && !await auth.reserveGuestAdmission()) {
         reply.header("retry-after","60").header("x-retry-after","60");
-        return reply.code(429).send({ error: "Guest admission capacity reached; retry after 60 seconds. Existing sessions remain available." });
+        return reply.code(429).send({ code:'GUEST_ADMISSION_LIMIT',error: "Guest admission capacity reached; retry after 60 seconds. Existing sessions remain available." });
       }
       const headers = fromNodeHeaders(request.headers);
       // Overwrite all client input. Preserve actual socket-peer attribution;

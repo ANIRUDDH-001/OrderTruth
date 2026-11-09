@@ -238,6 +238,20 @@ it("recovers the same committed receipt after an actual lost HTTP response", asy
   expect(stored?.outcome).toBe("SUCCEEDED");
   expect((await (await post("execute", { planId: plan.id })).json())).toEqual(stored);
 });
+it("preserves a receipt across an equivalent new readback but refuses a newer contradiction", async () => {
+  const f = await fixture({plainOrderId:true}); const incident = await recovery.check("org_reference", f.intent.id);
+  const plan = await recovery.plan("org_reference", incident.incidentId!, "qualification-actor");
+  await recovery.approveQualification("org_reference", plan.id, plan.plan_sha256);
+  const original = await recovery.execute("org_reference", plan.id);
+  const order=`SYNTHETIC${f.suffix.toUpperCase()}`;
+  const observation={id:order,status:'COMPLETED',intent:'CAPTURE',purchase_units:[{custom_id:f.intent.id,amount:{currency_code:'USD',value:'1.00'},payments:{captures:[{id:`SYNTHETIC_CAPTURE_${f.suffix.toUpperCase()}`,status:'COMPLETED',amount:{currency_code:'USD',value:'1.00'}}]}}]};
+  await checkout.recordReadback(f.attempt.id,observation,'SYNTHETIC_QUALIFICATION');
+  expect(await recovery.verify('org_reference',plan.id)).toMatchObject({receipt:original,verifiedCurrent:true,current:{activeOrders:1,matchingKeeper:1,providerUnchanged:true}});
+  await checkout.recordReadback(f.attempt.id,{...observation,status:'APPROVED',purchase_units:[{custom_id:f.intent.id,amount:{currency_code:'USD',value:'1.00'}}]},'SYNTHETIC_QUALIFICATION');
+  expect(await recovery.verify('org_reference',plan.id)).toMatchObject({receipt:original,verifiedCurrent:false,current:{providerUnchanged:false}});
+  await checkout.recordReadback(f.attempt.id,observation,'SYNTHETIC_QUALIFICATION');
+  expect(await recovery.verify('org_reference',plan.id)).toMatchObject({receipt:original,verifiedCurrent:true});
+});
 it("opens a repairable recurrence while retaining and replaying the original receipt", async () => {
   const f = await fixture(); const incident = await recovery.check("org_reference", f.intent.id);
   const plan = await recovery.plan("org_reference", incident.incidentId!, "qualification-actor");

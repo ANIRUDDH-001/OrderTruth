@@ -20,7 +20,7 @@ try {
   const close = async () => { await app.close(); process.exit(0); };
   process.once("SIGINT",close); process.once("SIGTERM",close);
   await app.listen({ host: local ? "127.0.0.1" : "0.0.0.0",port: config.port });
-  console.log(`OrderTruth listening at ${config.origin}; PayPal Sandbox only. No model or payment call occurs on startup.`);
+  console.log(`OrderTruth listening at ${config.origin}; Sandbox only. Due verified webhook readbacks may resume; no new payment or model request is started.`);
 } catch (error) {
   console.error(error instanceof Error ? `Application startup failed (${error.name}); inspect private configuration without printing credentials.` : "Application startup failed");
   process.exitCode = 1;

@@ -4,11 +4,29 @@ import { canonical,sha256 } from "../domain/canonical.ts";
 import { withTransaction } from "../db/postgres.ts";
 import { PostgresInvestigationStore } from "./postgres-investigation.ts";
 import { deterministicInvestigator,type InvestigationCall,type InvestigationEvidence } from "./investigation.ts";
-import { MERCHANT_EGRESS_POLICY,prepareMerchantEvidenceEgress } from "./evidence-egress.ts";
+import { MERCHANT_EGRESS_POLICY } from "./evidence-egress.ts";
 import { GROUNDED_POLICY,validateGroundedProjection } from "./grounded-investigation.ts";
-import { COMPARISON_POLICY } from "./comparison-investigation.ts";
+import { COMPARISON_POLICY,prepareComparisonContext } from "./comparison-investigation.ts";
 
-const snapshotIdentity=(model:string,evidence:readonly InvestigationEvidence[])=>sha256(canonical({policy:`investigator-v3:${MERCHANT_EGRESS_POLICY}:${GROUNDED_POLICY}:${COMPARISON_POLICY}`,model,evidence}));
+const snapshotIdentity=(model:string,evidence:readonly InvestigationEvidence[],policy:string=COMPARISON_POLICY)=>sha256(canonical({policy:`investigator-v3:${MERCHANT_EGRESS_POLICY}:${GROUNDED_POLICY}:${policy}`,model,evidence}));
+
+/** Historical advice has its own immutable snapshot. Do not acquire payment
+ * writer locks, assemble current evidence or require an enabled provider. */
+export async function readInvestigationHistory(pool:Pool,schema:string,user:string,run:string){
+  if(schema!=='ordertruth'&&!/^qual_[a-f0-9]{20}$/.test(schema))throw Error('Invalid OrderTruth schema');
+  const row=(await pool.query(`SELECT a.* FROM ${schema}.scenario_runs r LEFT JOIN LATERAL (
+    SELECT id,evidence_json,result_json,snapshot_sha256,model,completed_at,usage_json FROM ${schema}.ai_investigations
+    WHERE run_id=r.id AND user_id=r.user_id AND status='FRESH' AND evidence_json IS NOT NULL ORDER BY completed_at DESC,id DESC LIMIT 1
+  ) a ON true WHERE r.id=$1 AND r.user_id=$2`,[run,user])).rows[0];
+  if(!row)throw Error('Scenario not found for session');
+  if(!row.id)return null;
+  const evidence=JSON.parse(row.evidence_json) as InvestigationEvidence[];
+  if(![COMPARISON_POLICY,'merchant-comparison-v1'].some(policy=>row.snapshot_sha256===snapshotIdentity(row.model,evidence,policy)))return null;
+  const parsed=validateGroundedProjection(JSON.parse(row.result_json),evidence);
+  if(!parsed.ok)return null;
+  return {status:'CACHED' as const,freshModelExecution:false,historical:true,reason:null,retryAt:null,evidence,baseline:deterministicInvestigator(evidence),
+    snapshotSha256:row.snapshot_sha256 as string,investigation:parsed.result,model:row.model as string,generatedAt:row.completed_at as string,usage:JSON.parse(row.usage_json) as InvestigationCall['usage']};
+}
 
 type Settings = { model: string; dailyLimit: number; userDailyLimit: number; minIntervalMs: number;
   infer(evidence: readonly InvestigationEvidence[]): Promise<InvestigationCall> };
@@ -30,19 +48,7 @@ export class PostgresInvestigationService {
     });
   }
   async history(user: string,run: string) {
-    // Check ownership even when no result exists. No model or quota reservation.
-    await this.evidenceStore.evidence(user,run);
-    const row = await this.tx(async client => (await client.query(`SELECT * FROM ai_investigations
-      WHERE run_id=$1 AND user_id=$2 AND status='FRESH' AND evidence_json IS NOT NULL ORDER BY completed_at DESC,id DESC LIMIT 1`, [run,user])).rows[0]);
-    if (!row) return null;
-    const evidence = JSON.parse(row.evidence_json) as InvestigationEvidence[];
-    if(row.snapshot_sha256!==snapshotIdentity(row.model as string,evidence))return null;
-    const parsed = validateGroundedProjection(JSON.parse(row.result_json),evidence);
-    if (!parsed.ok) return null;
-    return { status: "CACHED" as const,freshModelExecution: false,historical: true,reason: null,retryAt: null,
-      evidence,baseline: deterministicInvestigator(evidence),snapshotSha256: row.snapshot_sha256 as string,
-      investigation: parsed.result,model: row.model as string,generatedAt: row.completed_at as string,
-      usage: JSON.parse(row.usage_json) as InvestigationCall["usage"] };
+    return readInvestigationHistory(this.pool,this.schema,user,run);
   }
   async investigate(user: string,run: string) {
     const evidence = await this.evidenceStore.evidence(user,run);
@@ -50,8 +56,9 @@ export class PostgresInvestigationService {
     const snapshotSha256 = snapshotIdentity(this.settings.model,evidence);
     const unavailable = (reason: string,retryAt: string | null = null) => ({ status: "UNAVAILABLE" as const,freshModelExecution: false,reason,retryAt,baseline,evidence,snapshotSha256 });
     // Privacy rejection is not an inference reservation or a provider attempt.
-    try { prepareMerchantEvidenceEgress(evidence); } catch { return unavailable("AI_EGRESS_REJECTED"); }
+    try { if(!prepareComparisonContext(evidence).choices.length)return unavailable('NO_ACTIONABLE_COMPARISON'); } catch { return unavailable("AI_EGRESS_REJECTED"); }
     const now = Date.now(); const day = new Date(now).toISOString().slice(0,10);
+    const nextDay=new Date(Date.parse(`${day}T00:00:00.000Z`)+86_400_000).toISOString();
     const reservation = await this.tx(async client => {
       await client.query("SELECT pg_advisory_xact_lock(hashtextextended($1,0))", [`${this.schema}:ai-reservation`]);
       // A locked day row arbitrates caches, quota, spacing and one in-flight
@@ -74,9 +81,9 @@ export class PostgresInvestigationService {
       const reopenAt = last ? Date.parse(last.completed_at)+cooling : 0;
       if (cooling && now < reopenAt) return { reason: "PROVIDER_CIRCUIT_OPEN",retryAt: new Date(reopenAt).toISOString() };
       if (this.settings.dailyLimit === 0 || this.settings.userDailyLimit === 0) return { reason: "BUDGET_DISABLED" };
-      if (budget.reservations >= this.settings.dailyLimit) return { reason: "APP_DAILY_BUDGET",retryAt: new Date(Date.parse(`${day}T00:00:00.000Z`)+86_400_000).toISOString() };
-      const own = (await client.query("SELECT count(*)::integer AS n FROM ai_investigations WHERE user_id=$1 AND requested_at>=$2 AND requested_at<$3", [user,`${day}T00:00:00.000Z`,new Date(Date.parse(`${day}T00:00:00.000Z`)+86_400_000).toISOString()])).rows[0].n;
-      if (own >= this.settings.userDailyLimit) return { reason: "SESSION_DAILY_BUDGET" };
+      if (budget.reservations >= this.settings.dailyLimit) return { reason: "APP_DAILY_BUDGET",retryAt:nextDay };
+      const own = (await client.query("SELECT count(*)::integer AS n FROM ai_investigations WHERE user_id=$1 AND requested_at>=$2 AND requested_at<$3", [user,`${day}T00:00:00.000Z`,nextDay])).rows[0].n;
+      if (own >= this.settings.userDailyLimit) return { reason: "SESSION_DAILY_BUDGET",retryAt:nextDay };
       if ((await client.query("SELECT 1 FROM ai_investigations WHERE status='RESERVED' LIMIT 1")).rowCount) return { reason: "AI_BUSY" };
       if (now-budget.last_reserved_at_ms < this.settings.minIntervalMs) return { reason: "APP_REQUEST_SPACING",retryAt: new Date(budget.last_reserved_at_ms+this.settings.minIntervalMs).toISOString() };
       const id = `ai_${randomUUID()}`;

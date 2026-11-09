@@ -83,6 +83,10 @@ export class PostgresWebhookInbox {
       return { result,seq };
     });
   }
+  async nextDueAt():Promise<number|null> {
+    return this.tx(async client=>(await client.query<{due:number|null}>(`SELECT min(CASE WHEN state='processing' THEN lease_until_ms ELSE next_attempt_at_ms END) AS due
+      FROM webhook_events WHERE state IN('verified_pending','retryable_failure','processing')`)).rows[0]!.due);
+  }
   async claimNext(nowMs: number, leaseMs: number): Promise<EventRow | undefined> {
     if (!Number.isSafeInteger(nowMs) || !Number.isSafeInteger(leaseMs) || leaseMs < 1 || !Number.isSafeInteger(nowMs + leaseMs)) throw new Error("Invalid webhook lease clock");
     return this.tx(async client => {

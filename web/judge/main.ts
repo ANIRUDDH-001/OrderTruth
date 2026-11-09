@@ -12,6 +12,7 @@ const CREATION_MARKER = "ordertruth.judge.unidentifiedCreation";
 const MUTATION_MARKER = "ordertruth.judge.pendingMutation";
 const CREATION_LIMITATION = "Creation outcome remains uncertain. This UI cannot locate or reconcile that creation without a validated case ID. Existing case reads do not establish rollback; no POST was repeated.";
 let historyRevision = 0;
+let aiNotice='';
 let accountOpen = false;
 let ownerReauthentication=new URL(location.href).searchParams.get('reauth')==='1';
 if(ownerReauthentication)state.ownerForm=true;
@@ -27,6 +28,7 @@ async function api<T>(path: string,body?: unknown): Promise<T> {
   if (body !== undefined && ((!signingIn && (state.needsRecheck || state.sessionStatus !== "AUTHENTICATED")) || ["UNKNOWN","CHECKING"].includes(state.sessionStatus))) throw new Error("Resume/Recheck Case before another action. The previous request may have committed.");
   try {const value=await requestJson<T>(path,body);state.maintenance=false;return value; }
   catch (error) {
+    if(path==='/api/auth/sign-in/anonymous'&&error instanceof RequestError&&error.status===429&&error.responseCode==='GUEST_ADMISSION_LIMIT')throw error;
     if(error instanceof RequestError && error.kind==='MAINTENANCE')state.maintenance=true;
     if (body !== undefined) state.needsRecheck = true;
     const run = /^\/api\/scenarios\/([a-zA-Z0-9_-]{1,100})\//.exec(path)?.[1];
@@ -113,7 +115,7 @@ async function discoverSession() {
   }
   catch (error) { state.sessionStatus = "UNKNOWN"; clearCase(); throw error; }
 }
-function clearAdvisory() { historyRevision++; state.analysis = null; state.diagnostics = []; state.historyNotice = ""; state.diagnosticNotice=''; }
+function clearAdvisory() { historyRevision++; state.analysis = null; state.diagnostics = []; state.historyNotice = ""; state.diagnosticNotice='';aiNotice=''; }
 function clearCase() { clearAdvisory(); state.scenario = null; state.plan = null; state.receipt = null; state.approved = false; state.detected = false; }
 async function restoreCase(runId: string) {
   const restored = await readCase(api,runId).catch(error => { state.needsRecheck = true; throw error; });
@@ -397,7 +399,7 @@ function caseView() {
   if (state.receipt) {
     const receipt = state.receipt;
     const heading = el("h3",receipt.verifiedCurrent && !state.needsRecheck ? "Merchant correction verified" : "Outcome needs review"); heading.id = "receipt-heading"; heading.tabIndex = -1;
-    recovery.append(heading,el("p",`Persisted receipt: ${receipt.receipt.outcome}. Recorded ${dateTime(receipt.receipt.completed_at)}.`),el("p","Independent database verification re-reads the merchant outcome and compares stored provider evidence. It does not make a fresh PayPal API call.","scope-note"),record(state.needsRecheck ? "Last verified active orders" : "Current active orders",String(receipt.current.activeOrders)),record("Expected surviving order",`${receipt.current.matchingKeeper} matching keeper`),record(state.needsRecheck ? "Stored provider evidence at last check" : "Stored provider evidence",receipt.current.providerUnchanged ? "Unchanged" : "Unchanged state not established"));
+    recovery.append(heading,el("p",`Persisted receipt: ${receipt.receipt.outcome}. Recorded ${dateTime(receipt.receipt.completed_at)}.`),el("p","Verification checks the current merchant order and the latest stored payment confirmation against the original correction. The receipt keeps its original evidence hashes. No fresh PayPal API call is made.","scope-note"),record(state.needsRecheck ? "Last verified active orders" : "Current active orders",String(receipt.current.activeOrders)),record("Expected surviving order",`${receipt.current.matchingKeeper} matching keeper`),record("Recorded payment facts",receipt.current.providerUnchanged ? "Match the original capture" : "Current match not established"));
     if (!currentVerified) recovery.append(el("p","The historical receipt is preserved, but the current merchant postconditions are not verified. Recheck before preparing another correction.","error"));
     recovery.append(button("Recheck committed receipt",resumeCase,true),button("Export receipt and evidence",() => {
       const blob = new Blob([JSON.stringify({ scenario,receipt: { ...state.receipt,verifiedCurrent: currentVerified },verificationStatus: state.needsRecheck ? "RECHECK_REQUIRED" : "READ_COMPLETED",investigation: state.analysis,diagnostics: state.diagnostics },null,2)],{ type: "application/json" });
@@ -417,13 +419,24 @@ function investigationView() {
   if(state.diagnosticNotice)investigation.append(el('p',state.diagnosticNotice,'scope-note'));
   investigation.append(el("p",state.receipt ? "Review the receipt for the current merchant outcome. Any saved advisory below describes its historical evidence snapshot." : state.detected ? state.scenario?.caseKind==='MISSING'?'Confirmed finding: no reference merchant order exists after grace. Investigate merchant writes; this does not establish the cause or authorize fulfillment.':"Confirmed finding: multiple active merchant orders reference the same recorded payment observation. This establishes a merchant discrepancy, not its cause." : "Check the merchant outcome first. Optional investigation becomes available after an actionable discrepancy is confirmed.","baseline"));
   const newerEvidence=!!state.analysis?.investigation&&hasNewDiagnostics(state.analysis.evidence,state.diagnostics);
+  const missing=state.scenario?.caseKind==='MISSING';
+  const recorded=new Set(state.diagnostics.map(e=>e.facts.diagnostic));
+  const checks:DiagnosticKind[]=missing?['MERCHANT_WRITE_OUTCOMES']:['IDEMPOTENCY_KEYS','HANDLER_TIMING','MERCHANT_WRITE_OUTCOMES'];
+  const available=checks.filter(kind=>!recorded.has(kind));
+  const preferred=state.analysis?.investigation?.nextDiagnostic??state.analysis?.baseline.nextDiagnostic;
+  const next=preferred&&available.includes(preferred)?preferred:available[0];
+  if(aiNotice)investigation.append(el('p',aiNotice,'scope-note'));
   const ai = button(newerEvidence?'Reassess with new evidence':"Investigate with AI",async () => {
     historyRevision++; state.historyNotice = "";
     const analysis = await api<unknown>(path("investigate"),{});
     try { validateHistory(analysis); if (!analysis) throw new Error("AI response returned invalid data"); }
     catch (error) { state.needsRecheck = true; throw error; }
-    state.analysis = analysis;
-  },true,true); ai.disabled ||= !state.detected; if (!state.receipt) investigation.append(ai);
+    aiNotice='';
+    if(analysis.status==='UNAVAILABLE'&&state.analysis?.investigation){
+      aiNotice=aiAvailability(analysis.reason,analysis.retryAt)+' Saved hypotheses are still shown for their original evidence.';
+      state.analysis={...state.analysis,status:'CACHED',freshModelExecution:false};
+    }else state.analysis = analysis;
+  },true,true); ai.disabled ||= !state.detected; if (!state.receipt&&(!state.detected||(!missing&&available.length))) investigation.append(ai);
   const analysis = state.analysis;
   if (analysis) {
     if(newerEvidence)investigation.append(el('p','New diagnostic evidence is available. The saved AI advice predates it; reassess to include the new findings. Rechecking alone does not run AI.','scope-note'));
@@ -438,12 +451,13 @@ function investigationView() {
         article.append(el("strong",`Hypothesis · ${hypothesis.confidence.toLowerCase()} confidence`),el("p",hypothesis.explanation),el("p",`Evidence: ${citations.join(", ")}`,"evidence-ids")); investigation.append(article); }
       investigation.append(el("p",analysis.investigation.diagnosticReason));
     } else investigation.append(el("p",aiAvailability(analysis.reason,analysis.retryAt),"scope-note"));
-    const next = analysis.investigation?.nextDiagnostic ?? analysis.baseline.nextDiagnostic;
-    if (state.detected && !state.receipt) investigation.append(button(`Run ${diagnosticName(next)}`,() => diagnostic(next),true,true));
     investigation.append(json("Evidence snapshot used for this investigation",analysis.evidence));
     investigation.append(el("p","This analysis describes its recorded evidence snapshot. Rechecking the case does not rerun AI or turn a hypothesis into a fact.","muted"));
   }
-  if (!analysis && state.detected && !state.receipt) {const kind=state.scenario?.caseKind==='MISSING'?'MERCHANT_WRITE_OUTCOMES':'IDEMPOTENCY_KEYS';investigation.append(button(`Run ${diagnosticName(kind)}`,() => diagnostic(kind),true,true));}
+  if(state.detected&&!state.receipt){
+    if(next)investigation.append(button(`Run ${diagnosticName(next)}`,()=>diagnostic(next),true,true));
+    else investigation.append(el('p','The useful merchant diagnostics are already recorded. Review the evidence below.','scope-note'));
+  }
   for (const evidence of state.diagnostics) {
     const facts = evidence.facts;
     if (facts.diagnostic === "HANDLER_TIMING") investigation.append(timingView(evidence));
@@ -453,7 +467,7 @@ function investigationView() {
   }
   if (state.role === "engineering") {
     const advanced = el("details"); advanced.append(el("summary","Advanced merchant diagnostics"),el("p","These inspect controlled merchant writes and persist diagnostic evidence; they do not call PayPal.","muted"));
-    for (const kind of ["HANDLER_TIMING","IDEMPOTENCY_KEYS","MERCHANT_WRITE_OUTCOMES"] as const) { const control = button(diagnosticName(kind),() => diagnostic(kind),true,true); control.disabled ||= !state.detected || !!state.receipt; advanced.append(control); } investigation.append(advanced);
+    for (const kind of available) { const control = button(diagnosticName(kind),() => diagnostic(kind),true,true); control.disabled ||= !state.detected || !!state.receipt; advanced.append(control); } if(available.length)investigation.append(advanced);
   }
   return investigation;
 }

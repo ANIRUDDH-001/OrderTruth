@@ -5,6 +5,7 @@ import { PostgresCheckoutStore, type ObservationProvenance } from "./db/postgres
 import { GATE0_PRODUCT, type OrderReadback } from "./domain/checkout.ts";
 import { toProviderValue } from "./domain/money.ts";
 import { z } from "zod";
+import {providerApprovalLink} from './paypal/approval-link.ts';
 
 // Validate fields used by verification and evidence summaries. Additional PayPal
 // fields are permitted here but never included in the reduced evidence summary.
@@ -48,7 +49,8 @@ export class PostgresCheckoutService {
       throw error;
     }
     await this.store.recordCreate(attempt.id, response, this.provenance);
-    return { intentId: intent.id, attemptId: attempt.id, orderId: response.body.id, state: "awaiting_buyer_approval" as const, amount, reused: false };
+    const approvalUrl=providerApprovalLink(response.body.links,response.body.id);
+    return { intentId: intent.id, attemptId: attempt.id, orderId: response.body.id, state: "awaiting_buyer_approval" as const, amount, reused: false,...(approvalUrl?{approvalUrl}:{}) };
   }
   async readback(id: string) {
     return (await this.readbackIf(id, "manual", () => null)).result;

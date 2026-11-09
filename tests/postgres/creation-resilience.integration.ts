@@ -10,6 +10,7 @@ import { PostgresRecoveryService } from "../../src/merchant/postgres-recovery.ts
 import { createSessionAuth } from "../../src/server/auth.ts";
 import { registerSessionApi } from "../../src/server/session-api.ts";
 import { registerJudgeApi } from "../../src/server/judge-api.ts";
+import {PayPalError} from '../../src/paypal/client.ts';
 
 const pool = createPostgresPool(env.DATABASE_URL!);
 const schema = `qual_${randomBytes(10).toString("hex")}`;
@@ -44,6 +45,19 @@ it("serializes concurrent same-operation retries to one run, order and allocatio
   expect(foreign.id).not.toBe(run.id);
   await expect(store.get("judge_b", run.id)).rejects.toThrow(/not found/);
   await expect(store.createQualification("judge_a", attemptId, "invalid")).rejects.toThrow(/operation/i);
+});
+it('reconciles a committed operation but rejects new admissions after a newer failed payment observation',async()=>{
+  const checkout=new PostgresCheckoutStore(pool,schema),f=await checkout.createCheckout(`stale-admission-${randomUUID()}`);
+  const raw={id:'STALEADMISSIONORDER',status:'COMPLETED',intent:'CAPTURE',purchase_units:[{custom_id:f.intent.id,amount:{currency_code:'USD',value:'1.00'},payments:{captures:[{id:'STALEADMISSIONCAPTURE',status:'COMPLETED',amount:{currency_code:'USD',value:'1.00'}}]}}]};
+  await checkout.attachOrder(f.attempt.id,raw.id);await checkout.recordReadback(f.attempt.id,raw,'SYNTHETIC_QUALIFICATION');
+  const key=randomUUID(),existing=await store.createQualification('judge_a',f.attempt.id,key);
+  await checkout.recordProviderResult(f.attempt.id,'readback',new PayPalError('network','Synthetic read failure',{httpStatus:null,debugId:null,issues:[],durationMs:1}),'SYNTHETIC_QUALIFICATION');
+  expect((await store.createQualification('judge_a',f.attempt.id,key)).id).toBe(existing.id);
+  await expect(store.createQualification('judge_a',f.attempt.id)).rejects.toMatchObject({code:'SOURCE_UNAVAILABLE'});
+  await checkout.recordReadback(f.attempt.id,raw,'SYNTHETIC_QUALIFICATION',undefined,{refusal:'Synthetic event contradicts readback'});
+  await expect(store.createQualification('judge_a',f.attempt.id)).rejects.toMatchObject({code:'SOURCE_UNAVAILABLE'});
+  await checkout.recordReadback(f.attempt.id,raw,'SYNTHETIC_QUALIFICATION');
+  expect((await store.createQualification('judge_a',f.attempt.id)).id).not.toBe(existing.id);
 });
 it("keeps a read-only missing lookup unknown while an admitted creation is still in flight", async () => {
   const key = randomUUID(); const blocker = await pool.connect();

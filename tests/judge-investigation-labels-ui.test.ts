@@ -36,3 +36,10 @@ it('preserves the essential case when optional current diagnostics are malformed
  const ui=await mountJudge(c=>c.path==='/api/session'?session:c.path.endsWith('/investigation')?null:{...owned(),diagnostics:[{invalid:true}]},'run_owned');
  expect(ui.doc.root.textContent).toContain('duplicate active merchant orders');expect(ui.button('Review exact repair plan').disabled).toBe(false);expect(ui.calls.every(c=>c.method==='GET')).toBe(true);
 });
+it('does not offer an already recorded diagnostic and retains saved hypotheses after allowance refusal',async()=>{
+ const unavailable={status:'UNAVAILABLE',freshModelExecution:false,reason:'SESSION_DAILY_BUDGET',evidence:[evidence,diagnostic],baseline};
+ const ui=await mountJudge(c=>c.path==='/api/session'?session:c.path.endsWith('/investigation')?saved:c.path.endsWith('/investigate')?unavailable:{...owned(),diagnostics:[diagnostic]},'run_owned');
+ expect(ui.doc.root.querySelectorAll('button').some(b=>b.textContent==='Run idempotency-key comparison')).toBe(false);
+ await ui.click('Reassess with new evidence');expect(ui.doc.root.textContent).toContain('This session has used its daily AI allowance');
+ expect(ui.doc.root.textContent).toContain('Synthetic hypothesis');expect(ui.doc.root.textContent).toContain('Cached AI result');
+});

@@ -55,7 +55,8 @@ export function aiAvailability(reason?: string|null,retryAt?: string|null) {
     APP_REQUEST_SPACING: "AI requests are temporarily spaced out. Wait before requesting another analysis.",AI_BUSY: "Another analysis is in progress. Try again later.",
     QUOTA_OR_RATE_LIMIT: "The AI provider has reached its request allowance. Try again later.",TIMEOUT: "The AI provider did not respond within the time limit.",
     NETWORK: "The AI provider could not be reached.",PROVIDER_UNAVAILABLE: "The AI provider is temporarily unavailable.",
-    RESERVATION_INTERRUPTED: "The analysis was interrupted; its model usage is uncertain.",CACHED_RESULT_INVALID: "The saved AI response could not be validated."
+    RESERVATION_INTERRUPTED: "The analysis was interrupted; its model usage is uncertain.",CACHED_RESULT_INVALID: "The saved AI response could not be validated.",
+    NO_ACTIONABLE_COMPARISON:"There is no useful new AI comparison for these recorded diagnostics."
   };
   return `${reasons[reason ?? ""] ?? "AI analysis is unavailable or could not be validated."}${instant(retryAt) ? ` Retry after ${new Date(retryAt).toLocaleString(undefined,{ timeZoneName: "short" })}.` : ""} You can continue with deterministic findings and merchant diagnostics.`;
 }
