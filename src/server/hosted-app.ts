@@ -79,7 +79,7 @@ export async function buildHostedApp(config: ReturnType<typeof loadPostgresConfi
       reply.header("cache-control","no-store");
       if (request.method === "POST" && request.headers.origin !== config.origin) return reply.code(403).send({ error: "Same-origin request required" });
       const identity = await sessionIdentity(auth,request,config.ownerIds);
-      if (!identity?.owner) return reply.code(403).send({ error: "Owner sign-in required; judges cannot perform payment actions" });
+      if (!identity?.owner) return reply.code(403).send({ code: "owner_sign_in_required", error: "Owner sign-in required; judges cannot perform payment actions" });
       if (request.method === "POST" && (request.routeOptions.url === "/api/orders" || request.routeOptions.url?.endsWith("/capture"))
         && (Date.now()-identity.authenticatedAtMs > 900_000 || identity.authenticatedAtMs > Date.now())) return reply.code(403).send({ error: "owner_reauthentication_required",message:"Confirm owner access before payment actions" });
     });

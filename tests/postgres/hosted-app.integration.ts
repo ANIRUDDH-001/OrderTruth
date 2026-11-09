@@ -33,6 +33,7 @@ it("starts without provider calls and denies financial endpoints to a real guest
   for (const url of ["/api/orders","/api/orders/FAKEORDER123/capture","/api/orders/FAKEORDER123/readback"]) {
     const denied = await app.inject({ method: "POST",url,headers: { origin,cookie,"x-owner": "true","x-checkout-key": "synthetic-checkout-key" },payload: {} });
     expect(denied.statusCode).toBe(403);
+    expect(denied.json().code).toBe("owner_sign_in_required");
   }
   expect((await app.inject({ url: "/api/paypal/browser-config",headers: { cookie } })).statusCode).toBe(403);
   expect(network).not.toHaveBeenCalled();

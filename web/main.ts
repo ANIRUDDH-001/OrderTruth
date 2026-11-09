@@ -46,10 +46,16 @@ function rememberOrder(id:string,link?:unknown){
 function announce(kind:string,title:string,detail:string){outcomeEl.dataset.kind=kind;heading.textContent=title;statusEl.textContent=detail;}
 function requireOwnerConfirmation(){
  reauthenticationRequired=true;locked=true;button.hidden=true;newPurchase.hidden=true;retrySetup.hidden=true;approvalLink.hidden=true;captureApproved.hidden=true;
+ recheck.hidden=true;
  ownerAccess.href='/?view=overview&reauth=1';ownerAccess.textContent='Confirm owner access';ownerAccess.hidden=false;
- announce('review','Confirm owner access','No payment action was accepted by this request. Confirm your owner sign-in, then reopen this saved checkout. Its order and checkout key are preserved; do not start another purchase.');
+ const continuation = activeOrder
+  ? 'Reopen this saved checkout after signing in. Its order and checkout key are preserved. Do not start another purchase.'
+  : 'If you have a saved checkout, reopen it after signing in.';
+ announce('review','Confirm owner access',`No payment action was accepted by this request. ${continuation}`);
 }
-function needsOwnerConfirmation(error:unknown){return error instanceof ApiError&&error.code==='owner_reauthentication_required';}
+function needsOwnerConfirmation(error:unknown){
+ return error instanceof ApiError&&(error.code==='owner_reauthentication_required'||error.code==='owner_sign_in_required');
+}
 function showOutcome(raw:unknown){
  const outcome=ownerOutcome(raw);acceptedOutcome=outcome;approved=outcome.kind==='approval'&&(raw as {state?:string}).state==='approved';
  announce(outcome.kind,outcome.heading,approved?'Buyer approval is recorded. Capture this same Sandbox payment only if you intend to complete it.':outcome.detail);
@@ -78,8 +84,8 @@ class ApiError extends Error {
 
 async function api<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(path, { ...init,signal:AbortSignal.timeout(40_000), headers: { "Content-Type": "application/json", ...(init?.headers as Record<string, string> | undefined) } });
-  const body = (await res.json().catch(() => ({}))) as T & { error?: string; message?: string; correlationId?: string };
-  if (!res.ok) throw new ApiError(`${path} -> HTTP ${res.status} ${body.error ?? ""} ${body.message ?? ""} corr=${body.correlationId ?? res.headers.get("x-correlation-id") ?? "?"}`, body.error);
+  const body = (await res.json().catch(() => ({}))) as T & { code?: string; error?: string; message?: string; correlationId?: string };
+  if (!res.ok) throw new ApiError(`${path} -> HTTP ${res.status} ${body.error ?? ""} ${body.message ?? ""} corr=${body.correlationId ?? res.headers.get("x-correlation-id") ?? "?"}`, body.code??body.error);
   return body;
 }
 
@@ -182,7 +188,7 @@ async function main() {
   }
   const session = sdk.createPayPalOneTimePaymentSession({
     async onApprove(data) {
-      if(captureRequested)return;
+      if(captureRequested||reauthenticationRequired||!mayApplyPresentationEvent(acceptedOutcome,captureBusy))return;
       if(!activeOrder||data.orderId!==activeOrder){showOutcome(null);announce('review','Checkout identity needs review','The approval does not match this saved checkout. No capture was requested.');return;}
       await captureSavedOrder(data.orderId);
     },
@@ -207,14 +213,22 @@ async function main() {
 }
 
 recheck.addEventListener('click',async()=>{
- if(!activeOrder||busy||captureBusy)return;busy=true;recheck.disabled=true;button.hidden=true;
+ if(!activeOrder||busy||captureBusy||reauthenticationRequired)return;busy=true;recheck.disabled=true;button.hidden=true;
  try{showOutcome(await api<unknown>(`/api/orders/${encodeURIComponent(activeOrder)}/readback`,{method:'POST',body:'{}'}));}
- catch(error){showOutcome({state:'uncertain'});log('error',`Readback unavailable: ${error instanceof Error?error.message:'unknown error'}`);}
+ catch(error){
+  if(needsOwnerConfirmation(error))requireOwnerConfirmation();else showOutcome({state:'uncertain'});
+  log('error',`Readback unavailable: ${error instanceof Error?error.message:'unknown error'}`);
+ }
  finally{busy=false;recheck.disabled=false;}
 });
 captureApproved.addEventListener('click',()=>{if(!busy&&approved&&activeOrder)void captureSavedOrder(activeOrder);});
 newPurchase.addEventListener('click',()=>{if(busy||captureBusy)return;endCheckout();try{localStorage.removeItem(ORDER_NAME);localStorage.removeItem(APPROVAL_LINK);}catch{}location.reload();});
 retrySetup.addEventListener('click',()=>{if(!busy&&!captureBusy)location.reload();});
-main().catch((e: unknown) => {log("error", `init failed: ${(e as Error).message}`);button.hidden=true;if(offerSameOrderApproval())return;announce('review','Owner checkout could not start','No new payment was started by this page. Retry the connection, or return to the workspace for owner sign-in.');retrySetup.hidden=false;ownerAccess.hidden=false;});
+main().catch((e: unknown) => {
+ log("error", `init failed: ${(e as Error).message}`);button.hidden=true;
+ if(needsOwnerConfirmation(e)){requireOwnerConfirmation();return;}
+ if(offerSameOrderApproval())return;
+ announce('review','Owner checkout could not start','No new payment was started by this page. Retry the connection, or return to the workspace for owner sign-in.');retrySetup.hidden=false;ownerAccess.hidden=false;
+});
 
 export {};
