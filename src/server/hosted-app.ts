@@ -66,8 +66,9 @@ export async function buildHostedApp(config: ReturnType<typeof loadPostgresConfi
   });
   registerSessionApi(app,auth,config.origin,config.ownerIds,config.ingressKey);
   const investigator = config.ai.provider !== "disabled" && config.ai.apiKey && config.ai.model ? new PostgresInvestigationService(pool,schema,{
-    model: `${config.ai.provider}:${config.ai.model}`,dailyLimit: Math.min(config.aiDailyLimit,12),userDailyLimit: Math.min(config.aiUserDailyLimit,3),minIntervalMs: 65_000,
+    model: `${config.ai.provider}:${config.ai.model}`,dailyLimit: Math.min(config.aiDailyLimit,200),userDailyLimit: Math.min(config.aiUserDailyLimit,9),minIntervalMs: 6_000,
     infer: evidence => (config.ai.provider === "groq" ? callGroqInvestigator : callPrivateInvestigator)({ apiKey: config.ai.apiKey!,model: config.ai.model!,evidence }),
+    inferAgent: evidence => (config.ai.provider === "groq" ? callGroqInvestigator : callPrivateInvestigator)({ apiKey: config.ai.apiKey!,model: config.ai.model!,evidence,contract: "agent" }),
   }) : undefined;
   registerJudgeApi(app,{ pool,schema,auth,origin: config.origin,sourceAttemptId: config.sourceAttemptId,ingressKey:config.ingressKey,...(investigator ? { investigator } : {}) });
   app.get("/api/health",async () => ({ ok: true,environment: "sandbox",persistence: "postgresql",schemaVersion: 9 }));

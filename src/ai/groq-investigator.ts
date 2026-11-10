@@ -4,7 +4,7 @@ import { providerJson } from "./provider-transport.ts";
 
 /** Transport adapter only. Not selected by hosted configuration until account,
  * privacy, quota and live pilot gates pass. One request; no retry or failover. */
-export async function callGroqInvestigator(options: { apiKey: string; model: string; evidence: readonly InvestigationEvidence[]; fetchImpl?: typeof fetch; timeoutMs?:number }): Promise<InvestigationCall> {
+export async function callGroqInvestigator(options: { apiKey: string; model: string; evidence: readonly InvestigationEvidence[]; fetchImpl?: typeof fetch; timeoutMs?:number; contract?: "comparison" | "agent" }): Promise<InvestigationCall> {
   const candidates = ["openai/gpt-oss-120b","qwen/qwen3.8-27b","openai/gpt-oss-20b"];
   if (!candidates.includes(options.model)) throw new Error("Model outside owner-supplied Groq candidate set");
   return callPrivateInvestigator({ ...options,model: "groq-adapter",fetchImpl: async (_url,init) => {

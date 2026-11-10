@@ -40,3 +40,8 @@ it("accepts only the owner-confirmed existing compute plans while preserving ser
  }
  expect(()=>requireReleaseServiceConfiguration(undefined)).toThrow();
 });
+
+it('enables the authorized Autopilot allowance only in explicit NORMAL rollout',()=>{
+ expect(releaseStartCommand('normal','approved-autopilot')).toContain('AI_DAILY_LIMIT=200 AI_USER_DAILY_LIMIT=9');
+ expect(releaseStartCommand('hold','approved-autopilot')).toContain('AI_PROVIDER=disabled AI_DAILY_LIMIT=0 AI_USER_DAILY_LIMIT=0');
+});

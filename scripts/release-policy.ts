@@ -7,8 +7,8 @@ export function requireGreenChecks(checks:Array<{id:number;name:string;status:st
 }
 /** Qualification opens only one durable daily reservation. HOLD/rollback
  * always disables inference, independently of private environment values. */
-export function releaseStartCommand(mode:'hold'|'normal',qualifyGroq:boolean|'approved-rollout'=false){
- const limits=qualifyGroq==='approved-rollout'?'AI_DAILY_LIMIT=12 AI_USER_DAILY_LIMIT=3':'AI_DAILY_LIMIT=1 AI_USER_DAILY_LIMIT=1';
+export function releaseStartCommand(mode:'hold'|'normal',qualifyGroq:boolean|'approved-rollout'|'approved-autopilot'=false){
+ const limits=qualifyGroq==='approved-autopilot'?'AI_DAILY_LIMIT=200 AI_USER_DAILY_LIMIT=9':qualifyGroq==='approved-rollout'?'AI_DAILY_LIMIT=12 AI_USER_DAILY_LIMIT=3':'AI_DAILY_LIMIT=1 AI_USER_DAILY_LIMIT=1';
  const ai=mode==='normal'&&qualifyGroq?`AI_PROVIDER=groq AI_MODEL=openai/gpt-oss-120b ${limits}`:'AI_PROVIDER=disabled AI_DAILY_LIMIT=0 AI_USER_DAILY_LIMIT=0';
  return `env -u ORDERTRUTH_MIGRATION -u ORDERTRUTH_BARRIER_FILE ORDERTRUTH_RELEASE_MODE=${mode} ${ai} pnpm hosted:start`;
 }

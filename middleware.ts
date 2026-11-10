@@ -1,6 +1,6 @@
 import { attestNetwork, NETWORK_PROOF_HEADER } from "./src/server/network-attribution.ts";
 
-export const config = { runtime: "nodejs", matcher: ["/api/auth/sign-in/anonymous", "/api/scenarios/:runId/investigate"] };
+export const config = { runtime: "nodejs", matcher: ["/api/auth/sign-in/anonymous", "/api/scenarios/:runId/investigate", "/api/scenarios/:runId/autopilot"] };
 const backend = "https://ordertruth.onrender.com";
 const requestHeaders = ["content-type","origin","cookie","x-ordertruth-source"];
 const responseHeaders = ["content-type","retry-after","x-retry-after","x-request-id"];
@@ -8,7 +8,7 @@ const responseHeaders = ["content-type","retry-after","x-retry-after","x-request
 export default async function middleware(request: Request) {
   const { pathname } = new URL(request.url);
   const guest = pathname === "/api/auth/sign-in/anonymous";
-  if (!guest && !/^\/api\/scenarios\/[A-Za-z0-9_-]{1,100}\/investigate$/.test(pathname)) return new Response(null,{status:404});
+  if (!guest && !/^\/api\/scenarios\/[A-Za-z0-9_-]{1,100}\/(?:investigate|autopilot)$/.test(pathname)) return new Response(null,{status:404});
   if (request.method !== "POST") return new Response(null,{status:405,headers:{allow:"POST"}});
   const limit = guest ? 16_384 : 4096;
   const body = Buffer.alloc(limit);

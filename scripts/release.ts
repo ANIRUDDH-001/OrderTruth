@@ -13,8 +13,8 @@ import {waitForReleaseReadiness} from './release-readiness.ts';
  * Only this operator should advance main. No database migrations, backups or product writes.
  */
 const args=process.argv.slice(2),sha=args[0];
-if(args.includes('--qualify-groq')&&args.includes('--approved-groq-rollout'))throw Error('Select one approved AI release mode');
-const aiMode=args.includes('--approved-groq-rollout')?'approved-rollout' as const:args.includes('--qualify-groq');
+if(['--qualify-groq','--approved-groq-rollout','--approved-autopilot'].filter(flag=>args.includes(flag)).length>1)throw Error('Select one approved AI release mode');
+const aiMode=args.includes('--approved-autopilot')?'approved-autopilot' as const:args.includes('--approved-groq-rollout')?'approved-rollout' as const:args.includes('--qualify-groq');
 let failureStage='preflight';
 const option=(name:string)=>args[args.indexOf(name)+1];
 if(!sha||!/^[a-f0-9]{40}$/.test(sha))throw new Error('Full qualified SHA required');
@@ -65,7 +65,7 @@ async function finish(holdDeployment:string,normalDeployment:string,resumed=fals
  const frontend=await verifyPublicRelease(origin,sha!);mkdirSync('.work/releases',{recursive:true});
  const record={at:new Date().toISOString(),sourceSha:sha,holdDeployment,normalDeployment,frontend,
   ...(resumed?{preservationChecks:['original closed target-HOLD fingerprint gate passed before the first NORMAL attempt; see original cutover log','resume same-source HOLD fingerprints stable'],originalCutoverLog:'.work/runs/phase7/release-cutover.log'}:{paymentEvidenceAndReceiptsPreserved:true}),
-  migration:false,providerCalls:0,modelCalls:0,aiMode:aiMode==='approved-rollout'?'groq-approved-12-daily-3-session':aiMode?'groq-one-reservation-qualification':'disabled',resumedFromVerifiedHold:resumed};
+  migration:false,providerCalls:0,modelCalls:0,aiMode:aiMode==='approved-autopilot'?'groq-autopilot-200-daily-9-session':aiMode==='approved-rollout'?'groq-approved-12-daily-3-session':aiMode?'groq-one-reservation-qualification':'disabled',resumedFromVerifiedHold:resumed};
  writeFileSync(`.work/releases/${sha}-${record.at.replace(/[:.]/g,'-')}.json`,JSON.stringify(record,null,2),{flag:'wx'});
  console.log(JSON.stringify({stage:'PASS',...record}));
 }

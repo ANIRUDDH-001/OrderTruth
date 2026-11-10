@@ -46,3 +46,14 @@ it("forwards only the Vercel-attested network and preserves a private session re
   expect((await middleware(request(spoofed,"x".repeat(16_385)))).status).toBe(413);
   expect(relay).toHaveBeenCalledTimes(2);
 });
+
+it('relays Autopilot POST with path-bound proof but leaves trace GET to the backend',async()=>{
+ vi.stubEnv('ORDERTRUTH_INGRESS_KEY',key);vi.spyOn(Date,'now').mockReturnValue(now);
+ const relay=vi.fn(async(_url:string,_init:RequestInit)=>Response.json({ok:true}));vi.stubGlobal('fetch',relay);
+ const route='/api/scenarios/run_a/autopilot';
+ expect((await middleware(new Request('https://order-truth.vercel.app'+route,{method:'POST',headers:{origin:'https://order-truth.vercel.app','x-real-ip':'192.0.2.10','content-type':'application/json'},body:'{}'}))).status).toBe(200);
+ const proof=new Headers(relay.mock.calls[0]![1].headers).get(NETWORK_PROOF_HEADER);
+ expect(verifyNetwork(key,proof,route,now)).not.toBeNull();expect(verifyNetwork(key,proof,route+'/trace',now)).toBeNull();
+ expect((await middleware(new Request('https://order-truth.vercel.app'+route))).status).toBe(405);
+ expect((await middleware(new Request('https://order-truth.vercel.app'+route+'/trace'))).status).toBe(404);
+});

@@ -142,3 +142,32 @@ export async function readCase(api: ReadApi, runId: string) {
       || receipt.receipt.provider_before_sha256 !== receipt.receipt.provider_after_sha256)))) throw new Error("Case receipt returned an invalid response. Resume/Recheck Case.");
   return { scenario, plan, receipt };
 }
+
+export type AutopilotEntry = {snapshotSha256:string;model:string;generatedAt:string;usage:{promptTokens:number|null;outputTokens:number|null;totalTokens:number|null};evidence:InvestigationEvidence[];investigation:Investigation;concluded:boolean};
+export type AutopilotStep = Analysis & {concluded:boolean;executed:InvestigationEvidence|null;usage?:AutopilotEntry['usage']};
+export type AutopilotTrace = {policy:'merchant-agent-v1';steps:AutopilotEntry[];concluded:boolean};
+function parseAutopilotEntry(value:unknown):AutopilotEntry {
+ if(!object(value)||!text(value.model,150)||!instant(value.generatedAt)||!text(value.snapshotSha256,64)||!/^[a-f0-9]{64}$/.test(value.snapshotSha256)||typeof value.concluded!=='boolean'||!object(value.usage)
+  ||!['promptTokens','outputTokens','totalTokens'].every(k=>value.usage!==null&&object(value.usage)&&(value.usage[k]===null||count(value.usage[k]))))throw Error('Invalid Autopilot trace. Recheck the case.');
+ validateHistory({...value,status:'CACHED',freshModelExecution:false,baseline:{summary:'Saved investigation',nextDiagnostic:object(value.investigation)?value.investigation.nextDiagnostic:null}});
+ if(!value.investigation)throw Error('Missing Autopilot investigation.');
+ return value as AutopilotEntry;
+}
+export function parseAutopilotStep(value:unknown):AutopilotStep {
+ validateHistory(value);
+ if(!value||!object(value)||!('concluded' in value)||typeof value.concluded!=='boolean'||!('executed' in value))throw Error('Invalid Autopilot response.');
+ if(value.status==='UNAVAILABLE'){
+  if(value.concluded||value.executed!==null)throw Error('Invalid unavailable Autopilot response.');
+ }else{
+  const entry=parseAutopilotEntry(value);
+  if(entry.concluded){if(value.executed!==null)throw Error('Invalid conclusion.');}
+  else parseDiagnostic(value.executed,entry.investigation.nextDiagnostic);
+ }
+ return value as AutopilotStep;
+}
+export function parseAutopilotTrace(value:unknown):AutopilotTrace {
+ if(!object(value)||value.policy!=='merchant-agent-v1'||!Array.isArray(value.steps)||value.steps.length>10||typeof value.concluded!=='boolean')throw Error('Invalid Autopilot trace.');
+ const steps=value.steps.map(parseAutopilotEntry);
+ if(new Set(steps.map(s=>s.snapshotSha256)).size!==steps.length||value.concluded!==(steps.at(-1)?.concluded??false))throw Error('Inconsistent Autopilot trace.');
+ return {policy:'merchant-agent-v1',steps,concluded:value.concluded};
+}

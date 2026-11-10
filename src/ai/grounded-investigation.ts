@@ -104,7 +104,7 @@ const diagnosticText:Record<DiagnosticKind,string>={IDEMPOTENCY_KEYS:"Compare re
  MERCHANT_WRITE_OUTCOMES:"Inspect committed merchant write paths; missing rows cannot prove failed attempts."};
 export const mechanismDiagnostics:Record<Mechanism,readonly DiagnosticKind[]>={KEY_SCOPE_MISMATCH:["IDEMPOTENCY_KEYS"],OVERLAPPING_HANDLERS:["HANDLER_TIMING"],
  SEQUENTIAL_DUPLICATE_WRITES:["HANDLER_TIMING"],MULTIPLE_WRITE_PATHS:["MERCHANT_WRITE_OUTCOMES"],WRITE_FAILURE_OR_INTERRUPTION:["MERCHANT_WRITE_OUTCOMES"],UNKNOWN_CAUSE:diagnosticKinds};
-const exhaustedReason="All diagnostics that distinguish these selected mechanisms are already recorded. Compare their existing findings; no additional diagnostic is available.";
+export const exhaustedReason="All diagnostics that distinguish these selected mechanisms are already recorded. Compare their existing findings; no additional diagnostic is available.";
 function diagnosticState(kind:DiagnosticKind,compared:readonly Mechanism[],performed:ReadonlySet<DiagnosticKind>){
  const relevant=new Set(compared.flatMap(m=>mechanismDiagnostics[m]));
  if(!relevant.has(kind))return "IRRELEVANT_DIAGNOSTIC" as const;

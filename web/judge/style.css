@@ -177,3 +177,9 @@ h1{font-size:34px}
 @media(display-mode:standalone){.install-app-button{display:none}}
 
 .account-menu{position:relative;max-width:26rem}.account-menu summary{cursor:pointer;font-weight:650;padding:.65rem}.account-menu[open]{padding:.5rem;border:1px solid var(--border,#bcc9ca);border-radius:.5rem}.account-menu .session-label{display:block;margin:.5rem}.account-menu a{display:block;margin:.75rem}.account-menu button{margin:.35rem}footer details{margin-top:1rem}
+.autopilot-trace ol { list-style:none; padding:0; display:grid; gap:1rem; }
+.autopilot-trace li { border:1px solid var(--border,#c7d3dc); border-radius:12px; overflow:hidden; }
+.autopilot-choice,.autopilot-verified { padding:1rem; overflow-wrap:anywhere; }
+.autopilot-choice { background:rgba(67,97,238,.06); }
+.autopilot-verified { border-top:1px solid var(--border,#c7d3dc); background:rgba(12,130,104,.05); }
+.autopilot-trace article p:last-child { margin-bottom:0; }

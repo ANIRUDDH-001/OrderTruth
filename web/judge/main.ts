@@ -1,6 +1,6 @@
 import type { InvestigationEvidence,DiagnosticKind } from "../../src/ai/investigation.ts";
 import { RequestError,requestJson,slowNotice,REQUEST_BUDGET_MS } from "./request.ts";
-import { readCase,readSession,parseCreation,parsePendingCreation,parseOperation,detectedFromCase,validateHistory,parseDiagnostic,planExpired,aiAvailability,type PendingCreation,type Analysis,type Scenario,type Plan,type Receipt,type Session,type SessionStatus } from "./recovery.ts";
+import { parseAutopilotStep,parseAutopilotTrace,type AutopilotEntry,readCase,readSession,parseCreation,parsePendingCreation,parseOperation,detectedFromCase,validateHistory,parseDiagnostic,planExpired,aiAvailability,type PendingCreation,type Analysis,type Scenario,type Plan,type Receipt,type Session,type SessionStatus } from "./recovery.ts";
 import { describeHandlerTiming,type TimingRow } from "./diagnostics.ts";
 import {evidenceLabel,hasNewDiagnostics,parseCaseDiagnostics} from './investigation-labels.ts';
 import {initPwa} from './pwa.ts';
@@ -8,6 +8,7 @@ import {initPwa} from './pwa.ts';
 const root = document.querySelector<HTMLElement>("#app")!;
 const state = { session: { authenticated: false } as Session,sessionStatus: "UNKNOWN" as SessionStatus,scenario: null as Scenario|null,analysis: null as Analysis|null,plan: null as Plan|null,receipt: null as Receipt|null,
   approved: false,detected: false,needsRecheck: false,pendingMutationRun: null as string|null,unidentifiedCreation: null as string|null,creationOperation: null as PendingCreation|null,busy: "",error: "",notice: "",maintenance:false,historyNotice: "",diagnosticNotice:'',role: "operations",ownerForm: false,diagnostics: [] as InvestigationEvidence[] };
+const autopilot = {steps:[] as AutopilotEntry[],concluded:false,notice:'',attempted:false};
 const CREATION_MARKER = "ordertruth.judge.unidentifiedCreation";
 const MUTATION_MARKER = "ordertruth.judge.pendingMutation";
 const CREATION_LIMITATION = "Creation outcome remains uncertain. This UI cannot locate or reconcile that creation without a validated case ID. Existing case reads do not establish rollback; no POST was repeated.";
@@ -76,7 +77,9 @@ function restoreActionFocus(label: string) {
     "Inspect a payment outcome": root.querySelector<HTMLElement>("#case-heading"),
     "Start a new isolated case": root.querySelector<HTMLElement>("#case-heading"),
     "Introduce duplicate": named("Detect anomaly"),
-    "Detect anomaly": named("Review exact repair plan"),
+    "Detect anomaly": named("Investigate with Autopilot") ?? named("Review exact repair plan"),
+    "Investigate with Autopilot": autopilot.concluded ? named("Review exact repair plan") : named("Continue Autopilot"),
+    "Continue Autopilot": autopilot.concluded ? named("Review exact repair plan") : named("Continue Autopilot"),
     "Review exact repair plan": root.querySelector<HTMLElement>("#review-heading"),
     "Renew expired plan": root.querySelector<HTMLElement>("#review-heading"),
     "Approve this exact merchant-only plan": named("Execute approved local repair"),
@@ -118,7 +121,7 @@ async function discoverSession() {
   }
   catch (error) { state.sessionStatus = "UNKNOWN"; clearCase(); throw error; }
 }
-function clearAdvisory() { historyRevision++; state.analysis = null; state.diagnostics = []; state.historyNotice = ""; state.diagnosticNotice='';aiNotice=''; }
+function clearAdvisory() { autopilot.steps=[];autopilot.concluded=false;autopilot.notice="";autopilot.attempted=false; historyRevision++; state.analysis = null; state.diagnostics = []; state.historyNotice = ""; state.diagnosticNotice='';aiNotice=''; }
 function clearCase() { clearAdvisory(); state.scenario = null; state.plan = null; state.receipt = null; state.approved = false; state.detected = false; }
 async function restoreCase(runId: string) {
   const restored = await readCase(api,runId).catch(error => { state.needsRecheck = true; throw error; });
@@ -164,6 +167,7 @@ async function resumeCase() {
 }
 function restoreHistory(runId: string) {
   const revision = ++historyRevision;
+  void restoreAutopilot(runId).finally(refreshHistoryPanel);
   state.historyNotice = "Loading saved AI history. Case and receipt recovery are independent.";
   void requestJson<Analysis|null>(`/api/scenarios/${encodeURIComponent(runId)}/investigation`,undefined,{ deadlineMs: REQUEST_BUDGET_MS.history }).then(analysis => {
     if (revision !== historyRevision || state.scenario?.run.id !== runId) return;
@@ -276,7 +280,7 @@ function render() {
   const main = el("main"); main.id = "workspace"; main.tabIndex = -1;
   main.setAttribute("aria-busy",String(!!state.busy));
   const intro = el("div","",state.scenario ? "intro case-intro" : "intro");
-  intro.append(el("p","Payment integrity, beyond the payment.","kicker"),el("h1",state.scenario ? state.receipt?.verifiedCurrent && !state.needsRecheck ? "Correction made. Outcome verified." : "One payment. Follow every order." : "A successful payment doesn’t guarantee the merchant order is correct."),
+  intro.append(el("p","Payment integrity, beyond the payment.","kicker"),el("h1",state.scenario ? state.receipt?.verifiedCurrent && !state.needsRecheck ? "Correction made. Outcome verified." : state.scenario.caseKind==='MISSING' ? "Payment evidence. Missing merchant order." : state.scenario.orders.filter(o=>o.effective_status==='placed').length===2 ? "One payment observation. Two merchant orders." : "One payment. Follow every order." : "A successful payment doesn’t guarantee the merchant order is correct."),
     el("p",state.scenario ? "Inspect the recorded evidence, compare the merchant outcome, and make a correction you can verify." : "OrderTruth connects payment evidence to the merchant outcome. Find a discrepancy, understand it, and verify an exact, human-approved correction.","lead"));
   main.append(intro);
   if (state.ownerForm && (!state.session.owner||ownerReauthentication)) main.append(ownerForm());
@@ -435,6 +439,9 @@ function investigationView() {
   const notice = el("p",state.historyNotice,"muted"); notice.id = "saved-history-status"; notice.setAttribute("role","status"); investigation.append(notice);
   if(state.diagnosticNotice)investigation.append(el('p',state.diagnosticNotice,'scope-note'));
   investigation.append(el("p",state.receipt ? "Review the receipt for the current merchant outcome. Any saved advisory below describes its historical evidence snapshot." : state.detected ? state.scenario?.caseKind==='MISSING'?'Confirmed finding: no reference merchant order exists after grace. Investigate merchant writes; this does not establish the cause or authorize fulfillment.':"Confirmed finding: multiple active merchant orders reference the same recorded payment observation. This establishes a merchant discrepancy, not its cause." : "Check the merchant outcome first. Optional investigation becomes available after an actionable discrepancy is confirmed.","baseline"));
+  if(state.detected&&!state.receipt&&state.scenario?.caseKind!=='MISSING'&&!autopilot.concluded)
+    investigation.append(button(autopilot.attempted||autopilot.steps.length?'Continue Autopilot':'Investigate with Autopilot',runAutopilot,false,true));
+  investigation.append(autopilotView());
   const newerEvidence=!!state.analysis?.investigation&&hasNewDiagnostics(state.analysis.evidence,state.diagnostics);
   const missing=state.scenario?.caseKind==='MISSING';
   const recorded=new Set(state.diagnostics.map(e=>e.facts.diagnostic));
@@ -488,6 +495,71 @@ function investigationView() {
   }
   return investigation;
 }
+async function restoreAutopilot(runId:string) {
+ const revision=historyRevision;
+ try{
+  const trace=parseAutopilotTrace(await requestJson<unknown>(`/api/scenarios/${encodeURIComponent(runId)}/autopilot/trace`,undefined,{deadlineMs:REQUEST_BUDGET_MS.history}));
+  if(state.scenario?.run.id!==runId||revision!==historyRevision)return;
+  autopilot.steps=trace.steps;autopilot.concluded=trace.concluded;
+ }catch{if(state.scenario?.run.id===runId&&revision===historyRevision)autopilot.notice='Saved Autopilot trace is unavailable. Recheck the case; manual investigation remains available.';}
+}
+function autopilotView(){
+ const view=el('div','','autopilot-trace');view.id='autopilot-trace';view.setAttribute('aria-live','polite');
+ if(autopilot.notice)view.append(el('p',autopilot.notice,'scope-note'));
+ const list=el('ol');
+ for(const [index,step] of autopilot.steps.entries()){
+  const row=el('li'),choice=el('article','','autopilot-choice');
+  choice.append(el('strong',`Model chose · Step ${index+1}`),el('p',step.concluded?'Conclude this comparison':diagnosticName(step.investigation.nextDiagnostic)));
+  for(const h of step.investigation.hypotheses)choice.append(el('p',h.explanation));
+  choice.append(el('p',`${step.model} · ${step.usage.totalTokens??'Unknown'} total tokens · ${dateTime(step.generatedAt)}`,'muted'));
+  const verified=el('article','','autopilot-verified');verified.append(el('strong','Server verified'));
+  const evidence=state.diagnostics.find(e=>e.facts.diagnostic===step.investigation.nextDiagnostic)
+    ??autopilot.steps.flatMap(s=>s.evidence).find(e=>e.source==='MERCHANT_DIAGNOSTIC'&&e.facts.diagnostic===step.investigation.nextDiagnostic);
+  if(step.concluded)verified.append(el('p','The checks required for this comparison are recorded. The explanations remain hypotheses; review the exact merchant-only repair plan yourself.'));
+  else if(evidence){
+   if(evidence.facts.diagnostic==='HANDLER_TIMING')verified.append(timingView(evidence));
+   else verified.append(el('p',evidence.facts.diagnostic==='IDEMPOTENCY_KEYS'?`${String(evidence.facts.distinctKeys)} distinct merchant write keys observed. Separate keys can allow duplicate writes.`:`${String(evidence.facts.committedWrites)} committed controlled merchant writes observed.`));
+   verified.append(json('Recorded diagnostic evidence',evidence));
+  }else verified.append(el('p','The model choice was saved. Diagnostic completion is not yet confirmed; continue to recover the pending check.'));
+  row.append(choice,verified);list.append(row);
+ }
+ view.append(list);
+ if(autopilot.concluded)view.append(el('p','Investigation complete. Review the exact repair plan; approval and execution remain your decisions.','baseline'));
+ return view;
+}
+function refreshAutopilot(){root.querySelector('#autopilot-trace')?.replaceWith(autopilotView());}
+async function runAutopilot(){
+ const runId=state.scenario!.run.id;historyRevision++;autopilot.attempted=true;autopilot.notice='';
+ let calls=0,waits=0;const started=Date.now();
+ while(calls<5&&!autopilot.concluded){
+  let step;
+  try{step=parseAutopilotStep(await api<unknown>(path('autopilot'),{}));}
+  catch{
+   // Only reads reconcile uncertainty. A second POST requires an explicit click.
+   await restoreAutopilot(runId);
+   if(state.sessionStatus==='AUTHENTICATED'&&state.scenario?.run.id===runId){
+    try{await restoreCase(runId);markMutation(null);state.needsRecheck=false;}catch{/* Keep recovery required. */}
+   }
+   autopilot.notice='The request outcome was uncertain. Saved state was rechecked. No request was replayed. Continue Autopilot when ready.';
+   refreshAutopilot();return;
+  }
+  if(step.status==='UNAVAILABLE'){
+   autopilot.notice=aiAvailability(step.reason,step.retryAt);refreshAutopilot();
+   const delay=step.reason==='AI_BUSY'?5000:step.retryAt?Math.max(250,Date.parse(step.retryAt)-Date.now()):0;
+   if(['APP_REQUEST_SPACING','AI_BUSY','PROVIDER_CIRCUIT_OPEN'].includes(step.reason??'')&&delay>0&&waits<8&&Date.now()-started+delay<=150000){
+    waits++;await new Promise(resolve=>setTimeout(resolve,delay));continue;
+   }
+   if(!state.analysis?.investigation)state.analysis=step;
+   return;
+  }
+  calls++;autopilot.notice='';
+  if(!autopilot.steps.some(s=>s.snapshotSha256===step.snapshotSha256))autopilot.steps.push(step as AutopilotEntry);
+  if(step.executed)state.diagnostics=[...state.diagnostics.filter(e=>e.id!==step.executed!.id),step.executed];
+  autopilot.concluded=step.concluded;refreshAutopilot();
+ }
+ if(!autopilot.concluded)autopilot.notice='Autopilot paused at its step limit. Review the saved evidence before continuing.';
+}
+
 function refreshHistoryPanel() {
   const panel = root.querySelector<HTMLElement>("#investigation-panel");
   if (!panel) return;

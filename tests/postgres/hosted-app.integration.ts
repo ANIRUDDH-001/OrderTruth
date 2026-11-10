@@ -128,3 +128,25 @@ it('recovers an expired verified webhook lease on listening without another deli
     expect((await admin.query(`SELECT count(*)::int n FROM ${schema}.webhook_deliveries WHERE claimed_event_id=$1`,[event.id])).rows[0].n).toBe(1);
   }finally{release();await restarted.close();network.mockImplementation(async()=>{throw Error('Unexpected provider network call');});}
 });
+
+it('validates Autopilot session, ownership, body and disabled-provider fallback',async()=>{
+ const route='/api/scenarios/run_unknown/autopilot';
+ expect((await app.inject({method:'POST',url:route,headers:{origin},payload:{}})).statusCode).toBe(401);
+ expect((await app.inject({url:route+'/trace'})).statusCode).toBe(401);
+ const signed=await app.inject({method:'POST',url:'/api/auth/sign-in/anonymous',headers:{origin},payload:{},remoteAddress:'192.0.2.201'});
+ expect(signed.statusCode).toBe(200);const cookie=signed.cookies.map(c=>`${c.name}=${c.value}`).join('; ');
+ expect((await app.inject({method:'POST',url:route,headers:{origin,cookie},payload:{unexpected:true}})).statusCode).toBe(400);
+ expect((await app.inject({method:'POST',url:'/api/scenarios/invalid%21/autopilot',headers:{origin,cookie},payload:{}})).statusCode).toBe(400);
+ expect((await app.inject({method:'POST',url:route,headers:{origin,cookie},payload:{}})).statusCode).toBe(404);
+ expect((await app.inject({url:route+'/trace',headers:{cookie}})).statusCode).toBe(404);
+ const {PostgresScenarioStore}=await import('../../src/merchant/postgres-scenarios.ts');
+ const checkout=new PostgresCheckoutStore(admin,schema),suffix=randomBytes(8).toString('hex').toUpperCase();
+ const {intent,attempt}=await checkout.createCheckout('synthetic-autopilot-'+suffix);await checkout.attachOrder(attempt.id,'ORDER'+suffix);
+ await checkout.recordReadback(attempt.id,{id:'ORDER'+suffix,status:'COMPLETED',intent:'CAPTURE',purchase_units:[{custom_id:intent.id,amount:{currency_code:'USD',value:'1.00'},payments:{captures:[{id:'CAPTURE'+suffix,status:'COMPLETED',amount:{currency_code:'USD',value:'1.00'}}]}}]},'SYNTHETIC_QUALIFICATION');
+ const user=(await app.inject({url:'/api/session',headers:{cookie}})).json().userId;
+ const scenarios=new PostgresScenarioStore(admin,schema),run=await scenarios.createQualification(user,attempt.id);await scenarios.injectDuplicate(user,run.id);
+ const endpoint=`/api/scenarios/${run.id}/autopilot`;
+ expect((await app.inject({method:'POST',url:endpoint,headers:{origin,cookie},payload:{}})).json()).toMatchObject({status:'UNAVAILABLE',reason:'AI_NOT_CONFIGURED',concluded:false,executed:null,baseline:{nextDiagnostic:'IDEMPOTENCY_KEYS'}});
+ expect((await app.inject({url:endpoint+'/trace',headers:{cookie}})).json()).toEqual({policy:'merchant-agent-v1',steps:[],concluded:false});
+ expect(network).not.toHaveBeenCalled();
+});
