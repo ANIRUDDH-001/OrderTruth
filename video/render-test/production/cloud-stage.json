@@ -1,8 +1,8 @@
 {
   "version": 1,
-  "stage": "autopilot-one-step",
-  "expectedBefore": "5b7a93ba29f7a893a867a2e0b4368538df7eba39",
-  "authorization": "RECORD_ONE_AI_STEP",
+  "stage": "plan",
+  "expectedBefore": "16dcf4700502ab65650b1b54e7bda9228cba1461",
+  "authorization": "PREPARE_FRESH_PLAN",
   "reviewedPlanId": "",
   "reviewedPlanSha256": "",
   "manifest": "production/scene-sources.review.json"
