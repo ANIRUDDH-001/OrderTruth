@@ -1,0 +1,243 @@
+{
+  "ok": true,
+  "method": "FFmpeg 9.0.2 bundled offline libflite",
+  "voice": "slt",
+  "duration": 162,
+  "approvedScriptUnchanged": false,
+  "tasks": [
+    {
+      "scene": "S01",
+      "text": "One captured payment.",
+      "start": 0.4,
+      "end": 1.98
+    },
+    {
+      "scene": "S01",
+      "text": "Two active orders.",
+      "start": 2.18,
+      "end": 3.6750000000000003
+    },
+    {
+      "scene": "S01",
+      "text": "For a merchant, which order should ship?",
+      "start": 3.875,
+      "end": 6.105
+    },
+    {
+      "scene": "S01",
+      "text": "This is OrderTruth's controlled reference store.",
+      "start": 6.305,
+      "end": 9.04
+    },
+    {
+      "scene": "S02",
+      "text": "A public checkout bug report describes this kind of mismatch.",
+      "start": 12.4,
+      "end": 16.310000000000002
+    },
+    {
+      "scene": "S02",
+      "text": "A payment can succeed while the merchant's order state is wrong, risking",
+      "start": 16.509999999999998,
+      "end": 20.639999999999997
+    },
+    {
+      "scene": "S02",
+      "text": "duplicate fulfillment and manual investigation.",
+      "start": 20.84,
+      "end": 24.21
+    },
+    {
+      "scene": "S03",
+      "text": "OrderTruth connects the payment evidence to the merchant outcome.",
+      "start": 25.4,
+      "end": 29.165
+    },
+    {
+      "scene": "S04",
+      "text": "This case references a genuine, previously captured PayPal Sandbox payment,",
+      "start": 32.4,
+      "end": 37.379999999999995
+    },
+    {
+      "scene": "S04",
+      "text": "verified through an Orders API readback.",
+      "start": 37.58,
+      "end": 40.235
+    },
+    {
+      "scene": "S04",
+      "text": "We reuse that stored observation.",
+      "start": 40.435,
+      "end": 42.97
+    },
+    {
+      "scene": "S04",
+      "text": "No new payment is taken to create this case.",
+      "start": 43.17,
+      "end": 46.225
+    },
+    {
+      "scene": "S05",
+      "text": "For this reference merchant, one purchase should leave one active order.",
+      "start": 50.4,
+      "end": 54.445
+    },
+    {
+      "scene": "S05",
+      "text": "I introduce a labelled merchant-side duplicate.",
+      "start": 54.644999999999996,
+      "end": 57.76
+    },
+    {
+      "scene": "S05",
+      "text": "Deterministic checks detect two active orders linked to the same payment",
+      "start": 57.96,
+      "end": 62.015
+    },
+    {
+      "scene": "S05",
+      "text": "observation.",
+      "start": 62.215,
+      "end": 63.620000000000005
+    },
+    {
+      "scene": "S06",
+      "text": "Autopilot is available in the application.",
+      "start": 65.4,
+      "end": 68.2971875
+    },
+    {
+      "scene": "S06",
+      "text": "This recording uses deterministic findings because its live free allowance",
+      "start": 68.4971875,
+      "end": 72.60870833333333
+    },
+    {
+      "scene": "S06",
+      "text": "is unverified.",
+      "start": 72.80870833333333,
+      "end": 74.05164583333332
+    },
+    {
+      "scene": "S06",
+      "text": "No model response is being presented for this case.",
+      "start": 74.25164583333333,
+      "end": 77.62864583333332
+    },
+    {
+      "scene": "S07",
+      "text": "The finding is specific: two active merchant orders reference the same",
+      "start": 78.4,
+      "end": 82.49000000000001
+    },
+    {
+      "scene": "S07",
+      "text": "recorded payment observation.",
+      "start": 82.69,
+      "end": 84.91499999999999
+    },
+    {
+      "scene": "S07",
+      "text": "That establishes a discrepancy, not its cause.",
+      "start": 85.115,
+      "end": 88.515
+    },
+    {
+      "scene": "S07",
+      "text": "The controlled fault demonstrates the reference merchant's contract; it is",
+      "start": 88.715,
+      "end": 93.08500000000001
+    },
+    {
+      "scene": "S07",
+      "text": "not a reproduction of the external checkout bug.",
+      "start": 93.285,
+      "end": 96.36
+    },
+    {
+      "scene": "S08",
+      "text": "The next decision belongs to the merchant.",
+      "start": 102.4,
+      "end": 105.03
+    },
+    {
+      "scene": "S08",
+      "text": "A hypothesis is not permission to change an order, and no AI output can",
+      "start": 105.23,
+      "end": 109.92
+    },
+    {
+      "scene": "S08",
+      "text": "authorize the correction.",
+      "start": 110.12,
+      "end": 111.935
+    },
+    {
+      "scene": "S09",
+      "text": "Here is the exact correction proposal: keep Merchant order one and void",
+      "start": 114.4,
+      "end": 118.935
+    },
+    {
+      "scene": "S09",
+      "text": "Merchant order two locally.",
+      "start": 119.135,
+      "end": 121.28
+    },
+    {
+      "scene": "S09",
+      "text": "Approval and execution are separate.",
+      "start": 121.48,
+      "end": 123.86
+    },
+    {
+      "scene": "S09",
+      "text": "Neither has been performed in this recording.",
+      "start": 124.06,
+      "end": 126.805
+    },
+    {
+      "scene": "S10",
+      "text": "Execution and receipt verification are still awaiting authorization.",
+      "start": 133.4,
+      "end": 137.6
+    },
+    {
+      "scene": "S10",
+      "text": "This review cut does not show a completed correction.",
+      "start": 137.8,
+      "end": 141.04000000000002
+    },
+    {
+      "scene": "S10",
+      "text": "The final film must reopen the persisted receipt and verify one active",
+      "start": 141.24,
+      "end": 145.54000000000002
+    },
+    {
+      "scene": "S10",
+      "text": "matching order.",
+      "start": 145.74,
+      "end": 147.01000000000002
+    },
+    {
+      "scene": "S11",
+      "text": "OrderTruth connects payment evidence to merchant outcomes.",
+      "start": 151.4,
+      "end": 154.97
+    },
+    {
+      "scene": "S11",
+      "text": "This review cut reaches the exact correction proposal.",
+      "start": 155.17,
+      "end": 158.595
+    },
+    {
+      "scene": "S11",
+      "text": "The verified outcome remains pending.",
+      "start": 158.795,
+      "end": 161.26999999999998
+    }
+  ]
+}

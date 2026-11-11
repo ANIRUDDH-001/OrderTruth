@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "stage": "validate",
+  "expectedBefore": "534ff613a9c588cbeb62985bf0c0290d1e9cd1d3",
+  "authorization": "NONE",
+  "reviewedPlanId": "",
+  "reviewedPlanSha256": "",
+  "manifest": "production/scene-sources.review.json"
+}

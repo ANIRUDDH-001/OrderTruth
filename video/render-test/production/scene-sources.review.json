@@ -1,0 +1,293 @@
+{
+  "schemaVersion": 1,
+  "mode": "incomplete-review",
+  "caseId": "run_0ddc4e8b-f040-4ad7-8ea2-098f8beeae95",
+  "keeperId": "mo_bf9bb97b-495c-473f-9905-1627b85dec99",
+  "duplicateId": "mo_fbf7e14b-8ebf-4b49-8385-0857ff21f04e",
+  "durationSeconds": 162,
+  "fps": 30,
+  "receiptId": null,
+  "sources": {
+    "deterministic": {
+      "path": "production-assets/product-deterministic.mp4",
+      "sha256": "ea8b22621e1dd2cabf20c0724e9b0b8dd67060c683a9458d145c1c2899fd96c5",
+      "kind": "product",
+      "caseId": "run_0ddc4e8b-f040-4ad7-8ea2-098f8beeae95",
+      "durationSeconds": 121.734,
+      "events": []
+    },
+    "S02": {
+      "path": "renders/S02-source-card-1080p.mp4",
+      "sha256": "40c89d70ed11b79842d685dd47b813a64668e8fbbcf2616353820c0c7e4dbefe",
+      "kind": "approved-graphic",
+      "durationSeconds": 6.0
+    },
+    "S03": {
+      "path": "renders/S03-title-1080p.mp4",
+      "sha256": "c41f4a4484a25f04bb97a7dde3f372d4ca623500135dabe14b7ca3b4fbd88178",
+      "kind": "approved-graphic",
+      "durationSeconds": 7.0
+    },
+    "S11": {
+      "path": "renders/S11-end-card-1080p.mp4",
+      "sha256": "6a31e4e45bc7eabb26672254b50557d0fb9cb2a582bd367476964bcbf61d1da2",
+      "kind": "approved-graphic",
+      "durationSeconds": 11.0
+    }
+  },
+  "narration": {
+    "qc": {
+      "path": "production-assets/narration/narration-qc.json",
+      "sha256": "2bdcc12cfe8909cf74a74b167fb84bc0102cc8185d9caf13b208bf7c745128fe"
+    },
+    "scenes": {
+      "S01": {
+        "path": "production-assets/narration/S01.wav",
+        "sha256": "64a5dc33d698bc6c9434b772a541bcdf77a0e53ae29e1c616e77d3a2efb85249"
+      },
+      "S02": {
+        "path": "production-assets/narration/S02.wav",
+        "sha256": "ebd077e157d51ce66bc157e76013f5842be15a21728835c70d2ce24c72d0b559"
+      },
+      "S03": {
+        "path": "production-assets/narration/S03.wav",
+        "sha256": "c85b4a6bc2545123386f739d40867eef6832aec24380a1979815e7c7d25a301a"
+      },
+      "S04": {
+        "path": "production-assets/narration/S04.wav",
+        "sha256": "e10b43067cfcbca555185ef59bc5f15f3d178b7d271f3f94c0a71e44a753881c"
+      },
+      "S05": {
+        "path": "production-assets/narration/S05.wav",
+        "sha256": "e5f9658e0f279f534dfc5c7f3815df7b33ed9e45a5281bc6d9d4622db7c85944"
+      },
+      "S06": {
+        "path": "production-assets/narration/S06.wav",
+        "sha256": "e0ab4ec2998c246cea93250fecc98170b8ab50d600c82dedd8307e52ff511de7"
+      },
+      "S07": {
+        "path": "production-assets/narration/S07.wav",
+        "sha256": "f752eafd433b32e06cafd2950c678b0787f1412c179f6bd9bbd3fedb7dc47820"
+      },
+      "S08": {
+        "path": "production-assets/narration/S08.wav",
+        "sha256": "dbca772b813b67f2792bb7fd8da4468e5f1d48cc83d11b0153358a06397988f4"
+      },
+      "S09": {
+        "path": "production-assets/narration/S09.wav",
+        "sha256": "f5592942c2f6a53ea5bf6c323c64370cce4233d29ceb747e324a602e6f184732"
+      },
+      "S10": {
+        "path": "production-assets/narration/S10.wav",
+        "sha256": "31475796de3e81a68bc9e145cb6a6aea6112917a087425bcf18f590838ae3792"
+      },
+      "S11": {
+        "path": "production-assets/narration/S11.wav",
+        "sha256": "2a640c428e37835f86c8fe1f306749a2ce51ca9b3f0dfa5ee9697f945da00051"
+      }
+    }
+  },
+  "scenes": [
+    {
+      "id": "S01",
+      "start": 0,
+      "end": 12,
+      "frames": 360,
+      "words": 19,
+      "planned_slot_wpm": 95.0,
+      "text": "One captured payment. Two active orders. For a merchant, which order should ship? This is OrderTruth's controlled reference store.",
+      "pieces": [
+        {
+          "source": "deterministic",
+          "in": 51.985,
+          "out": 63.988
+        }
+      ]
+    },
+    {
+      "id": "S02",
+      "start": 12,
+      "end": 25,
+      "frames": 390,
+      "words": 27,
+      "planned_slot_wpm": 124.6,
+      "text": "A public checkout bug report describes this kind of mismatch. A payment can succeed while the merchant's order state is wrong, risking duplicate fulfillment and manual investigation.",
+      "pieces": [
+        {
+          "source": "S02",
+          "in": 0,
+          "out": 6.0
+        },
+        {
+          "source": "deterministic",
+          "in": 51.985,
+          "out": 58.985
+        }
+      ]
+    },
+    {
+      "id": "S03",
+      "start": 25,
+      "end": 32,
+      "frames": 210,
+      "words": 9,
+      "planned_slot_wpm": 77.1,
+      "text": "OrderTruth connects the payment evidence to the merchant outcome.",
+      "pieces": [
+        {
+          "source": "S03",
+          "in": 0,
+          "out": 7.0
+        }
+      ]
+    },
+    {
+      "id": "S04",
+      "start": 32,
+      "end": 50,
+      "frames": 540,
+      "words": 30,
+      "planned_slot_wpm": 100.0,
+      "text": "This case references a genuine, previously captured PayPal Sandbox payment, verified through an Orders API readback. We reuse that stored observation. No new payment is taken to create this case.",
+      "pieces": [
+        {
+          "source": "deterministic",
+          "in": 18.155,
+          "out": 36.171
+        }
+      ]
+    },
+    {
+      "id": "S05",
+      "start": 50,
+      "end": 65,
+      "frames": 450,
+      "words": 29,
+      "planned_slot_wpm": 116.0,
+      "text": "For this reference merchant, one purchase should leave one active order. I introduce a labelled merchant-side duplicate. Deterministic checks detect two active orders linked to the same payment observation.",
+      "pieces": [
+        {
+          "source": "deterministic",
+          "in": 36.727,
+          "out": 39.74
+        },
+        {
+          "source": "deterministic",
+          "in": 39.74,
+          "out": 41.24
+        },
+        {
+          "source": "deterministic",
+          "in": 41.498,
+          "out": 44.501
+        },
+        {
+          "source": "deterministic",
+          "in": 44.501,
+          "out": 46.001
+        },
+        {
+          "source": "deterministic",
+          "in": 47.968,
+          "out": 51.985
+        }
+      ]
+    },
+    {
+      "id": "S06",
+      "start": 65,
+      "end": 78,
+      "frames": 390,
+      "words": 24,
+      "planned_slot_wpm": 110.8,
+      "text": "Autopilot is available in the application. This recording uses deterministic findings because its live free allowance is unverified. No model response is being presented for this case.",
+      "pieces": [
+        {
+          "source": "deterministic",
+          "in": 64.534,
+          "out": 77.546
+        }
+      ]
+    },
+    {
+      "id": "S07",
+      "start": 78,
+      "end": 102,
+      "frames": 720,
+      "words": 41,
+      "planned_slot_wpm": 102.5,
+      "text": "The finding is specific: two active merchant orders reference the same recorded payment observation. That establishes a discrepancy, not its cause. The controlled fault demonstrates the reference merchant's contract; it is not a reproduction of the external checkout bug.",
+      "pieces": [
+        {
+          "source": "deterministic",
+          "in": 77.546,
+          "out": 101.547
+        }
+      ]
+    },
+    {
+      "id": "S08",
+      "start": 102,
+      "end": 114,
+      "frames": 360,
+      "words": 26,
+      "planned_slot_wpm": 130.0,
+      "text": "The next decision belongs to the merchant. A hypothesis is not permission to change an order, and no AI output can authorize the correction.",
+      "pieces": [
+        {
+          "source": "deterministic",
+          "in": 101.547,
+          "out": 113.563
+        }
+      ]
+    },
+    {
+      "id": "S09",
+      "start": 114,
+      "end": 133,
+      "frames": 570,
+      "words": 35,
+      "planned_slot_wpm": 110.5,
+      "text": "Here is the exact correction proposal: keep Merchant order one and void Merchant order two locally. Approval and execution are separate. Neither has been performed in this recording.",
+      "pieces": [
+        {
+          "source": "deterministic",
+          "in": 115.497,
+          "out": 121.512
+        }
+      ]
+    },
+    {
+      "id": "S10",
+      "start": 133,
+      "end": 151,
+      "frames": 540,
+      "words": 31,
+      "planned_slot_wpm": 103.3,
+      "text": "Execution and receipt verification are still awaiting authorization. This review cut does not show a completed correction. The final film must reopen the persisted receipt and verify one active matching order.",
+      "pieces": [
+        {
+          "source": "deterministic",
+          "in": 115.497,
+          "out": 121.512
+        }
+      ]
+    },
+    {
+      "id": "S11",
+      "start": 151,
+      "end": 162,
+      "frames": 330,
+      "words": 14,
+      "planned_slot_wpm": 76.4,
+      "text": "OrderTruth connects payment evidence to merchant outcomes. This review cut reaches the exact correction proposal. The verified outcome remains pending.",
+      "pieces": [
+        {
+          "source": "S11",
+          "in": 0,
+          "out": 11.0
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+const assert=require('node:assert/strict');
+const {validate}=require('./cloud-stage-guard.cjs');
+const sha='a'.repeat(40), head='b'.repeat(40);
+const c={version:1,stage:'validate',expectedBefore:sha,authorization:'NONE',reviewedPlanId:'',reviewedPlanSha256:'',manifest:'production/scene-sources.review.json'};
+const e={repository:{full_name:'ANIRUDDH-001/OrderTruth',private:false},deleted:false,forced:false,before:sha,after:head,head_commit:{message:'Video adapters [skip render]'}};
+const env={GITHUB_EVENT_NAME:'push',GITHUB_REF:'refs/heads/video/cloud-render',GITHUB_RUN_ATTEMPT:'1',GITHUB_SHA:head};
+const files=['video/render-test/production/cloud-stage.json'];
+validate(c,e,env,sha,files);
+for(const bad of [{stage:'repair'},{authorization:'EXECUTE_EXACT_PLAN'},{expectedBefore:head},{reviewedPlanId:'old'},{manifest:'../../private.json'}]) assert.throws(()=>validate({...c,...bad},e,env,sha,files));
+for(const bad of [{GITHUB_RUN_ATTEMPT:'2'},{GITHUB_EVENT_NAME:'workflow_dispatch'},{GITHUB_REF:'refs/heads/main'}]) assert.throws(()=>validate(c,e,{...env,...bad},sha,files));
+assert.throws(()=>validate(c,{...e,forced:true},env,sha,files));
+assert.throws(()=>validate(c,e,env,head,files));
+assert.throws(()=>validate(c,e,env,sha,['src/application.ts']));
+console.log('PASS: 12 stage guard cases; no network or Git writes.');
