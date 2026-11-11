@@ -4,12 +4,80 @@ const {spawnSync}=require('node:child_process');
 const {createHash}=require('node:crypto');
 const ROOT=path.resolve(__dirname,'..');
 const pins=require('../tool-pins.json');
+const publicHeading=/^A successful payment doesn['\u2019]t guarantee the merchant order is correct\.$/;
+class CaptureError extends Error {
+  constructor(category,check){super(category);this.category=category;this.check=check;}
+}
+function fail(category,check){throw new CaptureError(category,check);}
+function observeSession(page){
+  let settled=false,resolveResult;
+  const result=new Promise(resolve=>{resolveResult=resolve;});
+  function settle(value){if(!settled){settled=true;resolveResult(value);}}
+  const matches=request=>request.url()==='https://order-truth.vercel.app/api/session' && request.method()==='GET';
+  const onResponse=async response=>{
+    if(!matches(response.request()))return;
+    const status=response.status();
+    if(!response.ok()){settle({category:'session_http_status',status,state:'unavailable'});return;}
+    try{
+      const session=await response.json(); // Inspect one boolean only; never retain or log session data.
+      if(typeof session?.authenticated!=='boolean')settle({category:'session_invalid',status,state:'unconfirmed'});
+      else settle({category:session.authenticated?'session_authenticated':null,status,state:session.authenticated?'authenticated':'signed-out'});
+    }catch{settle({category:'session_invalid',status,state:'unconfirmed'});}
+  };
+  const onFailure=request=>{if(matches(request))settle({category:'session_network',status:null,state:'unavailable'});};
+  page.on('response',onResponse);page.on('requestfailed',onFailure);
+  return {
+    async wait(timeoutMs){
+      let timer;
+      try{return await Promise.race([result,new Promise(resolve=>{
+        timer=setTimeout(()=>resolve({category:'session_timeout',status:null,state:'unconfirmed'}),timeoutMs);
+      })]);}finally{clearTimeout(timer);}
+    },
+    dispose(){page.off('response',onResponse);page.off('requestfailed',onFailure);}
+  };
+}
+async function preparePublicPage(page,diagnostics,setPhase,{sessionTimeoutMs=120000}={}){
+  // Observe before navigation, but start the separate cold-start wait after the public UI loads.
+  const session=observeSession(page);
+  try{
+    setPhase('public-navigation');
+    let response;
+    try{response=await page.goto('https://order-truth.vercel.app/',{waitUntil:'domcontentloaded',timeout:60000});}
+    catch(error){fail(error.name==='TimeoutError'?'navigation_timeout':'navigation_failure','document');}
+    diagnostics.navigationHttpStatus=response?.status()??null;
+    if(diagnostics.navigationHttpStatus!==200)fail('navigation_http_status','document');
+    if(page.url()!=='https://order-truth.vercel.app/')fail('navigation_failure','unexpected-url');
+    if(!/OrderTruth/i.test(await page.title()))fail('ui_missing','page-title');
+    setPhase('public-ui');
+    try{await page.getByRole('heading',{name:publicHeading}).waitFor({state:'visible',timeout:15000});}
+    catch{fail('ui_missing','landing-heading');}
+    diagnostics.publicUiVisible=true;
+    setPhase('backend-session');
+    const state=await session.wait(sessionTimeoutMs);
+    diagnostics.sessionHttpStatus=state.status;diagnostics.sessionState=state.state;
+    if(state.category)fail(state.category,'signed-out-session');
+    setPhase('ready-ui');
+    try{await page.getByText('Connection confirmed. Inspect a payment outcome to start your private session.',{exact:true}).waitFor({state:'visible',timeout:15000});}
+    catch{fail('ui_missing','ready-notice');}
+    if(!/PayPal/i.test(await page.locator('body').innerText()))fail('ui_missing','paypal-context');
+    diagnostics.readyUiVisible=true;
+  }finally{session.dispose();}
+}
+function safeDiagnostic(error,phase,diagnostics,browserFailed){
+  const category=browserFailed?'browser_failure':error instanceof CaptureError?error.category:
+    phase.startsWith('browser')?'browser_failure':phase==='encode'?'encoding_failure':
+    phase==='verification'?'verification_failure':'environment_failure';
+  return {category,check:error instanceof CaptureError?error.check:null,
+    navigationHttpStatus:diagnostics.navigationHttpStatus,sessionHttpStatus:diagnostics.sessionHttpStatus,
+    sessionState:diagnostics.sessionState,publicUiVisible:diagnostics.publicUiVisible,readyUiVisible:diagnostics.readyUiVisible};
+}
 function allowed(url,method){
   try {const u=new URL(url);return u.origin==='https://order-truth.vercel.app' &&
     (!/^\/api(?:\/|$)/.test(u.pathname) || (u.pathname==='/api/session' && !u.search)) &&
     ['GET','HEAD'].includes(method);}catch{return false;}
 }
-if(process.argv.includes('--policy-self-test')){
+if(require.main!==module){module.exports={allowed,publicHeading,observeSession,preparePublicPage,safeDiagnostic,CaptureError};}
+else if(process.argv.includes('--policy-self-test')){
   assert(allowed('https://order-truth.vercel.app/','GET'));
   assert(allowed('https://order-truth.vercel.app/api/session','GET'));
   for(const [url,method] of [['https://order-truth.vercel.app/api/auth/sign-in/anonymous','POST'],
@@ -18,7 +86,8 @@ if(process.argv.includes('--policy-self-test')){
     ['https://order-truth.vercel.app/','PUT']]) assert(!allowed(url,method));
   console.log('Read-only route policy PASS');
 }else{
-  let browser,context,phase='environment';
+  let browser,context,phase='environment',browserFailed=false,closingBrowser=false;
+  const diagnostics={navigationHttpStatus:null,sessionHttpStatus:null,sessionState:'unconfirmed',publicUiVisible:false,readyUiVisible:false};
   const run=path.resolve(process.env.STAGE1_OUTPUT||path.join(ROOT,'footage/stage1'));
   const pub=path.join(run,'public'),priv=path.join(run,'private');
   function tool(exe,args){
@@ -36,6 +105,7 @@ if(process.argv.includes('--policy-self-test')){
     const {chromium}=require('playwright');
     phase='browser-launch';
     browser=await chromium.launch({headless:true,chromiumSandbox:true,timeout:30000});
+    browser.on('disconnected',()=>{if(!closingBrowser)browserFailed=true;});
     assert.equal(browser.version(),pins.chromium);
     context=await browser.newContext({viewport:{width:1920,height:1080},deviceScaleFactor:1,
       serviceWorkers:'block',permissions:[],acceptDownloads:false,
@@ -48,23 +118,19 @@ if(process.argv.includes('--policy-self-test')){
     });
     await context.routeWebSocket('**/*',socket=>socket.close());
     const page=await context.newPage();
-    phase='public-page';
-    const [sessionResponse,response]=await Promise.all([
-      page.waitForResponse(r=>r.url()==='https://order-truth.vercel.app/api/session' && r.request().method()==='GET',{timeout:120000}),
-      page.goto('https://order-truth.vercel.app/',{waitUntil:'domcontentloaded',timeout:60000})]);
-    assert(sessionResponse.ok());assert.equal((await sessionResponse.json()).authenticated,false);
-    assert(response&&response.status()===200);
-    assert.equal(page.url(),'https://order-truth.vercel.app/');
-    assert.match(await page.title(),/OrderTruth/i);
-    await page.getByRole('heading',{name:"A successful payment doesn't guarantee the merchant order is correct.",exact:true}).waitFor({state:'visible',timeout:15000});
-    await page.getByText('Connection confirmed. Inspect a payment outcome to start your private session.',{exact:true}).waitFor({state:'visible',timeout:15000});
-    // Examine only the public landing copy. Never log page bodies or request headers.
-    const body=await page.locator('body').innerText();assert.match(body,/PayPal/i);
+    page.on('crash',()=>{browserFailed=true;});
+    await preparePublicPage(page,diagnostics,value=>{phase=value;});
+    phase='recording';
     await page.waitForTimeout(8000);
+    if(browserFailed)fail('browser_failure','recording');
+    if(!await page.getByText('Connection confirmed. Inspect a payment outcome to start your private session.',{exact:true}).isVisible()){
+      diagnostics.readyUiVisible=false;fail('ui_missing','ready-notice');
+    }
     await page.screenshot({path:path.join(pub,'landing.png')});
     assert.equal(writeAttempts,0,'Unexpected mutation attempt');
     const video=page.video();
     phase='browser-close';
+    closingBrowser=true;
     await context.close();context=null;
     const webm=path.join(pub,'landing.webm');await video.saveAs(webm);
     await browser.close();browser=null;
@@ -92,18 +158,20 @@ if(process.argv.includes('--policy-self-test')){
     assert(bytes<25*1024*1024,'Artifact size budget exceeded');
     fs.writeFileSync(path.join(pub,'qc-public.json'),JSON.stringify({ok:true,stage:1,
       source:'https://order-truth.vercel.app/',readOnly:true,mutatingRequests:writeAttempts,
+      sessionReady:true,diagnostics,
       blockedRequests:blocked,browserClosed:true,node:pins.node,playwright:pins.playwright,
       chromium:pins.chromium,ffmpeg:pins.ffmpeg,artifactBytes:bytes,reports},null,2));
     console.log('Stage 1 PASS: genuine landing MP4 and five-second smoke verified.');
   }
-  main().catch(()=>{
+  main().catch(error=>{
     // This fixed-schema report intentionally excludes exception messages and browser diagnostics.
     if(fs.existsSync(pub) && !fs.existsSync(path.join(pub,'qc-public.json')))
-      fs.writeFileSync(path.join(pub,'qc-public.json'),JSON.stringify({ok:false,stage:1,failedAt:phase,automaticReplay:false},null,2));
-    console.error('Stage 1 failed at '+phase+'. No protected actions or automatic retries.');process.exitCode=1;
+      fs.writeFileSync(path.join(pub,'qc-public.json'),JSON.stringify({ok:false,stage:1,failedAt:phase,sessionReady:false,
+        diagnostic:safeDiagnostic(error,phase,diagnostics,browserFailed),automaticReplay:false},null,2));
+    console.error('Stage 1 failed at '+phase+' ('+safeDiagnostic(error,phase,diagnostics,browserFailed).category+'). No protected actions or automatic retries.');process.exitCode=1;
   })
     .finally(async()=>{
-      try{if(context)await context.close();if(browser)await browser.close();}
+      try{closingBrowser=true;if(context)await context.close();if(browser)await browser.close();}
       catch{console.error('Browser cleanup failed');process.exitCode=1;}
     });
 }
