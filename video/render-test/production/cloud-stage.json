@@ -1,8 +1,8 @@
 {
   "version": 1,
-  "stage": "validate",
-  "expectedBefore": "fd80bdc7f70a1e128bfd82a5a3aa2b64dc1a2bb0",
-  "authorization": "NONE",
+  "stage": "plan",
+  "expectedBefore": "fed96a3a6809e445401d9bf259db463e309d2865",
+  "authorization": "PREPARE_FRESH_PLAN",
   "reviewedPlanId": "",
   "reviewedPlanSha256": "",
   "manifest": "production/scene-sources.review.json"
