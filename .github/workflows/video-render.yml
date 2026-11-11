@@ -17,8 +17,8 @@ defaults:
     working-directory: video/render-test
 jobs:
   render:
-    # Exactly one initial attempt. No dispatch, protected steps or automatic replay.
-    if: github.repository == 'ANIRUDDH-001/OrderTruth' && github.ref == 'refs/heads/video/cloud-render' && github.event_name == 'push' && github.event.deleted == false && github.run_number == 1 && github.run_attempt == 1
+    # One corrective push from the reviewed failed commit; run 2, first attempt only.
+    if: github.repository == 'ANIRUDDH-001/OrderTruth' && github.ref == 'refs/heads/video/cloud-render' && github.event_name == 'push' && github.event.deleted == false && github.event.before == 'cf33ef9733df0f12f4bb43bcca575ecd8b60791d' && github.run_number == 2 && github.run_attempt == 1
     runs-on: windows-2025
     timeout-minutes: 20
     env:

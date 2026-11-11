@@ -14,6 +14,7 @@ it('keeps the unhosted integration candidate out of automatic Vercel deployments
   // Unspecified branches retain Vercel's documented default. In particular,
   // this must not disable main, broadly change hosting, or bypass manual checks.
   expect(config.git?.deploymentEnabled).toEqual({
+    'video/cloud-render': false,
     'integration/ordertruth-unified': false,
     'phase6/adversarial-qualification': false,
     'phase7/ai-integration': false,

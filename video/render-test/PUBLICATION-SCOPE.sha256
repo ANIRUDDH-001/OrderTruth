@@ -1,4 +1,4 @@
-8b071f42570ab820f191bcea5fcc7d95930ed6f9ffcd9067014f5ea175943acd *.github/workflows/video-render.yml
+cd2dff170fc04ce7e695a3e0edaa1df4340531597c2cfdf71507a3d17ee966db *.github/workflows/video-render.yml
 5e1635ed4157d3e64813b8fac6a2e17be733b2965fd39ded1cf1860686ba0169 *vercel.json
 d90c1caba87b9a5619f801df0dbfca44282d2ec961dc4d06d65fecf3415ea52a *video/render-test/.gitignore
 9d692c683610da9e032657d02c23868a15cb416012958875617fa4d5136b0126 *video/render-test/ASSET-MANIFEST.json
@@ -25,3 +25,5 @@ c41f4a4484a25f04bb97a7dde3f372d4ca623500135dabe14b7ca3b4fbd88178 *video/render-t
 4495786aa25c62c294fd70adbe863213b757de80654bd21f1c5077c1486c7f29 *video/render-test/scripts/verify-assets.mjs
 46731f77e60315646f9a7f7e15a8fa470e4c4079125660046a31dbc0e8e5c617 *video/render-test/scripts/verify-video.mjs
 a876385a427c7adfda09636f0d10e679e730f3efa09ec0c663cf8ef451d5c7b7 *video/render-test/tool-pins.json
+8a67758759a7e155c0447bd1ff1be9003e35bffdfe41772a48e97a217e20c7e4 *video/render-test/.gitattributes
+0777e10f94a31b917ecad8c664766e9e9b3603679aa5595e8a02a7a7097e86a7 *tests/preview-isolation.test.ts

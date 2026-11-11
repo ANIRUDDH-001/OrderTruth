@@ -1,0 +1,3 @@
+# Preserve the exact committed bytes required by ASSET-MANIFEST.json.
+# Scoped to this video directory; application checkout rules are unchanged.
+* -text
