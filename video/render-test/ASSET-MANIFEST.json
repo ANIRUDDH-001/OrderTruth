@@ -1,0 +1,40 @@
+{
+  "files": [
+    {
+      "path": "motion-test/index.html",
+      "sha256": "a205800c720ac2b14367f2cfd848bdba7673a23019744de6ec06720eaee0f434"
+    },
+    {
+      "path": "motion-test/lib/gsap.min.js",
+      "sha256": "92bb9a96476f983d212a2bc4f54c889039c1696dd4461d40a736860938570fbb"
+    },
+    {
+      "path": "motion-test/assets/fonts/Inter-400.woff2",
+      "sha256": "8909904ab6c872eb994093482a88a28eca2cd95912d7b6fecd72103b0dc07edc"
+    },
+    {
+      "path": "motion-test/assets/fonts/Inter-700.woff2",
+      "sha256": "6f56409fd3d64bb85f7d070bce20749db2d66b6d63cec586cc22d1c761be2491"
+    },
+    {
+      "path": "motion-test/assets/fonts/OFL-inter.txt",
+      "sha256": "3b0a5fca3d17942cde889069889dedbbbd075e9b599968c82a95f4d944e9b345"
+    },
+    {
+      "path": "renders/S02-source-card-1080p.mp4",
+      "sha256": "40c89d70ed11b79842d685dd47b813a64668e8fbbcf2616353820c0c7e4dbefe"
+    },
+    {
+      "path": "renders/S03-title-1080p.mp4",
+      "sha256": "c41f4a4484a25f04bb97a7dde3f372d4ca623500135dabe14b7ca3b4fbd88178"
+    },
+    {
+      "path": "renders/S11-end-card-1080p.mp4",
+      "sha256": "6a31e4e45bc7eabb26672254b50557d0fb9cb2a582bd367476964bcbf61d1da2"
+    },
+    {
+      "path": "phase-a/preproduction/timeline.json",
+      "sha256": "17dc6cd7cea1913a09c803e8d0bec6994c5239f95220a06d4b28243f9879f405"
+    }
+  ]
+}

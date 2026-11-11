@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=1280, initial-scale=1">
+<link rel="icon" href="data:,">
+<title>OrderTruth — local five-second motion test</title>
+<!-- GSAP 3.15.0, the copy vendored by HyperFrames CLI 0.9.32; local file, no CDN fetch. -->
+<script src="lib/gsap.min.js"></script>
+<style>
+* { box-sizing: border-box; }
+html, body { margin: 0; width: 1280px; height: 720px; overflow: hidden; }
+/* Explicit local Inter files: no runtime font service. */
+@font-face { font-family: "OTInter"; font-weight:400; font-style:normal; src:url("assets/fonts/Inter-400.woff2") format("woff2"); }
+@font-face { font-family: "OTInter"; font-weight:700; font-style:normal; src:url("assets/fonts/Inter-700.woff2") format("woff2"); }
+body { font-family: "OTInter", sans-serif; }
+#root { position: relative; width: 1280px; height: 720px; }
+.field { position: absolute; inset: 0; background: #152d39; }
+.brand { position: absolute; left: 128px; top: 116px; margin: 0; color: #ffffff; font-size: 32px; font-weight: 700; }
+.test-label { position: absolute; left: 128px; top: 72px; margin: 0; color: #d1e0e5; font-size: 20px; letter-spacing: .04em; }
+.headline { position: absolute; left: 128px; top: 232px; width: 1024px; margin: 0; color: #ffffff; font-size: 68px; line-height: 1.12; font-weight: 700; letter-spacing: -.035em; }
+.line { display: block; }
+.outcome { color: #a7e8d8; }
+.tagline { position: absolute; left: 128px; top: 472px; margin: 0; color: #ffffff; font-size: 28px; line-height: 1.3; }
+.tag { display: inline-block; }
+.scope { position: absolute; left: 128px; top: 562px; margin: 0; color: #d1e0e5; font-size: 20px; }
+</style>
+</head>
+<body>
+<main id="root" data-composition-id="motion-test" data-start="0" data-duration="5" data-width="1280" data-height="720" data-fps="30">
+  <div class="field" aria-hidden="true"></div>
+  <p class="test-label">LOCAL MOTION TEST · NOT PRODUCT FOOTAGE</p>
+  <p class="brand">OrderTruth</p>
+  <h1 class="headline clip" id="test-headline" data-start="0" data-duration="5" data-track-index="1">
+    <span class="line" id="test-line-1">ONE PAYMENT. TWO ORDERS.</span>
+    <span class="line outcome" id="test-line-2">ONE VERIFIED OUTCOME.</span>
+  </h1>
+  <p class="tagline clip" id="test-tagline" data-start="3.35" data-duration="1.65" data-track-index="2"><span class="tag" id="test-tag">AI investigates. You decide. Code verifies.</span></p>
+  <p class="scope">5 seconds · 1280 × 720 · 30 fps · silent</p>
+</main>
+<script>
+  // One finite, paused timeline for the root composition. Same reveals as the
+  // Phase A CSS version: 0.45 s, expo-out (≈ cubic-bezier(.16,1,.3,1)), 12 px rise,
+  // at 0, 1.55 and 3.35 s. Children of the .clip elements are animated, never the clips.
+  const tl = gsap.timeline({ paused: true });
+  const reveal = { opacity: 1, y: 0, duration: 0.45, ease: "expo.out" };
+  tl.fromTo("#test-line-1", { opacity: 0, y: 12 }, reveal, 0);
+  tl.fromTo("#test-line-2", { opacity: 0, y: 12 }, reveal, 1.55);
+  tl.fromTo("#test-tag", { opacity: 0, y: 12 }, reveal, 3.35);
+  window.__timelines = window.__timelines || {};
+  window.__timelines["motion-test"] = tl;
+</script>
+</body>
+</html>

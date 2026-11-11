@@ -5,6 +5,7 @@
   "outputDirectory": "dist/judge",
   "git": {
     "deploymentEnabled": {
+      "video/cloud-render": false,
       "integration/ordertruth-unified": false,
       "phase6/adversarial-qualification": false,
       "phase7/ai-integration": false,

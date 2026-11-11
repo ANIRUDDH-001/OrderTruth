@@ -1,0 +1,106 @@
+{
+  "fps": 30,
+  "duration": 162,
+  "frames": 4860,
+  "scenes": [
+    {
+      "id": "S01",
+      "start": 0,
+      "end": 12,
+      "frames": 360,
+      "words": 19,
+      "planned_slot_wpm": 95.0,
+      "text": "One captured payment. Two active orders. For a merchant, which order should ship? This is OrderTruth's controlled reference store."
+    },
+    {
+      "id": "S02",
+      "start": 12,
+      "end": 25,
+      "frames": 390,
+      "words": 27,
+      "planned_slot_wpm": 124.6,
+      "text": "A public checkout bug report describes this kind of mismatch. A payment can succeed while the merchant's order state is wrong, risking duplicate fulfillment and manual investigation."
+    },
+    {
+      "id": "S03",
+      "start": 25,
+      "end": 32,
+      "frames": 210,
+      "words": 9,
+      "planned_slot_wpm": 77.1,
+      "text": "OrderTruth connects the payment evidence to the merchant outcome."
+    },
+    {
+      "id": "S04",
+      "start": 32,
+      "end": 50,
+      "frames": 540,
+      "words": 30,
+      "planned_slot_wpm": 100.0,
+      "text": "This case references a genuine, previously captured PayPal Sandbox payment, verified through an Orders API readback. We reuse that stored observation. No new payment is taken to create this case."
+    },
+    {
+      "id": "S05",
+      "start": 50,
+      "end": 65,
+      "frames": 450,
+      "words": 29,
+      "planned_slot_wpm": 116.0,
+      "text": "For this reference merchant, one purchase should leave one active order. I introduce a labelled merchant-side duplicate. Deterministic checks detect two active orders linked to the same payment observation."
+    },
+    {
+      "id": "S06",
+      "start": 65,
+      "end": 78,
+      "frames": 390,
+      "words": 24,
+      "planned_slot_wpm": 110.8,
+      "text": "Autopilot investigates the merchant discrepancy. The model chooses two competing explanations and a relevant read-only check from a server-built menu. Code validates that choice."
+    },
+    {
+      "id": "S07",
+      "start": 78,
+      "end": 102,
+      "frames": 720,
+      "words": 41,
+      "planned_slot_wpm": 102.5,
+      "text": "Here, the server runs the chosen check and records the result beneath the model's decision. Autopilot uses the updated evidence to choose its next step. The model selects; the backend supplies the factual text. Payment observations are excluded from model input."
+    },
+    {
+      "id": "S08",
+      "start": 102,
+      "end": 114,
+      "frames": 360,
+      "words": 26,
+      "planned_slot_wpm": 130.0,
+      "text": "When the required checks for this comparison are recorded, it can conclude. The explanations remain hypotheses. Autopilot cannot approve a correction, capture money, or issue refunds."
+    },
+    {
+      "id": "S09",
+      "start": 114,
+      "end": 133,
+      "frames": 570,
+      "words": 35,
+      "planned_slot_wpm": 110.5,
+      "text": "Now I review the exact merchant-only plan: keep this order and void the duplicate. I approve that specific plan, then execute it separately. The correction changes merchant order state; it makes no PayPal payment call."
+    },
+    {
+      "id": "S10",
+      "start": 133,
+      "end": 151,
+      "frames": 540,
+      "words": 31,
+      "planned_slot_wpm": 103.3,
+      "text": "The receipt independently rechecks the merchant outcome: one active matching order, with unchanged stored PayPal evidence. I reload the page and reopen the same receipt. The recorded outcome is still there."
+    },
+    {
+      "id": "S11",
+      "start": 151,
+      "end": 162,
+      "frames": 330,
+      "words": 14,
+      "planned_slot_wpm": 76.4,
+      "text": "One payment. Two orders. One verified outcome. OrderTruth. AI investigates. You decide. Code verifies."
+    }
+  ]
+}

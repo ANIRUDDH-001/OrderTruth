@@ -1,0 +1,14 @@
+{
+  "name": "ordertruth-video-render-test",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": "24.x"
+  },
+  "dependencies": {
+    "hyperframes": "0.9.32",
+    "puppeteer-core": "25.17.0",
+    "playwright": "1.66.0-alpha-2026-11-09"
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "node": "24.11.0",
+  "playwright": "1.66.0-alpha-2026-11-09",
+  "chromium": "158.0.8127.18",
+  "chromiumRevision": "1254",
+  "ffmpeg": "9.0.2",
+  "ffmpegUrl": "https://github.com/GyanD/codexffmpeg/releases/download/9.0.2/ffmpeg-9.0.2-full_build.zip",
+  "ffmpegSha256": "759D0A9831C436A0EB331AD36F236C06CB04AAA0005DA46571F0E9D3D9206F6B"
+}
