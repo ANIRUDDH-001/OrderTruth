@@ -1,0 +1,9 @@
+'use strict';
+const {test}=require('node:test'),assert=require('node:assert/strict');
+const {validateEnvironment,validateMedia,blockPageNetwork,HTML}=require('./recording-smoke.cjs');
+const env={GITHUB_ACTIONS:'true',GITHUB_RUN_ATTEMPT:'1',CLOUD_STAGE:'recording-smoke',OWNER_AUTHORIZATION:'RECORDING_SMOKE'};
+const meta=()=>({streams:[{codec_type:'video',codec_name:'h264',width:1920,height:1080,avg_frame_rate:'30/1',pix_fmt:'yuv420p',nb_read_frames:'150'}],format:{duration:'5.000'}});
+test('smoke only: no local browser, rerun, guest secret or plan',()=>{validateEnvironment(env);for(const bad of [{GITHUB_ACTIONS:'false'},{GITHUB_RUN_ATTEMPT:'2'},{CLOUD_STAGE:'approve'},{OWNER_AUTHORIZATION:'APPROVE_EXACT_PLAN'},{ORDERTRUTH_GUEST_SESSION_B64:'synthetic'},{REVIEWED_PLAN_ID:'synthetic'},{REVIEWED_PLAN_SHA256:'synthetic'}])assert.throws(()=>validateEnvironment({...env,...bad}));});
+test('QC requires five seconds, 150 frames and exact H264 1080p30',()=>{assert.equal(validateMedia(meta()).frames,150);for(const [k,v] of Object.entries({codec_name:'vp9',width:1280,height:720,avg_frame_rate:'25/1',nb_read_frames:'149',pix_fmt:'yuv444p'})){const m=meta();m.streams[0][k]=v;assert.throws(()=>validateMedia(m));}const m=meta();m.format.duration='4';assert.throws(()=>validateMedia(m));});
+test('page HTTP and WebSocket routes are unconditionally blocked while offline',async()=>{let offline,route,ws,count=0;await blockPageNetwork({async setOffline(v){offline=v;},async route(pattern,fn){assert.equal(pattern,'**/*');route=fn;},async routeWebSocket(pattern,fn){assert.equal(pattern,'**/*');ws=fn;}},()=>count++);let aborted=false,closed=false;await route({async abort(){aborted=true;}});ws({close(){closed=true;}});assert(offline&&aborted&&closed);assert.equal(count,2);});
+test('local HTML has restrictive CSP and no external asset references',()=>{assert(HTML.includes("default-src 'none'"));assert(!/https?:|src=|href=|fetch\(|WebSocket/.test(HTML));});

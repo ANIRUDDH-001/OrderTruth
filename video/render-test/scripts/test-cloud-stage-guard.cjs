@@ -11,4 +11,8 @@ for(const bad of [{GITHUB_RUN_ATTEMPT:'2'},{GITHUB_EVENT_NAME:'workflow_dispatch
 assert.throws(()=>validate(c,{...e,forced:true},env,sha,files));
 assert.throws(()=>validate(c,e,env,head,files));
 assert.throws(()=>validate(c,e,env,sha,['src/application.ts']));
-console.log('PASS: 12 stage guard cases; no network or Git writes.');
+const smoke={...c,stage:'recording-smoke',authorization:'RECORDING_SMOKE'};
+validate(smoke,e,env,sha,files);
+assert.throws(()=>validate({...smoke,authorization:'APPROVE_EXACT_PLAN'},e,env,sha,files));
+assert.throws(()=>validate({...smoke,reviewedPlanId:'rp_'+'a'.repeat(36)},e,env,sha,files));
+console.log('PASS: 15 stage guard cases; no network or Git writes.');

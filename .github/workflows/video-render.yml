@@ -56,6 +56,7 @@ jobs:
           "PLAYWRIGHT_BROWSERS_PATH=$(Join-Path $env:RUNNER_TEMP 'ordertruth-playwright')" | Out-File -LiteralPath $env:GITHUB_ENV -Append -Encoding utf8
           "CAPTURE_OUTPUT=$(Join-Path $env:RUNNER_TEMP 'ordertruth-continuation')" | Out-File -LiteralPath $env:GITHUB_ENV -Append -Encoding utf8
       - name: Browser-free policy and manifest checks
+        if: env.CLOUD_STAGE != 'recording-smoke'
         run: |
           $ErrorActionPreference = 'Stop'
           New-Item -ItemType Directory -Force qc | Out-Null
@@ -73,6 +74,15 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Assembly policy failed' }
           python production/assemble-host.py final/cloud --manifest $env:ASSEMBLY_MANIFEST --validate-only
           if ($LASTEXITCODE -ne 0) { throw 'Scene manifest failed' }
+      - name: Browser-free recording smoke checks
+        if: env.CLOUD_STAGE == 'recording-smoke'
+        run: |
+          node scripts/verify-publication.cjs
+          if ($LASTEXITCODE -ne 0) { throw 'Publication inventory failed' }
+          node scripts/test-cloud-stage-guard.cjs
+          if ($LASTEXITCODE -ne 0) { throw 'Stage guard failed' }
+          node --test production/recording-smoke.test.cjs production/recording-lifecycle.test.cjs
+          if ($LASTEXITCODE -ne 0) { throw 'Smoke/lifecycle checks failed' }
       - name: Install locked dependencies without lifecycle scripts
         if: env.CLOUD_STAGE != 'validate'
         run: |
@@ -81,6 +91,12 @@ jobs:
       - name: Install hash-verified tools and pinned Chromium
         if: env.CLOUD_STAGE != 'validate'
         run: ./scripts/install-windows-tools.ps1
+      - name: Record local HTML lifecycle smoke test
+        if: env.CLOUD_STAGE == 'recording-smoke'
+        timeout-minutes: 4
+        run: |
+          node production/recording-smoke.cjs
+          if ($LASTEXITCODE -ne 0) { throw 'Recording smoke failed; no automatic retry' }
       - name: Capture exactly one authorized existing-case stage
         if: env.CLOUD_STAGE == 'plan' || env.CLOUD_STAGE == 'approve' || env.CLOUD_STAGE == 'execute'
         timeout-minutes: 8
@@ -121,6 +137,25 @@ jobs:
           if-no-files-found: error
           retention-days: 7
           compression-level: 0
+      - name: Upload verified recording smoke only
+        if: success() && env.CLOUD_STAGE == 'recording-smoke'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: ordertruth-recording-smoke-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/ordertruth-recording-smoke/public/recording-smoke.mp4
+            ${{ runner.temp }}/ordertruth-recording-smoke/public/qc.json
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0
+      - name: Preserve sanitized smoke failure QC
+        if: failure() && env.CLOUD_STAGE == 'recording-smoke'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: ordertruth-recording-smoke-failure-${{ github.run_id }}
+          path: ${{ runner.temp }}/ordertruth-recording-smoke/public/qc.json
+          if-no-files-found: warn
+          retention-days: 7
       - name: Preserve fixed sanitized capture failure report
         if: failure() && (env.CLOUD_STAGE == 'plan' || env.CLOUD_STAGE == 'approve' || env.CLOUD_STAGE == 'execute')
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
@@ -135,7 +170,7 @@ jobs:
           $ErrorActionPreference = 'Stop'
           # Fixed descendants only; no path is taken from session data or workflow inputs.
           $TempRoot = [IO.Path]::GetFullPath($env:RUNNER_TEMP).TrimEnd([IO.Path]::DirectorySeparatorChar)
-          foreach ($Leaf in @('ordertruth-session-private','ordertruth-continuation')) {
+          foreach ($Leaf in @('ordertruth-session-private','ordertruth-continuation','ordertruth-recording-smoke')) {
             $Target = [IO.Path]::GetFullPath((Join-Path $TempRoot $Leaf))
             if (-not $Target.StartsWith($TempRoot + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)) { throw 'Cleanup containment failed' }
             if (Test-Path -LiteralPath $Target) { Remove-Item -LiteralPath $Target -Recurse -Force }

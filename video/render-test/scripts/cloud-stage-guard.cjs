@@ -2,7 +2,7 @@
 const fs = require('node:fs');
 const assert = require('node:assert/strict');
 const {execFileSync} = require('node:child_process');
-const stages = {validate:'NONE',plan:'PREPARE_FRESH_PLAN',approve:'APPROVE_EXACT_PLAN',execute:'EXECUTE_EXACT_PLAN','assemble-review':'ASSEMBLE_REVIEW','assemble-final':'ASSEMBLE_FINAL'};
+const stages = {validate:'NONE','recording-smoke':'RECORDING_SMOKE',plan:'PREPARE_FRESH_PLAN',approve:'APPROVE_EXACT_PLAN',execute:'EXECUTE_EXACT_PLAN','assemble-review':'ASSEMBLE_REVIEW','assemble-final':'ASSEMBLE_FINAL'};
 function validate(config,event,env,parent,changed) {
   assert.deepEqual(Object.keys(config).sort(), ['authorization','expectedBefore','manifest','reviewedPlanId','reviewedPlanSha256','stage','version'].sort());
   assert.equal(config.version,1);

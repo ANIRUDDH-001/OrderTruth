@@ -32,13 +32,25 @@ for step in steps:
         if step['name']=='Preserve fixed sanitized capture failure report':
             assert step['if']=="failure() && (env.CLOUD_STAGE == 'plan' || env.CLOUD_STAGE == 'approve' || env.CLOUD_STAGE == 'execute')"
             assert paths==['${{ runner.temp }}/ordertruth-continuation/public/failure-report.json']
+        elif step['name']=='Preserve sanitized smoke failure QC':
+            assert step['if']=="failure() && env.CLOUD_STAGE == 'recording-smoke'"
+            assert paths==['${{ runner.temp }}/ordertruth-recording-smoke/public/qc.json']
         else:assert step['if'].startswith('success()')
 secret_steps=[s for s in steps if 'secrets.' in str(s)]
 assert len(secret_steps)==1
 assert secret_steps[0]['name']=='Capture exactly one authorized existing-case stage'
+assert secret_steps[0]['if']=="env.CLOUD_STAGE == 'plan' || env.CLOUD_STAGE == 'approve' || env.CLOUD_STAGE == 'execute'"
+by_name={s.get('name'):s for s in steps}
+smoke=by_name['Record local HTML lifecycle smoke test']
+assert smoke['if']=="env.CLOUD_STAGE == 'recording-smoke'" and 'env' not in smoke
+assert smoke['run'].count('node production/recording-smoke.cjs')==1
+assert by_name['Browser-free policy and manifest checks']['if']=="env.CLOUD_STAGE != 'recording-smoke'"
+assert by_name['Assemble reviewed manifest sequentially']['if']=="env.CLOUD_STAGE == 'assemble-review' || env.CLOUD_STAGE == 'assemble-final'"
+assert by_name['Upload verified recording smoke only']['with']['path'].splitlines()==['${{ runner.temp }}/ordertruth-recording-smoke/public/recording-smoke.mp4','${{ runner.temp }}/ordertruth-recording-smoke/public/qc.json']
 cleanup=steps[-1]
 assert cleanup['if']=='always()'
 assert 'ordertruth-session-private' in cleanup['run']
+assert 'ordertruth-recording-smoke' in cleanup['run']
 assert 'GetFullPath' in cleanup['run'] and 'StartsWith' in cleanup['run']
 failure_index=next(i for i,s in enumerate(steps) if s.get('name')=='Preserve fixed sanitized capture failure report')
 assert failure_index==len(steps)-2, 'Failure report must be uploaded before cleanup'
