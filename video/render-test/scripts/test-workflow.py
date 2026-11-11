@@ -16,6 +16,14 @@ assert job['environment']=='ordertruth-video'
 assert 'github.run_attempt == 1' in job['if']
 assert 'run_number' not in workflow.read_text(encoding='utf-8-sig')
 steps=job['steps']
+checkout_index=next(i for i,s in enumerate(steps) if s.get('uses','').startswith('actions/checkout@'))
+byte_step=steps[0]
+assert checkout_index==1, 'Byte-preserving configuration must precede checkout'
+assert byte_step['name']=='Preserve committed bytes before checkout'
+assert byte_step['working-directory']=='${{ runner.temp }}', 'Video folder does not exist before checkout'
+assert 'git config --global core.autocrlf false' in byte_step['run']
+assert 'git config --global core.eol lf' in byte_step['run']
+assert byte_step['run'].count('if ($LASTEXITCODE -ne 0)')==2
 for step in steps:
     if 'uses' in step: assert re.fullmatch(r'actions/[a-z-]+@[0-9a-f]{40}',step['uses'])
     if 'upload-artifact' in step.get('uses',''):
