@@ -1,9 +1,9 @@
 {
   "version": 1,
-  "stage": "plan",
-  "expectedBefore": "4b04b99b53da81d9b5597c428ac3f4e6a84d575a",
-  "authorization": "PREPARE_FRESH_PLAN",
-  "reviewedPlanId": "",
-  "reviewedPlanSha256": "",
+  "stage": "approve",
+  "expectedBefore": "8363ad2c49f89b3ef0b031aa66c5ed2574cff2ea",
+  "authorization": "APPROVE_EXACT_PLAN",
+  "reviewedPlanId": "rp_7513f77f-dcfe-41da-9ea5-395950ceab6c",
+  "reviewedPlanSha256": "5a6f97bf595044150b6616c24b8d39c7d24a750cb33e3a9cf66dea2cf68d68d9",
   "manifest": "production/scene-sources.review.json"
 }

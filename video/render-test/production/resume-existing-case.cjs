@@ -5,6 +5,20 @@ const {spawnSync}=require('node:child_process');
 const {CASE,ORIGIN,BASE,validateCase,validatePlan,validReceipt,validateSession,configFromEnv,makePolicy,publicCapture}=require('./capture-policy.cjs');
 const {createDiagnostics}=require('./capture-diagnostics.cjs');
 function child(root,file){const p=path.resolve(file);assert(p.startsWith(path.resolve(root)+path.sep));return p;}
+async function finalizeRecording({context,browser,video,rawPath,shouldSave,pending=[]},diag){
+ let failure;
+ try{
+  if(shouldSave)diag.phase('browser-close');
+  if(context)await context.close();
+  await Promise.allSettled([...pending]);
+  if(shouldSave){diag.phase('video-save');assert(video,'Recorded video missing');await video.saveAs(rawPath);}
+ }catch(error){diag.fail();failure=error;}
+ finally{
+  try{if(shouldSave&&!failure)diag.phase('browser-close');if(browser)await browser.close();}
+  catch(error){if(!failure){diag.fail();failure=error;}}
+ }
+ if(failure)throw failure;
+}
 async function main(diag){
  const config=configFromEnv(process.env);assert.equal(process.env.GITHUB_ACTIONS,'true','Hosted capture only');assert.equal(process.env.GITHUB_RUN_ATTEMPT,'1','No mutation reruns');
  const root=fs.realpathSync(process.env.VIDEO_WORKSPACE),temp=fs.realpathSync(process.env.RUNNER_TEMP);
@@ -72,11 +86,11 @@ async function main(diag){
   assert(policy.used);success=true;
  }catch{diag.fail();throw Error('CAPTURE_STAGE_FAILED');}finally{
   const captureEnd=epoch?(Date.now()-epoch)/1000:0;
-  if(success)diag.phase('browser-close');
-  if(context)await context.close().catch(()=>{success=false;diag.fail();});await Promise.allSettled([...pending]);if(browser)await browser.close().catch(()=>{success=false;diag.fail();});
   try{
+   const raw=path.join(privateDir,'capture.webm');
+   await finalizeRecording({context,browser,video,rawPath:raw,shouldSave:success,pending},diag);
    if(success&&video){
-    diag.phase('video-save');const raw=path.join(privateDir,'capture.webm');await video.saveAs(raw);const mp4=path.join(out,'continuation.mp4');
+    const mp4=path.join(out,'continuation.mp4');
     function run(tool,args){const r=spawnSync(tool,args,{encoding:'utf8',windowsHide:true,maxBuffer:4*1024*1024});assert.equal(r.status,0,'MEDIA_CHECK_FAILED');return r.stdout;}
     diag.phase('encode');run(process.env.FFMPEG_PATH,['-v','error','-xerror','-threads','1','-i',raw,'-vf','fps=30,scale=1920:1080,setsar=1','-an','-c:v','libx264','-preset','ultrafast','-crf','20','-threads','1','-filter_threads','1','-pix_fmt','yuv420p','-movflags','+faststart','-n',mp4]);
     diag.phase('probe');const meta=JSON.parse(run(process.env.FFPROBE_PATH,['-v','error','-show_streams','-show_format','-of','json',mp4])),v=meta.streams.find(s=>s.codec_type==='video');assert(v.codec_name==='h264'&&v.width===1920&&v.height===1080&&v.avg_frame_rate==='30/1');
@@ -109,8 +123,8 @@ async function runHosted(){
   console.error('CAPTURE_STOPPED: no automatic retry; reconcile the same case.');process.exitCode=1;
  }
 }
+module.exports={child,finalizeRecording};
 if(require.main===module){
- if(process.argv.includes('--policy-self-test'))require('./capture-policy.test.cjs');
+ if(process.argv.includes('--policy-self-test')){require('./capture-policy.test.cjs');require('./recording-lifecycle.test.cjs');}
  else runHosted();
 }
-module.exports={child};
