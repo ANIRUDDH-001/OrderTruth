@@ -29,7 +29,10 @@ for step in steps:
     if 'upload-artifact' in step.get('uses',''):
         paths=step['with']['path'].splitlines()
         assert all('*' not in p and 'private' not in p and not p.endswith('.webm') for p in paths)
-        assert step['if'].startswith('success()')
+        if step['name']=='Preserve fixed sanitized capture failure report':
+            assert step['if']=="failure() && (env.CLOUD_STAGE == 'plan' || env.CLOUD_STAGE == 'approve' || env.CLOUD_STAGE == 'execute')"
+            assert paths==['${{ runner.temp }}/ordertruth-continuation/public/failure-report.json']
+        else:assert step['if'].startswith('success()')
 secret_steps=[s for s in steps if 'secrets.' in str(s)]
 assert len(secret_steps)==1
 assert secret_steps[0]['name']=='Capture exactly one authorized existing-case stage'
@@ -37,5 +40,7 @@ cleanup=steps[-1]
 assert cleanup['if']=='always()'
 assert 'ordertruth-session-private' in cleanup['run']
 assert 'GetFullPath' in cleanup['run'] and 'StartsWith' in cleanup['run']
+failure_index=next(i for i,s in enumerate(steps) if s.get('name')=='Preserve fixed sanitized capture failure report')
+assert failure_index==len(steps)-2, 'Failure report must be uploaded before cleanup'
 assert not any('workflow_dispatch' in str(s) for s in steps)
 print('PASS: push-only stage workflow, pinned actions, secret isolation, explicit artifact paths, cleanup.')

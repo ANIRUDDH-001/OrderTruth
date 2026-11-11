@@ -1,0 +1,15 @@
+const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),os=require('node:os'),path=require('node:path');
+const {createDiagnostics}=require('./capture-diagnostics.cjs');
+function fixture(t){const dir=fs.mkdtempSync(path.join(os.tmpdir(),'ordertruth-diag-'));t.after(()=>fs.rmSync(dir,{recursive:true,force:true}));const file=path.join(dir,'failure-report.json');return {file,d:createDiagnostics(file,'plan')};}
+test('before-write failure explicitly records no admitted POST',t=>{const {file,d}=fixture(t);d.phase('session-validation');d.fail();const x=JSON.parse(fs.readFileSync(file));assert.equal(x.postAdmitted,false);assert.equal(x.postOutcome,'NOT_SENT');assert.equal(x.failedPhase,'session-validation');});
+test('admission is durable before network; uncertain outcome survives failure',t=>{const {file,d}=fixture(t);d.phase('action-click');d.admit('plan');assert.equal(JSON.parse(fs.readFileSync(file)).postOutcome,'UNKNOWN');d.fail();assert.equal(d.snapshot().postAdmitted,true);assert.throws(()=>d.admit('plan'));});
+test('observed plan survives encoding failure and cleanup reporting',t=>{const {d}=fixture(t);d.admit('plan');d.response(200);d.observed();d.phase('encode');d.fail();d.cleanup(true);assert.equal(d.snapshot().postOutcome,'STATE_OBSERVED');assert.equal(d.snapshot().failedPhase,'encode');assert.equal(d.snapshot().privateCleanup,'SUCCEEDED');});
+test('foreign operation and arbitrary diagnostics cannot leak secrets',t=>{const {file,d}=fixture(t);assert.throws(()=>d.admit('execute'));assert.throws(()=>d.phase('SYNTHETIC_COOKIE_MARKER'));d.fail(new Error('SYNTHETIC_COOKIE_MARKER'));assert(!fs.readFileSync(file,'utf8').includes('SYNTHETIC_COOKIE_MARKER'));assert.deepEqual(Object.keys(d.snapshot()).sort(),['schemaVersion','caseId','stage','phase','failedPhase','status','postAdmitted','postOperation','postOutcome','responseClass','privateCleanup'].sort());});
+test('admission persistence failure throws before a sender could run',t=>{const {file,d}=fixture(t);fs.unlinkSync(file);fs.mkdirSync(file);let sent=false;assert.throws(()=>{d.admit('plan');sent=true;});assert.equal(sent,false);});
+test('real entry point reports preflight failure without browser or session disclosure',t=>{
+ const dir=fs.mkdtempSync(path.join(os.tmpdir(),'ordertruth-entry-'));t.after(()=>fs.rmSync(dir,{recursive:true,force:true}));
+ const output=path.join(dir,'ordertruth-continuation');
+ const r=require('node:child_process').spawnSync(process.execPath,[path.join(__dirname,'resume-existing-case.cjs')],{encoding:'utf8',env:{...process.env,GITHUB_ACTIONS:'true',GITHUB_RUN_ATTEMPT:'1',VIDEO_WORKSPACE:dir,RUNNER_TEMP:dir,CAPTURE_OUTPUT:output,CAPTURE_STAGE:'plan',OWNER_AUTHORIZATION:'PREPARE_FRESH_PLAN',ORDERTRUTH_GUEST_SESSION_B64:'SYNTHETIC_COOKIE_MARKER'}});
+ assert.equal(r.status,1);assert(!(r.stdout+r.stderr).includes('SYNTHETIC_COOKIE_MARKER'));
+ const report=JSON.parse(fs.readFileSync(path.join(output,'public','failure-report.json')));assert.equal(report.failedPhase,'preflight');assert.equal(report.postAdmitted,false);assert.equal(report.postOutcome,'NOT_SENT');
+});
