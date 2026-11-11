@@ -70,6 +70,8 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Capture policy failed' }
           node --test production/capture-diagnostics.test.cjs
           if ($LASTEXITCODE -ne 0) { throw 'Capture diagnostics failed' }
+          node --test production/autopilot-one-step.test.cjs
+          if ($LASTEXITCODE -ne 0) { throw 'One-step AI policy failed' }
           python production/test_assembly_manifest.py
           if ($LASTEXITCODE -ne 0) { throw 'Assembly policy failed' }
           python production/assemble-host.py final/cloud --manifest $env:ASSEMBLY_MANIFEST --validate-only
@@ -97,6 +99,14 @@ jobs:
         run: |
           node production/recording-smoke.cjs
           if ($LASTEXITCODE -ne 0) { throw 'Recording smoke failed; no automatic retry' }
+      - name: Capture one authorized Autopilot step
+        if: env.CLOUD_STAGE == 'autopilot-one-step'
+        timeout-minutes: 8
+        env:
+          ORDERTRUTH_GUEST_SESSION_B64: ${{ secrets.ORDERTRUTH_GUEST_SESSION_B64 }}
+        run: |
+          node production/autopilot-one-step.cjs
+          if ($LASTEXITCODE -ne 0) { throw 'AI capture stopped; reconcile read-only. No automatic retry.' }
       - name: Capture exactly one authorized existing-case stage
         if: env.CLOUD_STAGE == 'plan' || env.CLOUD_STAGE == 'approve' || env.CLOUD_STAGE == 'execute'
         timeout-minutes: 8
@@ -156,6 +166,25 @@ jobs:
           path: ${{ runner.temp }}/ordertruth-recording-smoke/public/qc.json
           if-no-files-found: warn
           retention-days: 7
+      - name: Upload verified one-step AI evidence only
+        if: success() && env.CLOUD_STAGE == 'autopilot-one-step'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: ordertruth-autopilot-one-step-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/ordertruth-ai-one-step/public/autopilot-one-step.mp4
+            ${{ runner.temp }}/ordertruth-ai-one-step/public/capture.json
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0
+      - name: Preserve sanitized AI failure report
+        if: failure() && env.CLOUD_STAGE == 'autopilot-one-step'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: ordertruth-autopilot-one-step-failure-${{ github.run_id }}
+          path: ${{ runner.temp }}/ordertruth-ai-one-step/public/failure-report.json
+          if-no-files-found: warn
+          retention-days: 7
       - name: Preserve fixed sanitized capture failure report
         if: failure() && (env.CLOUD_STAGE == 'plan' || env.CLOUD_STAGE == 'approve' || env.CLOUD_STAGE == 'execute')
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
@@ -170,7 +199,7 @@ jobs:
           $ErrorActionPreference = 'Stop'
           # Fixed descendants only; no path is taken from session data or workflow inputs.
           $TempRoot = [IO.Path]::GetFullPath($env:RUNNER_TEMP).TrimEnd([IO.Path]::DirectorySeparatorChar)
-          foreach ($Leaf in @('ordertruth-session-private','ordertruth-continuation','ordertruth-recording-smoke')) {
+          foreach ($Leaf in @('ordertruth-session-private','ordertruth-continuation','ordertruth-recording-smoke','ordertruth-ai-one-step','ordertruth-ai-private')) {
             $Target = [IO.Path]::GetFullPath((Join-Path $TempRoot $Leaf))
             if (-not $Target.StartsWith($TempRoot + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)) { throw 'Cleanup containment failed' }
             if (Test-Path -LiteralPath $Target) { Remove-Item -LiteralPath $Target -Recurse -Force }
