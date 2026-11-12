@@ -114,8 +114,8 @@ rough=RUN/'OrderTruth-Rough-Cut.mp4'
 command([FFMPEG,'-v','error','-f','concat','-safe','0','-i',listing,'-c','copy','-movflags','+faststart','-n',rough])
 final_dir=RUN;final=final_dir/(name+'.mp4');assert not final.exists(),'Preserving existing final output'
 subpath=local_srt.as_posix().replace(':','\\:').replace("'","\\'")
-command([FFMPEG,'-v','error','-threads','1','-i',rough,'-vf',f"subtitles=filename='{subpath}':force_style='FontName=Arial,FontSize=14,Outline=1,Shadow=0,MarginV=14'",
- '-t','162','-r','30','-c:v','libx264','-preset','veryfast','-tune','zerolatency','-crf','20','-threads','1','-filter_threads','1','-pix_fmt','yuv420p',
+command([FFMPEG,'-v','error','-threads','1','-i',rough,'-vf',f"subtitles=filename='{subpath}':force_style='FontName=Arial,FontSize=14,Outline=1,Shadow=0,MarginV=14',scale=out_range=tv,format=yuv420p",
+ '-t','162','-r','30','-c:v','libx264','-preset','veryfast','-tune','zerolatency','-crf','20','-threads','1','-filter_threads','1','-pix_fmt','yuv420p','-color_range','tv',
  '-c:a','aac','-b:a','160k','-ar','48000','-movflags','+faststart','-n',final])
 m=probe(final)
 diagnostics=write_stream_report(m,final_dir/'assembly-diagnostics.json')
