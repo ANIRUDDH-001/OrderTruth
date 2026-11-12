@@ -38,6 +38,10 @@ for step in steps:
         elif step['name']=='Preserve sanitized AI failure report':
             assert step['if']=="failure() && env.CLOUD_STAGE == 'autopilot-one-step'"
             assert paths==['${{ runner.temp }}/ordertruth-ai-one-step/public/failure-report.json']
+        elif step['name']=='Preserve unverified assembly for diagnosis':
+            assert step['if']=="failure() && (env.CLOUD_STAGE == 'assemble-review' || env.CLOUD_STAGE == 'assemble-final')"
+            assert 'UNVERIFIED' in step['with']['name']
+            assert paths==['video/render-test/final/cloud/assembly-diagnostics.json','video/render-test/final/cloud/OrderTruth-Final-Demo.mp4','video/render-test/final/cloud/OrderTruth-Final-Demo.srt','video/render-test/final/cloud/OrderTruth-Incomplete-Review.mp4','video/render-test/final/cloud/OrderTruth-Incomplete-Review.srt']
         else:assert step['if'].startswith('success()')
 secret_steps=[s for s in steps if 'secrets.' in str(s)]
 assert len(secret_steps)==2

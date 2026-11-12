@@ -3,6 +3,7 @@ from pathlib import Path
 import sys,json,re,textwrap,subprocess,hashlib,math,os,shutil
 import argparse
 from assembly_manifest import validate,safe_file,scene_tasks
+from assembly_media_qc import write_stream_report,require_streams
 parser=argparse.ArgumentParser(description='Manifest-driven adapter of the sequential cloud assembler')
 parser.add_argument('run',type=Path)
 parser.add_argument('--manifest',type=Path,required=True)
@@ -116,9 +117,10 @@ subpath=local_srt.as_posix().replace(':','\\:').replace("'","\\'")
 command([FFMPEG,'-v','error','-threads','1','-i',rough,'-vf',f"subtitles=filename='{subpath}':force_style='FontName=Arial,FontSize=14,Outline=1,Shadow=0,MarginV=14'",
  '-t','162','-r','30','-c:v','libx264','-preset','veryfast','-tune','zerolatency','-crf','20','-threads','1','-filter_threads','1','-pix_fmt','yuv420p',
  '-c:a','aac','-b:a','160k','-ar','48000','-movflags','+faststart','-n',final])
-m=probe(final);v=next(s for s in m['streams'] if s['codec_type']=='video');a=next(s for s in m['streams'] if s['codec_type']=='audio')
-assert v['width']==1920 and v['height']==1080 and v['avg_frame_rate']=='30/1' and v['codec_name']=='h264' and v['pix_fmt']=='yuv420p'
-assert a['codec_name']=='aac' and int(a['sample_rate'])==48000 and abs(float(m['format']['duration'])-162)<0.15 and float(m['format']['duration'])<180
+m=probe(final)
+diagnostics=write_stream_report(m,final_dir/'assembly-diagnostics.json')
+require_streams(diagnostics)
+v=next(s for s in m['streams'] if s['codec_type']=='video');a=next(s for s in m['streams'] if s['codec_type']=='audio')
 command([FFMPEG,'-v','error','-xerror','-threads','1','-i',final,'-f','null','-'])
 frame_info=json.loads(subprocess.check_output([str(FFPROBE),'-v','error','-threads','1','-select_streams','v:0','-count_frames','-show_entries','stream=nb_read_frames','-of','json',str(final)]));assert int(frame_info['streams'][0]['nb_read_frames'])==4860
 level=subprocess.run([str(FFMPEG),'-hide_banner','-i',str(final),'-vn','-af','volumedetect','-f','null','-'],capture_output=True,text=True,check=True).stderr

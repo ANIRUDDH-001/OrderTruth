@@ -72,6 +72,8 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Capture diagnostics failed' }
           node --test production/autopilot-one-step.test.cjs
           if ($LASTEXITCODE -ne 0) { throw 'One-step AI policy failed' }
+          python production/test_assembly_media_qc.py
+          if ($LASTEXITCODE -ne 0) { throw 'Assembly media diagnostic tests failed' }
           python production/test_assembly_manifest.py
           if ($LASTEXITCODE -ne 0) { throw 'Assembly policy failed' }
           python production/assemble-host.py final/cloud --manifest $env:ASSEMBLY_MANIFEST --validate-only
@@ -185,6 +187,20 @@ jobs:
           path: ${{ runner.temp }}/ordertruth-ai-one-step/public/failure-report.json
           if-no-files-found: warn
           retention-days: 7
+      - name: Preserve unverified assembly for diagnosis
+        if: failure() && (env.CLOUD_STAGE == 'assemble-review' || env.CLOUD_STAGE == 'assemble-final')
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: ordertruth-assembly-UNVERIFIED-${{ github.run_id }}
+          path: |
+            video/render-test/final/cloud/assembly-diagnostics.json
+            video/render-test/final/cloud/OrderTruth-Final-Demo.mp4
+            video/render-test/final/cloud/OrderTruth-Final-Demo.srt
+            video/render-test/final/cloud/OrderTruth-Incomplete-Review.mp4
+            video/render-test/final/cloud/OrderTruth-Incomplete-Review.srt
+          if-no-files-found: warn
+          retention-days: 7
+          compression-level: 0
       - name: Preserve fixed sanitized capture failure report
         if: failure() && (env.CLOUD_STAGE == 'plan' || env.CLOUD_STAGE == 'approve' || env.CLOUD_STAGE == 'execute')
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
