@@ -1,0 +1,158 @@
+{
+  "caseId": "run_0ddc4e8b-f040-4ad7-8ea2-098f8beeae95",
+  "receiptId": "rx_b490220f-9a6f-461a-b81e-2f41edefc78f",
+  "recordings": [
+    {
+      "source": "ai",
+      "runId": 43118550257,
+      "runUrl": "https://github.com/ANIRUDDH-001/OrderTruth/actions/runs/43118550257",
+      "media": {
+        "path": "production-assets/continuation/ai.mp4",
+        "sha256": "89769bae756b97d675aae407367c75bbbcb5fbe23bacb844bccc6f0773032347"
+      },
+      "proof": {
+        "path": "production-assets/continuation/ai.capture.json",
+        "sha256": "5f17eba785e1276f0aa162c8265098f21718135819f8767e33f4081f048af218"
+      }
+    },
+    {
+      "source": "plan",
+      "runId": 43120206394,
+      "runUrl": "https://github.com/ANIRUDDH-001/OrderTruth/actions/runs/43120206394",
+      "media": {
+        "path": "production-assets/continuation/plan.mp4",
+        "sha256": "84d07e58b7617bb55d7b5e85fd7032839f013ed26d597cd2105a07954dae21f2"
+      },
+      "proof": {
+        "path": "production-assets/continuation/plan.capture.json",
+        "sha256": "40ccccf05c4d89ad451c651ab74608e93e88ad99d5b240ad924c614ab8f2a38a"
+      }
+    },
+    {
+      "source": "approve",
+      "runId": 43121334527,
+      "runUrl": "https://github.com/ANIRUDDH-001/OrderTruth/actions/runs/43121334527",
+      "media": {
+        "path": "production-assets/continuation/approve.mp4",
+        "sha256": "5194744dbfa3e050962eab98216ab222cb52501614e4dd29134e2f8dfad086ea"
+      },
+      "proof": {
+        "path": "production-assets/continuation/approve.capture.json",
+        "sha256": "430c52553d611abbbf76f7609de6360063d9e3889cce52869c0576803142f276"
+      }
+    },
+    {
+      "source": "execute",
+      "runId": 43122086790,
+      "runUrl": "https://github.com/ANIRUDDH-001/OrderTruth/actions/runs/43122086790",
+      "media": {
+        "path": "production-assets/continuation/execute.mp4",
+        "sha256": "38c9034c21c517ce23e7314e5b77a73927ee53e812f3a81053985a24abbc41f4"
+      },
+      "proof": {
+        "path": "production-assets/continuation/execute.capture.json",
+        "sha256": "1187de5b82dd97bb33fcf0f9ee64f660a48e8a7cbbec50225d1497194cced6ee"
+      }
+    }
+  ],
+  "assets": [
+    {
+      "path": "production-assets/product-deterministic.mp4",
+      "sha256": "ea8b22621e1dd2cabf20c0724e9b0b8dd67060c683a9458d145c1c2899fd96c5"
+    },
+    {
+      "path": "renders/S02-source-card-1080p.mp4",
+      "sha256": "40c89d70ed11b79842d685dd47b813a64668e8fbbcf2616353820c0c7e4dbefe"
+    },
+    {
+      "path": "renders/S03-title-1080p.mp4",
+      "sha256": "c41f4a4484a25f04bb97a7dde3f372d4ca623500135dabe14b7ca3b4fbd88178"
+    },
+    {
+      "path": "renders/S11-end-card-1080p.mp4",
+      "sha256": "6a31e4e45bc7eabb26672254b50557d0fb9cb2a582bd367476964bcbf61d1da2"
+    },
+    {
+      "path": "production-assets/continuation/ai.mp4",
+      "sha256": "89769bae756b97d675aae407367c75bbbcb5fbe23bacb844bccc6f0773032347"
+    },
+    {
+      "path": "production-assets/continuation/ai.capture.json",
+      "sha256": "5f17eba785e1276f0aa162c8265098f21718135819f8767e33f4081f048af218"
+    },
+    {
+      "path": "production-assets/continuation/plan.mp4",
+      "sha256": "84d07e58b7617bb55d7b5e85fd7032839f013ed26d597cd2105a07954dae21f2"
+    },
+    {
+      "path": "production-assets/continuation/plan.capture.json",
+      "sha256": "40ccccf05c4d89ad451c651ab74608e93e88ad99d5b240ad924c614ab8f2a38a"
+    },
+    {
+      "path": "production-assets/continuation/approve.mp4",
+      "sha256": "5194744dbfa3e050962eab98216ab222cb52501614e4dd29134e2f8dfad086ea"
+    },
+    {
+      "path": "production-assets/continuation/approve.capture.json",
+      "sha256": "430c52553d611abbbf76f7609de6360063d9e3889cce52869c0576803142f276"
+    },
+    {
+      "path": "production-assets/continuation/execute.mp4",
+      "sha256": "38c9034c21c517ce23e7314e5b77a73927ee53e812f3a81053985a24abbc41f4"
+    },
+    {
+      "path": "production-assets/continuation/execute.capture.json",
+      "sha256": "1187de5b82dd97bb33fcf0f9ee64f660a48e8a7cbbec50225d1497194cced6ee"
+    },
+    {
+      "path": "production-assets/narration-final/narration-qc.json",
+      "sha256": "82a043e57c55fbd4bec796bb687c7a4d459a5f60bb315a18397400fa5fa24069"
+    },
+    {
+      "path": "production-assets/narration-final/S01.wav",
+      "sha256": "64a5dc33d698bc6c9434b772a541bcdf77a0e53ae29e1c616e77d3a2efb85249"
+    },
+    {
+      "path": "production-assets/narration-final/S02.wav",
+      "sha256": "ebd077e157d51ce66bc157e76013f5842be15a21728835c70d2ce24c72d0b559"
+    },
+    {
+      "path": "production-assets/narration-final/S03.wav",
+      "sha256": "c85b4a6bc2545123386f739d40867eef6832aec24380a1979815e7c7d25a301a"
+    },
+    {
+      "path": "production-assets/narration-final/S04.wav",
+      "sha256": "e10b43067cfcbca555185ef59bc5f15f3d178b7d271f3f94c0a71e44a753881c"
+    },
+    {
+      "path": "production-assets/narration-final/S05.wav",
+      "sha256": "e5f9658e0f279f534dfc5c7f3815df7b33ed9e45a5281bc6d9d4622db7c85944"
+    },
+    {
+      "path": "production-assets/narration-final/S06.wav",
+      "sha256": "85d93c24dae27a53b8c01595ee91cffef741476071e127725afec5d7a1d2b6d6"
+    },
+    {
+      "path": "production-assets/narration-final/S07.wav",
+      "sha256": "c6e437924be8a15eba9d316ab1036b7c90d02937c022a3cc79abe79c42d71b2f"
+    },
+    {
+      "path": "production-assets/narration-final/S08.wav",
+      "sha256": "17d2ab085eba727d66ef91a937bced0871fea05c312b2f2a5e505ed2087a3e11"
+    },
+    {
+      "path": "production-assets/narration-final/S09.wav",
+      "sha256": "dc3fe62ae1b4ebc6414baa82e6fcf37a9e3144bbeb45b0075c0b854b9bfdd5f6"
+    },
+    {
+      "path": "production-assets/narration-final/S10.wav",
+      "sha256": "39a2b2a84049937cb7428121d36e919466954e280d4cd6a1a9cb2e0332c9db29"
+    },
+    {
+      "path": "production-assets/narration-final/S11.wav",
+      "sha256": "fdb39548189acaa0439026093c8b0edb6dec9e23b33c32c5c7c5925779c91199"
+    }
+  ],
+  "renderStatus": "NOT_RENDERED",
+  "reviewStatus": "PENDING_VISUAL_AND_AUDIO_REVIEW"
+}

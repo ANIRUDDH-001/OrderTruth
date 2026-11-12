@@ -1,9 +1,9 @@
 {
   "version": 1,
-  "stage": "execute",
-  "expectedBefore": "4c9a753d35be506d8884ab11cc4de833ace31970",
-  "authorization": "EXECUTE_EXACT_PLAN",
-  "reviewedPlanId": "rp_b311e874-e7ca-4ec5-b268-5ae3c1d719e4",
-  "reviewedPlanSha256": "b9ed5ae8b9016ad0081b98d88af6e63145fdf61943fb1ff83235e992342ede75",
-  "manifest": "production/scene-sources.review.json"
+  "stage": "assemble-final",
+  "expectedBefore": "5f6dac424f3b35d6b42258bd754a5724070964c2",
+  "authorization": "ASSEMBLE_FINAL",
+  "reviewedPlanId": "",
+  "reviewedPlanSha256": "",
+  "manifest": "production/scene-sources.final.json"
 }

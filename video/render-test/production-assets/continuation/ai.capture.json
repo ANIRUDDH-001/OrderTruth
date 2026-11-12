@@ -1,0 +1,81 @@
+{
+  "schemaVersion": 1,
+  "stage": "autopilot-one-step",
+  "caseId": "run_0ddc4e8b-f040-4ad7-8ea2-098f8beeae95",
+  "complete": true,
+  "aiRequestCap": 1,
+  "providerRequestCount": 1,
+  "providerRequestCountBasis": "One admitted application POST and fresh result; one-request/no-retry backend source contract, not provider transport metering",
+  "aiResponses": [
+    {
+      "status": "success",
+      "freshModelExecution": true,
+      "schemaValidated": true,
+      "evaluationOnly": false,
+      "model": "groq:openai/gpt-oss-120b",
+      "snapshotSha256": "ad28f653f8f844ec6d52e5c2679213bd19d0b657a311823261e6dbc8e15b6443",
+      "generatedAt": "2026-11-11T23:20:09.595Z",
+      "usage": {
+        "promptTokens": 823,
+        "outputTokens": 136,
+        "totalTokens": 959
+      },
+      "evidenceIds": [
+        "M_run_0ddc4e8b-f040-4ad7-8ea2-098f8beeae95"
+      ],
+      "selectedDiagnostic": "HANDLER_TIMING",
+      "concluded": false,
+      "persistedAfterReload": true
+    }
+  ],
+  "events": [
+    {
+      "type": "ai-investigation",
+      "caseId": "run_0ddc4e8b-f040-4ad7-8ea2-098f8beeae95",
+      "start": 10.683999999999996,
+      "end": 84.6,
+      "status": "success",
+      "validRecordedInvestigation": true,
+      "providerRequestCount": 1,
+      "schemaValidated": true,
+      "evaluationOnly": false,
+      "freshModelExecution": true,
+      "model": "groq:openai/gpt-oss-120b",
+      "snapshotSha256": "ad28f653f8f844ec6d52e5c2679213bd19d0b657a311823261e6dbc8e15b6443",
+      "persistedAfterReload": true
+    }
+  ],
+  "shots": {
+    "S06": [
+      [
+        29.598999999999997,
+        42.599
+      ]
+    ],
+    "S07": [
+      [
+        42.599,
+        66.59899999999999
+      ]
+    ],
+    "S08": [
+      [
+        66.59899999999999,
+        78.59899999999999
+      ]
+    ]
+  },
+  "merchantStateUnchanged": true,
+  "blockedAdditionalPosts": 1,
+  "sourceSha256": "89769bae756b97d675aae407367c75bbbcb5fbe23bacb844bccc6f0773032347",
+  "recordingMp4": "autopilot-one-step.mp4",
+  "mp4Verified": {
+    "codec": "h264",
+    "width": 1920,
+    "height": 1080,
+    "fps": 30,
+    "duration": 84.6,
+    "frames": 2538,
+    "fullDecode": true
+  }
+}

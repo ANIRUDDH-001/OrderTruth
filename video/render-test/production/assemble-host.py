@@ -2,7 +2,7 @@
 from pathlib import Path
 import sys,json,re,textwrap,subprocess,hashlib,math,os,shutil
 import argparse
-from assembly_manifest import validate,safe_file
+from assembly_manifest import validate,safe_file,scene_tasks
 parser=argparse.ArgumentParser(description='Manifest-driven adapter of the sequential cloud assembler')
 parser.add_argument('run',type=Path)
 parser.add_argument('--manifest',type=Path,required=True)
@@ -87,11 +87,19 @@ for scene in scenes:
     vf.append(f'[{video_label}]{filters}[vfinal]')
     if manifest['mode']=='incomplete-review':
         vf[-1]=vf[-1].replace('[vfinal]',','+note_filter('INCOMPLETE REVIEW - AI / VERIFIED OUTCOME NOT CLAIMED',sid+'-review',90)+'[vfinal]')
+    if manifest['mode']=='final-demo' and sid in ['S06','S07','S08']:
+        ai_proofs=[json.loads(safe_file(ROOT,manifest['sources'][p['source']]['proof']).read_text(encoding='utf-8')) for p in scene['pieces'] if 'proof' in manifest['sources'][p['source']]]
+        responses=[r for proof in ai_proofs for r in proof.get('aiResponses',[])]
+        if responses and all(r.get('concluded') is False for r in responses):
+            vf[-1]=vf[-1].replace('[vfinal]',','+note_filter('One recorded AI step | Investigation not concluded',sid+'-ai-scope',90)+'[vfinal]')
     args.extend(['-i',narration])
-    vf.append(f'[1:a]aresample=48000,apad,atrim=duration={duration}[afinal]')
-    for task in qc['tasks']:
-        if task['scene']==sid:
-            subtitles.append((task['start'],task['end'],'\n'.join(textwrap.wrap(task['text'],width=42,break_long_words=False,break_on_hyphens=False))))
+    audio_filters='aresample=48000'
+    for cut in scene.get('omitNarration',[]):
+        a,b=cut['start']-scene['start'],cut['end']-scene['start']
+        audio_filters+=f",volume=0:enable='between(t,{a:.9f},{b:.9f})'"
+    vf.append(f'[1:a]{audio_filters},apad,atrim=duration={duration}[afinal]')
+    for task in scene_tasks(qc,scene):
+        subtitles.append((task['start'],task['end'],'\n'.join(textwrap.wrap(task['text'],width=42,break_long_words=False,break_on_hyphens=False))))
     graph=RUN/f'{sid}.filter';graph.write_text(';\n'.join(vf),encoding='utf-8')
     args.extend(['-/filter_complex',graph,'-map','[vfinal]','-map','[afinal]','-t',str(duration),'-r','30',
       '-c:v','libx264','-preset','veryfast','-tune','zerolatency','-crf','20','-pix_fmt','yuv420p','-threads','1','-filter_complex_threads','1',

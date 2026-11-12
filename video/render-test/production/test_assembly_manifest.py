@@ -55,11 +55,37 @@ class ManifestTests(unittest.TestCase):
     def test_private_asset(self):self.m['sources']['take']['path']='private/session.json';self.rejects()
     def test_explicit_review(self):
         self.m['mode']='incomplete-review';self.m['sources']['take']['events']=[]
+        self.update_proof()
         report=validate(self.m,self.root);self.assertFalse(report['finalDemoComplete']);self.assertEqual(report['actualProductPictureSeconds'],162)
         self.assertNotIn('sources',report);self.assertNotIn('narration',report.get('coverage',{}))
     def test_coverage_excludes_hold(self):
         self.m['mode']='incomplete-review';self.m['sources']['take']['events']=[];self.m['scenes'][0]['pieces'][0]['out']=6
+        self.update_proof()
         report=validate(self.m,self.root);self.assertEqual(report['actualProductPictureSeconds'],156);self.assertEqual(report['heldFrameSeconds'],6)
+    def test_ai_subclip_within_continuous_verified_interval(self):
+        for event in self.m['sources']['take']['events']:
+            if event['type']=='ai-investigation':event.update(start=64,end=114)
+        self.update_proof();self.assertTrue(validate(self.m,self.root)['finalDemoComplete'])
+    def test_ai_partial_overlap_is_not_evidence(self):
+        self.m['sources']['take']['events'][0].update(start=66,end=100)
+        self.update_proof();self.rejects()
+    def test_public_numeric_usage_counts_allowed(self):
+        self.update_proof(lambda p:p['aiResponses'][0].update(usage={'promptTokens':823,'outputTokens':136,'totalTokens':959}))
+        self.assertTrue(validate(self.m,self.root)['passed'])
+    def test_usage_cannot_smuggle_token_string(self):
+        self.update_proof(lambda p:p['aiResponses'][0].update(usage={'promptTokens':'synthetic-secret'}));self.rejects()
+    def test_usage_does_not_allow_credentials(self):
+        self.update_proof(lambda p:p['aiResponses'][0].update(usage={'accessToken':'synthetic-secret'}));self.rejects()
+    def test_only_exact_existing_spoken_chunk_can_be_omitted(self):
+        p=self.root/'qc.json';qc=json.loads(p.read_text());original=qc['tasks'][6]
+        original.update(end=80,text='First synthetic sentence.')
+        qc['tasks'].insert(7,{'scene':'S07','start':81,'end':85,'text':'Second synthetic sentence.'})
+        p.write_text(json.dumps(qc));self.m['narration']['qc']['sha256']=hashlib.sha256(p.read_bytes()).hexdigest()
+        self.m['scenes'][6].update(text='Second synthetic sentence.',omitNarration=[{k:original[k] for k in ('start','end','text')}])
+        self.assertEqual(len(validate(self.m,self.root)['narrationOmissions']),1)
+        self.m['scenes'][6]['omitNarration'][0]['end']=80.1;self.rejects()
+    def test_omission_cannot_remove_all_narration(self):
+        self.m['scenes'][6]['omitNarration']=[{'start':78.5,'end':101.5,'text':'Synthetic narration.'}];self.rejects()
     def test_encode_disabled_outside_actions(self):
         import subprocess,sys,os
         p=self.root/'manifest.json';p.write_text(json.dumps(self.m));env={**os.environ,'VIDEO_WORKSPACE_ROOT':str(self.root),'GITHUB_ACTIONS':'false'}

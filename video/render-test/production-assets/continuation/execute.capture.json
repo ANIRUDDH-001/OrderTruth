@@ -1,0 +1,90 @@
+{
+  "schemaVersion": 1,
+  "stage": "execute",
+  "caseId": "run_0ddc4e8b-f040-4ad7-8ea2-098f8beeae95",
+  "complete": true,
+  "aiRequestCap": 0,
+  "aiResponses": [],
+  "shots": {
+    "S09": [
+      [
+        5.249333000000004,
+        8.254333000000004
+      ],
+      [
+        8.254333000000004,
+        9.549333000000004
+      ],
+      [
+        9.549333000000004,
+        15.560333000000004
+      ]
+    ],
+    "S10": [
+      [
+        15.560333000000004,
+        19.566333000000004
+      ],
+      [
+        19.566333000000004,
+        20.332333000000006
+      ],
+      [
+        20.332333000000006,
+        32.333333
+      ]
+    ]
+  },
+  "events": [
+    {
+      "type": "repair-executed",
+      "start": 9.549333000000004,
+      "end": 15.560333000000004,
+      "caseId": "run_0ddc4e8b-f040-4ad7-8ea2-098f8beeae95",
+      "receiptId": "rx_b490220f-9a6f-461a-b81e-2f41edefc78f",
+      "keeperId": "mo_bf9bb97b-495c-473f-9905-1627b85dec99",
+      "duplicateId": "mo_fbf7e14b-8ebf-4b49-8385-0857ff21f04e",
+      "verifiedCurrent": true
+    },
+    {
+      "type": "receipt-reopened",
+      "start": 20.332333000000006,
+      "end": 32.333333,
+      "caseId": "run_0ddc4e8b-f040-4ad7-8ea2-098f8beeae95",
+      "receiptId": "rx_b490220f-9a6f-461a-b81e-2f41edefc78f",
+      "keeperId": "mo_bf9bb97b-495c-473f-9905-1627b85dec99",
+      "duplicateId": "mo_fbf7e14b-8ebf-4b49-8385-0857ff21f04e",
+      "verifiedCurrent": true,
+      "afterReload": true
+    }
+  ],
+  "reviewedPlan": {
+    "id": "rp_b311e874-e7ca-4ec5-b268-5ae3c1d719e4",
+    "sha256": "b9ed5ae8b9016ad0081b98d88af6e63145fdf61943fb1ff83235e992342ede75",
+    "keep": "mo_bf9bb97b-495c-473f-9905-1627b85dec99",
+    "voids": [
+      "mo_fbf7e14b-8ebf-4b49-8385-0857ff21f04e"
+    ],
+    "expiresAt": "2026-11-11T23:47:42.743Z"
+  },
+  "receipt": {
+    "id": "rx_b490220f-9a6f-461a-b81e-2f41edefc78f",
+    "planId": "rp_b311e874-e7ca-4ec5-b268-5ae3c1d719e4",
+    "verifiedCurrent": true,
+    "reopened": true,
+    "activeOrders": 1,
+    "matchingKeeper": 1,
+    "providerUnchanged": true
+  },
+  "recordingMp4": "continuation.mp4",
+  "sourceSha256": "38c9034c21c517ce23e7314e5b77a73927ee53e812f3a81053985a24abbc41f4",
+  "mp4Verified": {
+    "codec": "h264",
+    "width": 1920,
+    "height": 1080,
+    "fps": 30,
+    "duration": 32.333333,
+    "fullDecode": true
+  },
+  "status": "STAGE_COMPLETE"
+}

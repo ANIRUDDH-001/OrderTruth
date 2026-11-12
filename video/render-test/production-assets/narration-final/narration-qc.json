@@ -1,0 +1,451 @@
+{
+  "ok": true,
+  "method": "FFmpeg 9.0.2 bundled offline libflite",
+  "voice": "slt",
+  "duration": 162,
+  "sampleRate": 48000,
+  "channels": 1,
+  "codec": "pcm_s16le",
+  "captions": 44,
+  "captionTiming": "measured spoken chunk WAV durations; scene-aligned silence",
+  "audioRmsDb": -16.83238722277683,
+  "peak": 26004,
+  "decoded": true,
+  "approvedScriptUnchanged": true,
+  "claimsConditionalOnActualFootage": true,
+  "subjectiveVoiceReview": "pending",
+  "scenes": [
+    {
+      "scene": "S01",
+      "wav": "S01.wav",
+      "seconds": 12,
+      "pace": 1,
+      "spokenSeconds": 8.04
+    },
+    {
+      "scene": "S02",
+      "wav": "S02.wav",
+      "seconds": 13,
+      "pace": 1,
+      "spokenSeconds": 11.41
+    },
+    {
+      "scene": "S03",
+      "wav": "S03.wav",
+      "seconds": 7,
+      "pace": 1,
+      "spokenSeconds": 3.765
+    },
+    {
+      "scene": "S04",
+      "wav": "S04.wav",
+      "seconds": 18,
+      "pace": 1,
+      "spokenSeconds": 13.225
+    },
+    {
+      "scene": "S05",
+      "wav": "S05.wav",
+      "seconds": 15,
+      "pace": 1,
+      "spokenSeconds": 12.62
+    },
+    {
+      "scene": "S06",
+      "wav": "S06.wav",
+      "seconds": 13,
+      "pace": 1.0025862068965516,
+      "spokenSeconds": 11.587666666666667
+    },
+    {
+      "scene": "S07",
+      "wav": "S07.wav",
+      "seconds": 24,
+      "pace": 1,
+      "spokenSeconds": 16.77
+    },
+    {
+      "scene": "S08",
+      "wav": "S08.wav",
+      "seconds": 12,
+      "pace": 1.1314814814814815,
+      "spokenSeconds": 10.832958333333334
+    },
+    {
+      "scene": "S09",
+      "wav": "S09.wav",
+      "seconds": 19,
+      "pace": 1,
+      "spokenSeconds": 14.975
+    },
+    {
+      "scene": "S10",
+      "wav": "S10.wav",
+      "seconds": 18,
+      "pace": 1,
+      "spokenSeconds": 12.49
+    },
+    {
+      "scene": "S11",
+      "wav": "S11.wav",
+      "seconds": 11,
+      "pace": 1.011111111111111,
+      "spokenSeconds": 8.9821875
+    }
+  ],
+  "tasks": [
+    {
+      "scene": "S01",
+      "text": "One captured payment.",
+      "wav": "audio/S01-00.wav",
+      "start": 0.4,
+      "end": 1.98,
+      "frames": 75840
+    },
+    {
+      "scene": "S01",
+      "text": "Two active orders.",
+      "wav": "audio/S01-01.wav",
+      "start": 2.18,
+      "end": 3.6750000000000003,
+      "frames": 71760
+    },
+    {
+      "scene": "S01",
+      "text": "For a merchant, which order should ship?",
+      "wav": "audio/S01-02.wav",
+      "start": 3.875,
+      "end": 6.105,
+      "frames": 107040
+    },
+    {
+      "scene": "S01",
+      "text": "This is OrderTruth's controlled reference store.",
+      "wav": "audio/S01-03.wav",
+      "start": 6.305,
+      "end": 9.04,
+      "frames": 131280
+    },
+    {
+      "scene": "S02",
+      "text": "A public checkout bug report describes this kind of mismatch.",
+      "wav": "audio/S02-00.wav",
+      "start": 12.4,
+      "end": 16.310000000000002,
+      "frames": 187680
+    },
+    {
+      "scene": "S02",
+      "text": "A payment can succeed while the merchant's order state is wrong, risking",
+      "wav": "audio/S02-01.wav",
+      "start": 16.509999999999998,
+      "end": 20.639999999999997,
+      "frames": 198240
+    },
+    {
+      "scene": "S02",
+      "text": "duplicate fulfillment and manual investigation.",
+      "wav": "audio/S02-02.wav",
+      "start": 20.84,
+      "end": 24.21,
+      "frames": 161760
+    },
+    {
+      "scene": "S03",
+      "text": "OrderTruth connects the payment evidence to the merchant outcome.",
+      "wav": "audio/S03-00.wav",
+      "start": 25.4,
+      "end": 29.165,
+      "frames": 180720
+    },
+    {
+      "scene": "S04",
+      "text": "This case references a genuine, previously captured PayPal Sandbox payment,",
+      "wav": "audio/S04-00.wav",
+      "start": 32.4,
+      "end": 37.379999999999995,
+      "frames": 239040
+    },
+    {
+      "scene": "S04",
+      "text": "verified through an Orders API readback.",
+      "wav": "audio/S04-01.wav",
+      "start": 37.58,
+      "end": 40.235,
+      "frames": 127440
+    },
+    {
+      "scene": "S04",
+      "text": "We reuse that stored observation.",
+      "wav": "audio/S04-02.wav",
+      "start": 40.435,
+      "end": 42.97,
+      "frames": 121680
+    },
+    {
+      "scene": "S04",
+      "text": "No new payment is taken to create this case.",
+      "wav": "audio/S04-03.wav",
+      "start": 43.17,
+      "end": 46.225,
+      "frames": 146640
+    },
+    {
+      "scene": "S05",
+      "text": "For this reference merchant, one purchase should leave one active order.",
+      "wav": "audio/S05-00.wav",
+      "start": 50.4,
+      "end": 54.445,
+      "frames": 194160
+    },
+    {
+      "scene": "S05",
+      "text": "I introduce a labelled merchant-side duplicate.",
+      "wav": "audio/S05-01.wav",
+      "start": 54.644999999999996,
+      "end": 57.76,
+      "frames": 149520
+    },
+    {
+      "scene": "S05",
+      "text": "Deterministic checks detect two active orders linked to the same payment",
+      "wav": "audio/S05-02.wav",
+      "start": 57.96,
+      "end": 62.015,
+      "frames": 194640
+    },
+    {
+      "scene": "S05",
+      "text": "observation.",
+      "wav": "audio/S05-03.wav",
+      "start": 62.215,
+      "end": 63.620000000000005,
+      "frames": 67440
+    },
+    {
+      "scene": "S06",
+      "text": "Autopilot investigates the merchant discrepancy.",
+      "wav": "audio/S06-00.wav",
+      "start": 65.4,
+      "end": 68.86945833333334,
+      "frames": 166534
+    },
+    {
+      "scene": "S06",
+      "text": "The model chooses two competing explanations and a relevant read-only check",
+      "wav": "audio/S06-01.wav",
+      "start": 69.06945833333333,
+      "end": 73.41410416666666,
+      "frames": 208543
+    },
+    {
+      "scene": "S06",
+      "text": "from a server-built menu.",
+      "wav": "audio/S06-02.wav",
+      "start": 73.61410416666666,
+      "end": 75.35364583333333,
+      "frames": 83498
+    },
+    {
+      "scene": "S06",
+      "text": "Code validates that choice.",
+      "wav": "audio/S06-03.wav",
+      "start": 75.55364583333333,
+      "end": 77.58766666666666,
+      "frames": 97633
+    },
+    {
+      "scene": "S07",
+      "text": "Here, the server runs the chosen check and records the result beneath the",
+      "wav": "audio/S07-00.wav",
+      "start": 78.4,
+      "end": 82.71000000000001,
+      "frames": 206880
+    },
+    {
+      "scene": "S07",
+      "text": "model's decision.",
+      "wav": "audio/S07-01.wav",
+      "start": 82.91,
+      "end": 84.24,
+      "frames": 63840
+    },
+    {
+      "scene": "S07",
+      "text": "Autopilot uses the updated evidence to choose its next step.",
+      "wav": "audio/S07-02.wav",
+      "start": 84.44,
+      "end": 88.37,
+      "frames": 188640
+    },
+    {
+      "scene": "S07",
+      "text": "The model selects; the backend supplies the factual text.",
+      "wav": "audio/S07-03.wav",
+      "start": 88.57,
+      "end": 92.345,
+      "frames": 181200
+    },
+    {
+      "scene": "S07",
+      "text": "Payment observations are excluded from model input.",
+      "wav": "audio/S07-04.wav",
+      "start": 92.545,
+      "end": 95.97,
+      "frames": 164400
+    },
+    {
+      "scene": "S08",
+      "text": "When the required checks for this comparison are recorded, it can conclude.",
+      "wav": "audio/S08-00.wav",
+      "start": 102.4,
+      "end": 106.47916666666667,
+      "frames": 195800
+    },
+    {
+      "scene": "S08",
+      "text": "The explanations remain hypotheses.",
+      "wav": "audio/S08-01.wav",
+      "start": 106.67916666666666,
+      "end": 109.24708333333332,
+      "frames": 123260
+    },
+    {
+      "scene": "S08",
+      "text": "Autopilot cannot approve a correction, capture money, or issue refunds.",
+      "wav": "audio/S08-02.wav",
+      "start": 109.44708333333334,
+      "end": 113.63295833333333,
+      "frames": 200922
+    },
+    {
+      "scene": "S09",
+      "text": "Now I review the exact merchant-only plan: keep this order and void the",
+      "wav": "audio/S09-00.wav",
+      "start": 114.4,
+      "end": 118.855,
+      "frames": 213840
+    },
+    {
+      "scene": "S09",
+      "text": "duplicate.",
+      "wav": "audio/S09-01.wav",
+      "start": 119.055,
+      "end": 119.965,
+      "frames": 43680
+    },
+    {
+      "scene": "S09",
+      "text": "I approve that specific plan, then execute it separately.",
+      "wav": "audio/S09-02.wav",
+      "start": 120.165,
+      "end": 124.22500000000001,
+      "frames": 194880
+    },
+    {
+      "scene": "S09",
+      "text": "The correction changes merchant order state; it makes no PayPal payment",
+      "wav": "audio/S09-03.wav",
+      "start": 124.425,
+      "end": 128.995,
+      "frames": 219360
+    },
+    {
+      "scene": "S09",
+      "text": "call.",
+      "wav": "audio/S09-04.wav",
+      "start": 129.195,
+      "end": 130.17499999999998,
+      "frames": 47040
+    },
+    {
+      "scene": "S10",
+      "text": "The receipt independently rechecks the merchant outcome: one active matching",
+      "wav": "audio/S10-00.wav",
+      "start": 133.4,
+      "end": 137.705,
+      "frames": 206640
+    },
+    {
+      "scene": "S10",
+      "text": "order, with unchanged stored PayPal evidence.",
+      "wav": "audio/S10-01.wav",
+      "start": 137.905,
+      "end": 141.03,
+      "frames": 150000
+    },
+    {
+      "scene": "S10",
+      "text": "I reload the page and reopen the same receipt.",
+      "wav": "audio/S10-02.wav",
+      "start": 141.23,
+      "end": 144.2,
+      "frames": 142560
+    },
+    {
+      "scene": "S10",
+      "text": "The recorded outcome is still there.",
+      "wav": "audio/S10-03.wav",
+      "start": 144.4,
+      "end": 146.49,
+      "frames": 100320
+    },
+    {
+      "scene": "S11",
+      "text": "One payment.",
+      "wav": "audio/S11-00.wav",
+      "start": 151.4,
+      "end": 152.39112500000002,
+      "frames": 47574
+    },
+    {
+      "scene": "S11",
+      "text": "Two orders.",
+      "wav": "audio/S11-01.wav",
+      "start": 152.591125,
+      "end": 153.81660416666668,
+      "frames": 58823
+    },
+    {
+      "scene": "S11",
+      "text": "One verified outcome.",
+      "wav": "audio/S11-02.wav",
+      "start": 154.01660416666667,
+      "end": 155.88733333333334,
+      "frames": 89795
+    },
+    {
+      "scene": "S11",
+      "text": "OrderTruth.",
+      "wav": "audio/S11-03.wav",
+      "start": 156.08733333333333,
+      "end": 157.010375,
+      "frames": 44306
+    },
+    {
+      "scene": "S11",
+      "text": "AI investigates.",
+      "wav": "audio/S11-04.wav",
+      "start": 157.210375,
+      "end": 158.6901875,
+      "frames": 71031
+    },
+    {
+      "scene": "S11",
+      "text": "You decide.",
+      "wav": "audio/S11-05.wav",
+      "start": 158.8901875,
+      "end": 160.0243125,
+      "frames": 54438
+    },
+    {
+      "scene": "S11",
+      "text": "Code verifies.",
+      "wav": "audio/S11-06.wav",
+      "start": 160.2243125,
+      "end": 161.5821875,
+      "frames": 65178
+    }
+  ],
+  "sha256": "a7cf13d591821c3cd05daad44fd7f74f68504b3927661ddb5a9624bb1fd5720a"
+}

@@ -1,0 +1,396 @@
+{
+  "schemaVersion": 1,
+  "mode": "final-demo",
+  "caseId": "run_0ddc4e8b-f040-4ad7-8ea2-098f8beeae95",
+  "keeperId": "mo_bf9bb97b-495c-473f-9905-1627b85dec99",
+  "duplicateId": "mo_fbf7e14b-8ebf-4b49-8385-0857ff21f04e",
+  "durationSeconds": 162,
+  "fps": 30,
+  "receiptId": "rx_b490220f-9a6f-461a-b81e-2f41edefc78f",
+  "sources": {
+    "deterministic": {
+      "path": "production-assets/product-deterministic.mp4",
+      "sha256": "ea8b22621e1dd2cabf20c0724e9b0b8dd67060c683a9458d145c1c2899fd96c5",
+      "kind": "product",
+      "caseId": "run_0ddc4e8b-f040-4ad7-8ea2-098f8beeae95",
+      "durationSeconds": 121.734,
+      "events": []
+    },
+    "S02": {
+      "path": "renders/S02-source-card-1080p.mp4",
+      "sha256": "40c89d70ed11b79842d685dd47b813a64668e8fbbcf2616353820c0c7e4dbefe",
+      "kind": "approved-graphic",
+      "durationSeconds": 6.0
+    },
+    "S03": {
+      "path": "renders/S03-title-1080p.mp4",
+      "sha256": "c41f4a4484a25f04bb97a7dde3f372d4ca623500135dabe14b7ca3b4fbd88178",
+      "kind": "approved-graphic",
+      "durationSeconds": 7.0
+    },
+    "S11": {
+      "path": "renders/S11-end-card-1080p.mp4",
+      "sha256": "6a31e4e45bc7eabb26672254b50557d0fb9cb2a582bd367476964bcbf61d1da2",
+      "kind": "approved-graphic",
+      "durationSeconds": 11.0
+    },
+    "ai": {
+      "path": "production-assets/continuation/ai.mp4",
+      "sha256": "89769bae756b97d675aae407367c75bbbcb5fbe23bacb844bccc6f0773032347",
+      "kind": "product",
+      "caseId": "run_0ddc4e8b-f040-4ad7-8ea2-098f8beeae95",
+      "durationSeconds": 84.6,
+      "events": [
+        {
+          "type": "ai-investigation",
+          "caseId": "run_0ddc4e8b-f040-4ad7-8ea2-098f8beeae95",
+          "start": 10.683999999999996,
+          "end": 84.6,
+          "status": "success",
+          "validRecordedInvestigation": true,
+          "providerRequestCount": 1,
+          "schemaValidated": true,
+          "evaluationOnly": false,
+          "freshModelExecution": true,
+          "model": "groq:openai/gpt-oss-120b",
+          "snapshotSha256": "ad28f653f8f844ec6d52e5c2679213bd19d0b657a311823261e6dbc8e15b6443",
+          "persistedAfterReload": true
+        }
+      ],
+      "proof": {
+        "path": "production-assets/continuation/ai.capture.json",
+        "sha256": "5f17eba785e1276f0aa162c8265098f21718135819f8767e33f4081f048af218"
+      }
+    },
+    "plan": {
+      "path": "production-assets/continuation/plan.mp4",
+      "sha256": "84d07e58b7617bb55d7b5e85fd7032839f013ed26d597cd2105a07954dae21f2",
+      "kind": "product",
+      "caseId": "run_0ddc4e8b-f040-4ad7-8ea2-098f8beeae95",
+      "durationSeconds": 17.133333,
+      "events": [],
+      "proof": {
+        "path": "production-assets/continuation/plan.capture.json",
+        "sha256": "40ccccf05c4d89ad451c651ab74608e93e88ad99d5b240ad924c614ab8f2a38a"
+      }
+    },
+    "approve": {
+      "path": "production-assets/continuation/approve.mp4",
+      "sha256": "5194744dbfa3e050962eab98216ab222cb52501614e4dd29134e2f8dfad086ea",
+      "kind": "product",
+      "caseId": "run_0ddc4e8b-f040-4ad7-8ea2-098f8beeae95",
+      "durationSeconds": 15.133333,
+      "events": [],
+      "proof": {
+        "path": "production-assets/continuation/approve.capture.json",
+        "sha256": "430c52553d611abbbf76f7609de6360063d9e3889cce52869c0576803142f276"
+      }
+    },
+    "execute": {
+      "path": "production-assets/continuation/execute.mp4",
+      "sha256": "38c9034c21c517ce23e7314e5b77a73927ee53e812f3a81053985a24abbc41f4",
+      "kind": "product",
+      "caseId": "run_0ddc4e8b-f040-4ad7-8ea2-098f8beeae95",
+      "durationSeconds": 32.333333,
+      "events": [
+        {
+          "type": "repair-executed",
+          "start": 9.549333000000004,
+          "end": 15.560333000000004,
+          "caseId": "run_0ddc4e8b-f040-4ad7-8ea2-098f8beeae95",
+          "receiptId": "rx_b490220f-9a6f-461a-b81e-2f41edefc78f",
+          "keeperId": "mo_bf9bb97b-495c-473f-9905-1627b85dec99",
+          "duplicateId": "mo_fbf7e14b-8ebf-4b49-8385-0857ff21f04e",
+          "verifiedCurrent": true
+        },
+        {
+          "type": "receipt-reopened",
+          "start": 20.332333000000006,
+          "end": 32.333333,
+          "caseId": "run_0ddc4e8b-f040-4ad7-8ea2-098f8beeae95",
+          "receiptId": "rx_b490220f-9a6f-461a-b81e-2f41edefc78f",
+          "keeperId": "mo_bf9bb97b-495c-473f-9905-1627b85dec99",
+          "duplicateId": "mo_fbf7e14b-8ebf-4b49-8385-0857ff21f04e",
+          "verifiedCurrent": true,
+          "afterReload": true
+        }
+      ],
+      "proof": {
+        "path": "production-assets/continuation/execute.capture.json",
+        "sha256": "1187de5b82dd97bb33fcf0f9ee64f660a48e8a7cbbec50225d1497194cced6ee"
+      }
+    }
+  },
+  "narration": {
+    "qc": {
+      "path": "production-assets/narration-final/narration-qc.json",
+      "sha256": "82a043e57c55fbd4bec796bb687c7a4d459a5f60bb315a18397400fa5fa24069"
+    },
+    "scenes": {
+      "S01": {
+        "path": "production-assets/narration-final/S01.wav",
+        "sha256": "64a5dc33d698bc6c9434b772a541bcdf77a0e53ae29e1c616e77d3a2efb85249"
+      },
+      "S02": {
+        "path": "production-assets/narration-final/S02.wav",
+        "sha256": "ebd077e157d51ce66bc157e76013f5842be15a21728835c70d2ce24c72d0b559"
+      },
+      "S03": {
+        "path": "production-assets/narration-final/S03.wav",
+        "sha256": "c85b4a6bc2545123386f739d40867eef6832aec24380a1979815e7c7d25a301a"
+      },
+      "S04": {
+        "path": "production-assets/narration-final/S04.wav",
+        "sha256": "e10b43067cfcbca555185ef59bc5f15f3d178b7d271f3f94c0a71e44a753881c"
+      },
+      "S05": {
+        "path": "production-assets/narration-final/S05.wav",
+        "sha256": "e5f9658e0f279f534dfc5c7f3815df7b33ed9e45a5281bc6d9d4622db7c85944"
+      },
+      "S06": {
+        "path": "production-assets/narration-final/S06.wav",
+        "sha256": "85d93c24dae27a53b8c01595ee91cffef741476071e127725afec5d7a1d2b6d6"
+      },
+      "S07": {
+        "path": "production-assets/narration-final/S07.wav",
+        "sha256": "c6e437924be8a15eba9d316ab1036b7c90d02937c022a3cc79abe79c42d71b2f"
+      },
+      "S08": {
+        "path": "production-assets/narration-final/S08.wav",
+        "sha256": "17d2ab085eba727d66ef91a937bced0871fea05c312b2f2a5e505ed2087a3e11"
+      },
+      "S09": {
+        "path": "production-assets/narration-final/S09.wav",
+        "sha256": "dc3fe62ae1b4ebc6414baa82e6fcf37a9e3144bbeb45b0075c0b854b9bfdd5f6"
+      },
+      "S10": {
+        "path": "production-assets/narration-final/S10.wav",
+        "sha256": "39a2b2a84049937cb7428121d36e919466954e280d4cd6a1a9cb2e0332c9db29"
+      },
+      "S11": {
+        "path": "production-assets/narration-final/S11.wav",
+        "sha256": "fdb39548189acaa0439026093c8b0edb6dec9e23b33c32c5c7c5925779c91199"
+      }
+    }
+  },
+  "scenes": [
+    {
+      "id": "S01",
+      "start": 0,
+      "end": 12,
+      "frames": 360,
+      "words": 19,
+      "planned_slot_wpm": 95.0,
+      "text": "One captured payment. Two active orders. For a merchant, which order should ship? This is OrderTruth's controlled reference store.",
+      "pieces": [
+        {
+          "source": "deterministic",
+          "in": 51.985,
+          "out": 63.988
+        }
+      ]
+    },
+    {
+      "id": "S02",
+      "start": 12,
+      "end": 25,
+      "frames": 390,
+      "words": 27,
+      "planned_slot_wpm": 124.6,
+      "text": "A public checkout bug report describes this kind of mismatch. A payment can succeed while the merchant's order state is wrong, risking duplicate fulfillment and manual investigation.",
+      "pieces": [
+        {
+          "source": "S02",
+          "in": 0,
+          "out": 6.0
+        },
+        {
+          "source": "deterministic",
+          "in": 51.985,
+          "out": 58.985
+        }
+      ]
+    },
+    {
+      "id": "S03",
+      "start": 25,
+      "end": 32,
+      "frames": 210,
+      "words": 9,
+      "planned_slot_wpm": 77.1,
+      "text": "OrderTruth connects the payment evidence to the merchant outcome.",
+      "pieces": [
+        {
+          "source": "S03",
+          "in": 0,
+          "out": 7.0
+        }
+      ]
+    },
+    {
+      "id": "S04",
+      "start": 32,
+      "end": 50,
+      "frames": 540,
+      "words": 30,
+      "planned_slot_wpm": 100.0,
+      "text": "This case references a genuine, previously captured PayPal Sandbox payment, verified through an Orders API readback. We reuse that stored observation. No new payment is taken to create this case.",
+      "pieces": [
+        {
+          "source": "deterministic",
+          "in": 18.155,
+          "out": 36.171
+        }
+      ]
+    },
+    {
+      "id": "S05",
+      "start": 50,
+      "end": 65,
+      "frames": 450,
+      "words": 29,
+      "planned_slot_wpm": 116.0,
+      "text": "For this reference merchant, one purchase should leave one active order. I introduce a labelled merchant-side duplicate. Deterministic checks detect two active orders linked to the same payment observation.",
+      "pieces": [
+        {
+          "source": "deterministic",
+          "in": 36.727,
+          "out": 39.74
+        },
+        {
+          "source": "deterministic",
+          "in": 39.74,
+          "out": 41.24
+        },
+        {
+          "source": "deterministic",
+          "in": 41.498,
+          "out": 44.501
+        },
+        {
+          "source": "deterministic",
+          "in": 44.501,
+          "out": 46.001
+        },
+        {
+          "source": "deterministic",
+          "in": 47.968,
+          "out": 51.985
+        }
+      ]
+    },
+    {
+      "id": "S06",
+      "start": 65,
+      "end": 78,
+      "frames": 390,
+      "words": 24,
+      "planned_slot_wpm": 110.8,
+      "text": "Autopilot investigates the merchant discrepancy. The model chooses two competing explanations and a relevant read-only check from a server-built menu. Code validates that choice.",
+      "pieces": [
+        {
+          "source": "ai",
+          "in": 29.598999999999997,
+          "out": 42.599
+        }
+      ]
+    },
+    {
+      "id": "S07",
+      "start": 78,
+      "end": 102,
+      "frames": 720,
+      "words": 31,
+      "planned_slot_wpm": 77.5,
+      "text": "Here, the server runs the chosen check and records the result beneath the model's decision. The model selects; the backend supplies the factual text. Payment observations are excluded from model input.",
+      "pieces": [
+        {
+          "source": "ai",
+          "in": 42.599,
+          "out": 66.59899999999999
+        }
+      ],
+      "omitNarration": [
+        {
+          "start": 84.44,
+          "end": 88.37,
+          "text": "Autopilot uses the updated evidence to choose its next step."
+        }
+      ]
+    },
+    {
+      "id": "S08",
+      "start": 102,
+      "end": 114,
+      "frames": 360,
+      "words": 26,
+      "planned_slot_wpm": 130.0,
+      "text": "When the required checks for this comparison are recorded, it can conclude. The explanations remain hypotheses. Autopilot cannot approve a correction, capture money, or issue refunds.",
+      "pieces": [
+        {
+          "source": "ai",
+          "in": 66.59899999999999,
+          "out": 78.59899999999999
+        }
+      ]
+    },
+    {
+      "id": "S09",
+      "start": 114,
+      "end": 133,
+      "frames": 570,
+      "words": 35,
+      "planned_slot_wpm": 110.5,
+      "text": "Now I review the exact merchant-only plan: keep this order and void the duplicate. I approve that specific plan, then execute it separately. The correction changes merchant order state; it makes no PayPal payment call.",
+      "pieces": [
+        {
+          "source": "plan",
+          "in": 11.117333,
+          "out": 17.117333
+        },
+        {
+          "source": "approve",
+          "in": 6.833333,
+          "out": 11.133333
+        },
+        {
+          "source": "execute",
+          "in": 6.860333000000004,
+          "out": 15.560333000000004
+        }
+      ]
+    },
+    {
+      "id": "S10",
+      "start": 133,
+      "end": 151,
+      "frames": 540,
+      "words": 31,
+      "planned_slot_wpm": 103.3,
+      "text": "The receipt independently rechecks the merchant outcome: one active matching order, with unchanged stored PayPal evidence. I reload the page and reopen the same receipt. The recorded outcome is still there.",
+      "pieces": [
+        {
+          "source": "execute",
+          "in": 14.333333,
+          "out": 32.333333
+        }
+      ]
+    },
+    {
+      "id": "S11",
+      "start": 151,
+      "end": 162,
+      "frames": 330,
+      "words": 14,
+      "planned_slot_wpm": 76.4,
+      "text": "One payment. Two orders. One verified outcome. OrderTruth. AI investigates. You decide. Code verifies.",
+      "pieces": [
+        {
+          "source": "S11",
+          "in": 0,
+          "out": 11.0
+        }
+      ]
+    }
+  ]
+}

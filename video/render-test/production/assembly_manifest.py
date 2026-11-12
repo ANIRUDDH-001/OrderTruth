@@ -22,14 +22,32 @@ def safe_file(root,spec):
     need(re.fullmatch('[0-9a-f]{64}',spec.get('sha256','')) is not None,'Asset hash missing')
     need(sha256_file(path)==spec['sha256'],'Asset hash mismatch')
     return path
+def scene_tasks(qc,scene):
+    tasks=[t for t in qc['tasks'] if t['scene']==scene['id']]
+    omitted=scene.get('omitNarration',[])
+    need(isinstance(omitted,list),'Narration omissions must be explicit')
+    seen=set()
+    for cut in omitted:
+        need(set(cut)=={'start','end','text'},'Omissions may only identify existing spoken chunks')
+        matches=[t for t in tasks if all(t[k]==cut[k] for k in cut)]
+        need(len(matches)==1 and cut['start'] not in seen,'Unknown or repeated narration omission')
+        seen.add(cut['start'])
+    selected=[t for t in tasks if t['start'] not in seen]
+    need(bool(selected),'Cannot omit an entire narration scene')
+    return selected
+
 def validate(manifest,root):
-    def privacy(value):
+    def privacy(value,trail=()):
         if isinstance(value,dict):
             for key,item in value.items():
+                # Provider usage counts are public measurements, never bearer tokens.
+                if key in ('promptTokens','outputTokens','totalTokens') and len(trail)==3 and trail[0]=='aiResponses' and trail[2]=='usage':
+                    need(item is None or type(item) is int and item>=0,'Invalid public usage count')
+                    continue
                 need(not any(term in key.lower() for term in ('cookie','session','secret','token','authorization','storage_state')),'Private fields forbidden')
-                privacy(item)
+                privacy(item,trail+(key,))
         elif isinstance(value,list):
-            for item in value:privacy(item)
+            for index,item in enumerate(value):privacy(item,trail+(index,))
     privacy(manifest)
     need(manifest.get('schemaVersion')==1,'Unsupported manifest')
     need(manifest.get('mode') in ('incomplete-review','final-demo'),'Explicit edit mode required')
@@ -47,8 +65,8 @@ def validate(manifest,root):
     # Proof is a separately hashed, sanitized capture sidecar, never inline declarations.
     proofs={}
     for key,source in sources.items():
-        if source.get('events'):
-            need('proof' in source,'Evidence requires hash-verified capture sidecar')
+        if source.get('events'):need('proof' in source,'Evidence requires hash-verified capture sidecar')
+        if 'proof' in source:
             proof=json.loads(safe_file(root,source['proof']).read_text(encoding='utf-8'))
             privacy(proof)
             need(proof.get('caseId')==CASE and proof.get('sourceSha256')==source['sha256'],'Capture sidecar source/case mismatch')
@@ -65,7 +83,7 @@ def validate(manifest,root):
         sid=f'S{index+1:02}';duration=BOUNDS[index+1]-BOUNDS[index]
         need(scene.get('id')==sid and scene.get('start')==BOUNDS[index] and scene.get('end')==BOUNDS[index+1],'Scene structure changed')
         safe_file(root,audio['scenes'][sid])
-        tasks=[t for t in qc['tasks'] if t['scene']==sid]
+        tasks=scene_tasks(qc,scene)
         need(tasks and ' '.join(t['text'] for t in tasks)==scene.get('text'),'Narration/caption text mismatch')
         for task in tasks:
             need(BOUNDS[index]<=task['start']<task['end']<=BOUNDS[index+1] and task['start']>=last_caption,'Caption timing mismatch')
@@ -82,7 +100,11 @@ def validate(manifest,root):
             else:graphic+=b-a
             for event in s.get('events',[]):
                 need(all(isinstance(event.get(k),(int,float)) and math.isfinite(event[k]) for k in ('start','end')) and 0<=event['start']<event['end']<=s['durationSeconds'],'Invalid evidence interval')
-                if event.get('start',-1)>=a and event.get('end',s['durationSeconds']+1)<=b:
+                contained=event['start']>=a and event['end']<=b
+                # AI display is a continuous verified interval: a scene may use
+                # a strict subclip without copying the entire 74-second hold.
+                ai_subclip=event.get('type')=='ai-investigation' and event['start']<=a<b<=event['end']
+                if contained or ai_subclip:
                     need(event.get('caseId')==CASE,'Evidence event case mismatch')
                     evidence=event.get('type');events.add(evidence);used_events.add(evidence)
                     proof=proofs[p['source']]
@@ -108,4 +130,4 @@ def validate(manifest,root):
             if merged and a<=merged[-1][1]:merged[-1]=(merged[-1][0],max(b,merged[-1][1]))
             else:merged.append((a,b))
         unique_seconds+=sum(b-a for a,b in merged)
-    return {'uniqueProductSourceSeconds':round(unique_seconds,6),'passed':True,'mode':manifest['mode'],'finalDemoComplete':final,'caseId':CASE,'receiptId':manifest.get('receiptId'),'durationSeconds':162,'coverage':coverage,'actualProductPictureSeconds':round(sum(x['actualProductPictureSeconds'] for x in coverage),6),'heldFrameSeconds':round(sum(x['heldFrameSeconds'] for x in coverage),6),'narration':'FFmpeg 9.0.2 bundled offline libflite; voice slt','liveBehavior':'NOT_TESTED'}
+    return {'uniqueProductSourceSeconds':round(unique_seconds,6),'passed':True,'mode':manifest['mode'],'finalDemoComplete':final,'caseId':CASE,'receiptId':manifest.get('receiptId'),'durationSeconds':162,'coverage':coverage,'actualProductPictureSeconds':round(sum(x['actualProductPictureSeconds'] for x in coverage),6),'heldFrameSeconds':round(sum(x['heldFrameSeconds'] for x in coverage),6),'narration':'FFmpeg 9.0.2 bundled offline libflite; voice slt','narrationOmissions':[{'scene':s['id'],**c} for s in scenes for c in s.get('omitNarration',[])],'liveBehavior':'NOT_TESTED'}

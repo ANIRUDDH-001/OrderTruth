@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "stage": "plan",
+  "caseId": "run_0ddc4e8b-f040-4ad7-8ea2-098f8beeae95",
+  "complete": true,
+  "aiRequestCap": 0,
+  "aiResponses": [],
+  "shots": {
+    "S09": [
+      [
+        5.076332999999999,
+        8.079332999999998
+      ],
+      [
+        8.079332999999998,
+        9.117332999999999
+      ],
+      [
+        9.117332999999999,
+        17.133333
+      ]
+    ]
+  },
+  "events": [],
+  "reviewedPlan": {
+    "id": "rp_b311e874-e7ca-4ec5-b268-5ae3c1d719e4",
+    "sha256": "b9ed5ae8b9016ad0081b98d88af6e63145fdf61943fb1ff83235e992342ede75",
+    "keep": "mo_bf9bb97b-495c-473f-9905-1627b85dec99",
+    "voids": [
+      "mo_fbf7e14b-8ebf-4b49-8385-0857ff21f04e"
+    ],
+    "expiresAt": "2026-11-11T23:47:42.743Z"
+  },
+  "receipt": null,
+  "recordingMp4": "continuation.mp4",
+  "sourceSha256": "84d07e58b7617bb55d7b5e85fd7032839f013ed26d597cd2105a07954dae21f2",
+  "mp4Verified": {
+    "codec": "h264",
+    "width": 1920,
+    "height": 1080,
+    "fps": 30,
+    "duration": 17.133333,
+    "fullDecode": true
+  },
+  "status": "STAGE_COMPLETE"
+}
